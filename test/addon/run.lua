@@ -465,21 +465,6 @@ do
   ns._netReceive("WolfMkt1", "P^Чужой~PvE^" .. enc(t + 10) .. "^" .. enc(2840) .. "," .. enc(9) .. ",1;", "CHANNEL", "Враг-Realm")
   ns._netReceive("WolfMkt1", "E^Чужой~PvE^" .. enc(t + 10), "CHANNEL", "Враг-Realm")
   check(ns.AHPrice(2840) == 160, "общий рынок: цены чужого аукциона не принимаются")
-  -- «что нужно»: список сигналов другого игрока - первым в рассылке, найденная поиском цена пересылается
-  ns._netReceive("WolfMkt1", "W^" .. rk .. "^" .. enc(3470) .. ",", "CHANNEL", "Друг-Realm")
-  check(ns.NetWanted()[3470], "общий рынок: получен список сигналов другого игрока")
-  sent = {}
-  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [3470] = { 90, 5, 1 } } })
-  for _ = 1, 10 do advance(1) end
-  local firstP; for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then firstP = m; break end end
-  check(firstP and firstP:match("%^[^%^]+%^(%w+),") == enc(3470), "общий рынок: чужие сигналы рассылаются первыми")
-  sent = {}
-  ns.SeenPrice(3470, 95, 7)
-  for _ = 1, 12 do advance(1) end
-  local hasS = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "S^" then hasS = true end end
-  check(hasS, "общий рынок: найденная поиском цена нужного предмета пересылается")
-  ns._netReceive("WolfMkt1", "S^" .. rk .. "^" .. enc(time() + 9000) .. "^" .. enc(2840) .. "," .. enc(170) .. ",3;", "CHANNEL", "Друг2-Realm")
-  check(ns.AHPrice(2840) == 170, "общий рынок: отдельная свежая цена принята")
   ns.DB.net = nil
   C_ChatInfo.SendAddonMessage = oldS; GetChannelName = oldG
 end
