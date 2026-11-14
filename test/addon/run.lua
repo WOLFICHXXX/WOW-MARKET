@@ -401,6 +401,27 @@ do
   ns.RemoveSignal(3470, "sell")
   check(not ns.IsMarked(3470), "убран из обоих - отметка снята")
 end
+-- удалённая профессия сразу пропадает из очереди «Обновить цены»
+do
+  ns.ahOpen = true
+  ns.DB.settings.showUnlearned = true
+  local name = ns.AddVirtualProfession(ns.charKey, "tailoring")
+  local mine = {}
+  for _, r in ipairs(ns.DB.chars[ns.charKey].profs[name].recipes) do if r.out then mine[r.out] = true end end
+  local asked = {}
+  local oldQ = C_AuctionHouse.SendSearchQuery
+  C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
+  ns.QuickRefresh()
+  for _ = 1, 3 do advance(1) end
+  ns.RemoveProfession(ns.charKey, name)
+  local cut = #asked
+  for _ = 1, 600 do advance(1); if not ns.QuickBusy() then break end end
+  C_AuctionHouse.SendSearchQuery = oldQ
+  local after = 0
+  for k = cut + 1, #asked do if mine[asked[k]] then after = after + 1 end end
+  check(after < 5 and not ns.QuickBusy(), "удалённая профессия убрана из очереди «Обновить цены» (осталось " .. after .. ")")
+  ns.DB.settings.showUnlearned = nil
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

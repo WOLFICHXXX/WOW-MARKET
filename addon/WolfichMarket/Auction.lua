@@ -147,9 +147,10 @@ function ns.QuickRefresh(ids)
     if ids then return end -- уже идёт обновление
     quick = nil; if updateQuick then updateQuick() end; ns.Fire("PRICES") return -- повторное нажатие кнопки - стоп
   end
+  local mine = ids == nil
   ids = ids or myIDs()
   if #ids == 0 then ns.say(L"нечего обновлять: откройте окна своих профессий или положите предметы в сумки.") return end
-  quick = { ids = ids, i = 0 }
+  quick = { ids = ids, i = 0, mine = mine }
   local function step()
     if not quick then return end
     quick.i = quick.i + 1
@@ -172,6 +173,20 @@ function ns.QuickRefresh(ids)
   step()
 end
 function ns.QuickBusy() return quick ~= nil end
+-- профессию удалили/добавили, сняли отметку, поменяли план - пересобрать очередь «Обновить цены» на ходу
+local function rebuildQuick()
+  if not quick or not quick.mine then return end
+  local done = {}
+  for k = 1, quick.i do if quick.ids[k] then done[quick.ids[k]] = true end end
+  local ids = {}
+  for k = 1, quick.i do ids[#ids + 1] = quick.ids[k] end
+  for _, id in ipairs(myIDs()) do if not done[id] then ids[#ids + 1] = id end end
+  quick.ids = ids
+  if updateQuick then updateQuick() end
+end
+ns.Listen("RECIPES", rebuildQuick)
+ns.Listen("MARKS", rebuildQuick)
+ns.Listen("PLAN", rebuildQuick)
 function updateQuick()
   if not panel or not panel.quickBtn then return end
   if quick then panel.quickBtn:SetLabel(string.format(L"Стоп %d/%d", math.min(quick.i, #quick.ids), #quick.ids)); panel.quickBtn:Enable()
