@@ -74,6 +74,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .kpi .l svg{width:13px;height:13px;color:var(--gold3)}
 .kpi .v{font:700 20px/1.25 Cinzel,Georgia,serif;color:var(--fg);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v .money{font-size:15px}
+.kpi select{width:100%;padding:3px 8px;font:700 15px Cinzel,Georgia,serif;background:rgba(0,0,0,.25);border-color:var(--edge);color:var(--gold2)}
 .kpi .s{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(120,217,138,.6);animation:ping 2.4s infinite}
 .live.warn{background:var(--bad);box-shadow:0 0 0 0 rgba(255,122,102,.6)}
@@ -264,7 +265,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
 <div class="kpis" id="kpis">
   <div class="kpi rise dl2"><div class="l"><svg><use href="#i-clock"/></svg>Обновлено</div><div class="v" id="kUpd">—</div><div class="s" id="kUpdS">ждём данные</div></div>
   <div class="kpi rise dl2"><div class="l"><svg><use href="#i-box"/></svg>Лоты</div><div class="v" id="kLots">—</div><div class="s" id="kItems">предметов —</div></div>
-  <div class="kpi rise dl3"><div class="l"><svg><use href="#i-paw"/></svg>Аукцион</div><div class="v" id="kHouse">—</div><div class="s" id="kHouseS">комиссия 5%</div></div>
+  <div class="kpi rise dl3"><div class="l"><svg><use href="#i-paw"/></svg>Аукцион</div><div class="v"><select id="houseSel" aria-label="Выбор аукциона"><option>—</option></select></div><div class="s" id="kHouseS">комиссия 5%</div></div>
   <div class="kpi rise dl3"><div class="l"><svg><use href="#i-signal"/></svg>Сигналы</div><div class="v" id="kSig">—</div><div class="s" id="kSigS">скачки выше порога</div></div>
   <div class="kpi rise dl3"><div class="l"><svg><use href="#i-coin"/></svg>Лучший крафт</div><div class="v" id="kBest">—</div><div class="s" id="kBestS">нужен скан</div></div>
 </div>
@@ -280,7 +281,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
 <main class="main">
 <!-- РЫНОК -->
 <section id="t-market">
-  <div class="sec-head"><div><h2>Рынок</h2><p>Все предметы на аукционе Альянса. Нажмите на название — откроется карточка с графиком.</p></div></div>
+  <div class="sec-head"><div><h2>Рынок</h2><p>Все предметы на аукционе Альянса. Нажмите на название — откроется карточка с графиком. Если цены не совпадают с игрой, выберите другой аукцион в карточке «Аукцион» выше: в API их несколько, по одному на каждый мир.</p></div></div>
   <div class="bar">
     <div class="field"><svg><use href="#i-search"/></svg><input type="search" id="mSearch" placeholder="Название или ID предмета"></div>
     <label class="opt"><input type="checkbox" id="mMine"> мои рецепты и материалы</label>
@@ -354,7 +355,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
       <h3><svg><use href="#i-dl"/></svg>Аддон WolfichMarket</h3>
       <ol class="steps">
         <li><span><a class="btn sm" href="addon/WolfichMarket.zip" id="addonLink"><svg width="14" height="14"><use href="#i-dl"/></svg>Скачать WolfichMarket.zip</a></span></li>
-        <li><span>Распакуйте в <code>World of Warcraft\_forever_\Interface\AddOns\</code> — должна получиться папка <code>WolfichMarket</code>.</span></li>
+        <li><span><b>Через CurseForge</b> (когда проект пройдёт проверку): найдите <b>WolfichMarket</b> во вкладке Forever и нажмите «Установить». <b>Вручную:</b> распакуйте архив в <code>World of Warcraft\_forever_\Interface\AddOns\</code> — должна получиться папка <code>WolfichMarket</code>.</span></li>
         <li><span>На экране выбора персонажа → «Модификации» → включите WolfichMarket (и «Загружать устаревшие», если просит).</span></li>
       </ol>
     </div>
@@ -540,15 +541,30 @@ const itemLink = (id, cls='') => `<span class="it ${qClass(id)} ${cls}" data-ite
 
 // ---------- загрузка ----------
 async function getJson(p){ const r = await fetch(p + '?v=' + Math.floor(Date.now()/600000)); if (!r.ok) throw new Error(p+': '+r.status); return r.json(); }
+let HOUSE = null;
+const houseList = () => (META.houses || []).filter(h => h.lots);
+const houseLabel = (h, i) => `Альянс ${i + 1}`;
+async function loadLatest(){
+  try { LATEST = await getJson(HOUSE ? `data/latest-${HOUSE}.json` : 'data/latest.json'); }
+  catch { try { LATEST = await getJson('data/latest.json'); } catch { LATEST = {items:{}}; } }
+  for (const k in HIST) delete HIST[k];
+}
 async function load(){
   try {
-    [META, LATEST, ITEMS] = await Promise.all([getJson('data/meta.json'), getJson('data/latest.json'), getJson('data/items.json')]);
+    [META, ITEMS] = await Promise.all([getJson('data/meta.json'), getJson('data/items.json')]);
+    const hs = houseList(), saved = LS.get('house', null);
+    HOUSE = hs.some(h => h.id === saved) ? saved : (META.v >= 2 ? META.house?.id : null);
+    await loadLatest();
   } catch(e) {
     $('#kUpd').innerHTML = '<span class="live warn"></span> нет данных'; $('#kUpdS').textContent = 'ждём первый запуск сборщика';
     LATEST = LATEST || {items:{}};
   }
   renderStatus(); refreshScanCaches(); buildCats(); renderAll();
 }
+$('#houseSel').addEventListener('change', async (e) => {
+  HOUSE = +e.target.value; LS.set('house', HOUSE);
+  await loadLatest(); renderStatus(); buildCats(); renderAll();
+});
 function renderStatus(){
   if (!META.updatedAt) return;
   const t = new Date(META.updatedAt);
@@ -556,10 +572,13 @@ function renderStatus(){
   const bad = META.lastError || ago > 180;
   $('#kUpd').innerHTML = `<span class="live ${bad ? 'warn' : ''}"></span> ${ago < 60 ? ago + ' мин' : Math.round(ago/60) + ' ч'} назад`;
   $('#kUpdS').innerHTML = META.lastError ? `<span class="down" title="${esc(META.lastError)}">ошибка последнего сбора</span>` : t.toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-  $('#kLots').textContent = (META.lots||0).toLocaleString('ru-RU');
-  $('#kItems').textContent = `предметов ${(META.itemCount||0).toLocaleString('ru-RU')}`;
-  $('#kHouse').textContent = META.house?.name || '—';
-  $('#kHouseS').textContent = `№ ${META.house?.id ?? '—'} · комиссия 5%`;
+  const hs = houseList(), cur = hs.find(h => h.id === HOUSE);
+  $('#kLots').textContent = ((cur ? cur.lots : META.lots) || 0).toLocaleString('ru-RU');
+  $('#kItems').textContent = `предметов ${Object.keys(LATEST.items || {}).length.toLocaleString('ru-RU')}`;
+  $('#houseSel').innerHTML = hs.length ? hs.map((h, i) => `<option value="${h.id}" ${h.id === HOUSE ? 'selected' : ''}>${houseLabel(h, i)} · ${(h.lots/1000).toFixed(0)}k лотов</option>`).join('')
+    : `<option>${esc(META.house?.name || '—')}</option>`;
+  $('#houseSel').disabled = hs.length < 2;
+  $('#kHouseS').textContent = `№ ${HOUSE ?? META.house?.id ?? '—'} · комиссия 5%`;
 }
 function renderKpis(){
   const k = S.opts.sBase === '7' ? 8 : 7, thr = +S.opts.sThr || 25, minQty = +S.opts.sMinQty || 0;
@@ -762,7 +781,7 @@ function renderScan(){
 // ---------- карточка предмета + график ----------
 async function loadHist(id){
   const sh = id % 32;
-  if (!HIST[sh]) { try { HIST[sh] = await getJson(`data/hist/h${sh}.json`); } catch { HIST[sh] = {}; } }
+  if (!HIST[sh]) { try { HIST[sh] = await getJson(HOUSE ? `data/hist/${HOUSE}/h${sh}.json` : `data/hist/h${sh}.json`); } catch { HIST[sh] = {}; } }
   return HIST[sh][id] || {h:[], d:[]};
 }
 let chartMode = 'h';

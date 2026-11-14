@@ -17,7 +17,16 @@
 2. **Settings → Pages → Source: GitHub Actions**.
 3. **Actions → «Обновление цен аукциона» → Run workflow**. Через 2–3 минуты сайт заработает.
 
-Необязательные переменные (**Variables**): `FACTION` (`alliance` / `horde` / `neutral`), `HOUSE_ID` — если аукцион определился неверно (список всех аукционов виден в `data/meta.json`, поле `houses`).
+Собираются **все аукционы Альянса** (в API их несколько, по одному на мир) — на сайте выбирается нужный.
+Необязательные переменные (**Variables**): `FACTION` (`alliance` / `horde` / `neutral`), `HOUSE_ID` — номера аукционов через запятую.
+
+## Аддон на CurseForge
+
+1. Создайте проект на authors.curseforge.com (World of Warcraft → Addon, имя WolfichMarket).
+2. Там же создайте API-токен.
+3. Секреты репозитория: `CF_API_KEY` (токен) и `CF_PROJECT_ID` (номер проекта).
+4. Новая версия выходит при пуше тега `vX.Y.Z` (или Actions → «Выпуск аддона» → Run workflow): архив попадает в релизы GitHub и на CurseForge.
+   Если версия игры подобралась неверно — задайте переменную `CF_GAME_VERSION`.
 
 ## Что значат цены
 

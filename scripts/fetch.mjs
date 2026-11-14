@@ -7,7 +7,8 @@
 //   OUT_DIR    — куда писать данные (по умолчанию site/data)
 //   REGION     — eu (по умолчанию)
 //   FACTION    — alliance | horde | neutral (по умолчанию alliance)
-//   RULESET_ID, HOUSE_ID — ручной выбор, если автоопределение ошиблось
+//   RULESET_ID — ручной выбор набора правил
+//   HOUSE_ID   — один или несколько аукционов через запятую (по умолчанию все аукционы фракции)
 //   MOCK_DIR   — для тестов: читать ответы API из файлов вместо сети
 
 import fs from 'node:fs/promises';
@@ -24,8 +25,10 @@ const NS_STATIC = `static-forever-${REGION}`;
 const SHARDS = 32;
 const HOURLY_KEEP_H = 72;      // часовые точки: последние 72 часа
 const DAILY_KEEP_D = 60;       // дневные точки: 60 дней
-const NEW_ITEM_LOOKUPS = 1500; // сколько новых предметов уточнять за запуск
-const MISS_RETRY_DAYS = 7;     // через сколько дней снова пробовать предмет, которого нет в API
+const NEW_ITEM_LOOKUPS = 15000; // сколько новых предметов уточнять за запуск
+// где искать предмет: Forever, затем классика и розница (у Forever в справочнике нет почти половины предметов)
+const ITEM_NAMESPACES = [`static-forever-${REGION}`, `static-classic1x-${REGION}`, `static-classic-${REGION}`, `static-${REGION}`];
+const MISS_RETRY_DAYS = 3;     // через сколько дней снова пробовать предмет, которого нет в API
 const AH_MARKET_SHARE = 0.15;  // «рыночная» цена = средняя по самым дешёвым 15% объёма
 
 const log = (...a) => console.log('[wow-market]', ...a);
@@ -111,7 +114,7 @@ function findListWithIds(obj) {
 const idFromEntry = (e) => e.id ?? Number(String(e.key?.href || '').match(/\/(\d+)(?:\/|\?|$)/)?.[1]);
 const nameOf = (e) => typeof e.name === 'string' ? e.name : (e.name?.ru_RU || e.name?.en_US || e.name?.en_GB || '');
 
-async function pickHouse() {
+async function pickHouses() {
   let rulesetId = env.RULESET_ID ? Number(env.RULESET_ID) : null;
   if (!rulesetId) {
     const r = await api('/data/wow/ruleset/index', NS_DYN, '&locale=en_GB');
@@ -120,16 +123,30 @@ async function pickHouse() {
     log('Наборы правил:', list.map(e => `${idFromEntry(e)}:${nameOf(e)}`).join(', ') || '(нет ответа, беру 1)');
   }
   const idx = await api(`/data/wow/ruleset/${rulesetId}/auctions/`, NS_DYN, '&locale=en_GB');
-  const houses = findListWithIds(idx.data).map(e => ({ id: idFromEntry(e), name: nameOf(e) }));
-  log(`Аукционы набора ${rulesetId}:`, houses.map(h => `${h.id}:${h.name}`).join(', ') || '(нет)');
-  let house = null;
-  if (env.HOUSE_ID) house = houses.find(h => h.id === Number(env.HOUSE_ID)) || { id: Number(env.HOUSE_ID), name: 'вручную' };
-  if (!house) {
-    const rx = { alliance: /alliance|альянс/i, horde: /horde|орд/i, neutral: /neutral|нейтрал|goblin|booty|gadgetzan|everlook/i }[FACTION];
-    house = houses.find(h => rx.test(h.name));
+  const all = findListWithIds(idx.data).map(e => ({ id: idFromEntry(e), name: nameOf(e) }));
+  log(`Аукционы набора ${rulesetId}:`, all.map(h => `${h.id}:${h.name}`).join(', ') || '(нет)');
+  let houses;
+  if (env.HOUSE_ID) {
+    const want = String(env.HOUSE_ID).split(/[,\s]+/).filter(Boolean).map(Number);
+    houses = want.map(id => all.find(h => h.id === id) || { id, name: 'вручную' });
+  } else {
+    const rx = { alliance: /alliance|альянс/i, horde: /horde|орд/i, neutral: /neutral|нейтрал|goblin|booty|gadgetzan|everlook|blackwater/i }[FACTION];
+    houses = all.filter(h => rx.test(h.name));
+    if (!houses.length && all.length) { houses = [all[0]]; warn(`Не нашёл аукционы «${FACTION}», беру первый: ${all[0].id}. Задайте HOUSE_ID.`); }
   }
-  if (!house && houses.length) { house = houses[0]; warn(`Не нашёл аукцион «${FACTION}» по имени, беру первый: ${house.id} ${house.name}. Задайте HOUSE_ID.`); }
-  return { rulesetId, house, houses };
+  return { rulesetId, houses, all };
+}
+
+// Разведка: какие миры есть в API (чтобы подписать аукционы названиями миров)
+async function probeRealms() {
+  const out = {};
+  for (const p of ['/data/wow/realm/index', '/data/wow/connected-realm/index']) {
+    const r = await api(p, NS_DYN, '&locale=ru_RU');
+    const list = findListWithIds(r.data);
+    out[p] = { status: r.status, list: list.slice(0, 60).map(e => ({ id: idFromEntry(e), name: nameOf(e), slug: e.slug || null })) };
+    log(`Разведка ${p}: HTTP ${r.status}, записей ${list.length}`, out[p].list.map(e => `${e.id}:${e.name || e.slug || ''}`).join(', ').slice(0, 600));
+  }
+  return out;
 }
 
 function unitPriceOf(a) {
@@ -188,11 +205,18 @@ async function lookupItems(items, ids) {
   if (!todo.length) return 0;
   log(`Уточняю ${todo.length} предметов в справочнике…`);
   let done = 0, found = 0;
+  const nsCount = {};
   const worker = async () => {
     while (todo.length) {
       const id = todo.shift();
-      const r = await api(`/data/wow/item/${id}`, NS_STATIC, '&locale=ru_RU');
+      let r = { status: 404, data: null }, nsUsed = null;
+      for (const ns of ITEM_NAMESPACES) {
+        r = await api(`/data/wow/item/${id}`, ns, '&locale=ru_RU');
+        if (r.data) { nsUsed = ns; break; }
+        if (r.status !== 404) break; // сбой сети — попробуем в следующий раз
+      }
       if (r.data) {
+        nsCount[nsUsed] = (nsCount[nsUsed] || 0) + 1;
         const d = r.data;
         items[id] = {
           n: nameOf(d) || null,
@@ -209,8 +233,8 @@ async function lookupItems(items, ids) {
       done++;
     }
   };
-  await Promise.all(Array.from({ length: env.MOCK_DIR ? 1 : 16 }, worker));
-  log(`Справочник: найдено ${found} из ${done}`);
+  await Promise.all(Array.from({ length: env.MOCK_DIR ? 1 : 24 }, worker));
+  log(`Справочник: найдено ${found} из ${done}`, JSON.stringify(nsCount));
   return found;
 }
 
@@ -257,41 +281,61 @@ function buildLatest(shards, agg) {
 }
 
 // ---------- главный сценарий ----------
+// Переопубликовать прошлые файлы аукциона (если в этот раз он не ответил)
+async function preserveHouse(id) {
+  const latest = await loadPrevious(`latest-${id}.json`, null);
+  if (!latest) return false;
+  await writeJson(`latest-${id}.json`, latest);
+  for (let i = 0; i < SHARDS; i++) await writeJson(`hist/${id}/h${i}.json`, await loadPrevious(`hist/${id}/h${i}.json`, {}));
+  return true;
+}
+
 async function main() {
   const meta = await loadPrevious('meta.json', {});
   const items = await loadPrevious('items.json', {});
-  const shards = [];
-  for (let i = 0; i < SHARDS; i++) shards.push(await loadPrevious(`hist/h${i}.json`, {}));
-  let latest = await loadPrevious('latest.json', null);
-
   let ok = false;
   try {
     token = await getToken();
-    const { rulesetId, house, houses } = await pickHouse();
-    if (!house) throw new Error('Не удалось найти ни одного аукциона в API');
-    const lots = await fetchAuctions(rulesetId, house.id);
-    if (!lots.length) throw new Error('API вернул пустой аукцион — старые данные не трогаю');
-    const agg = aggregate(lots);
-    updateHistory(shards, agg);
-    latest = { t: nowTs, items: buildLatest(shards, agg) };
-    await lookupItems(items, Object.keys(agg).map(Number));
+    const { rulesetId, houses } = await pickHouses();
+    if (!houses.length) throw new Error('Не удалось найти ни одного аукциона в API');
+    if (!meta.realmProbe || env.PROBE) meta.realmProbe = await probeRealms();
+    const prevHouses = Object.fromEntries((meta.houses || []).map(h => [h.id, h]));
+    const done = [];
+    const allIds = new Set();
+    for (const house of houses) {
+      const lots = await fetchAuctions(rulesetId, house.id);
+      if (!lots.length) { log(`Аукцион ${house.id}: пусто, пропускаю`); continue; }
+      const agg = aggregate(lots);
+      const shards = [];
+      for (let i = 0; i < SHARDS; i++) shards.push(await loadPrevious(`hist/${house.id}/h${i}.json`, {}));
+      updateHistory(shards, agg);
+      const latest = { t: nowTs, house: house.id, items: buildLatest(shards, agg) };
+      await writeJson(`latest-${house.id}.json`, latest);
+      for (let i = 0; i < SHARDS; i++) await writeJson(`hist/${house.id}/h${i}.json`, shards[i]);
+      Object.keys(agg).forEach(id => allIds.add(Number(id)));
+      done.push({ ...prevHouses[house.id], id: house.id, name: house.name, lots: lots.length, itemCount: Object.keys(agg).length, updatedAt: now.toISOString() });
+      log(`Аукцион ${house.id}: ${lots.length} лотов, ${Object.keys(agg).length} предметов`);
+    }
+    if (!done.length) throw new Error('Все аукционы пустые — старые данные не трогаю');
+    // аукционы, которые в этот раз не ответили, оставляем со старыми данными
+    for (const h of meta.houses || []) if (!done.some(d => d.id === h.id) && houses.some(x => x.id === h.id) && await preserveHouse(h.id)) done.push(h);
+    done.sort((a, b) => a.id - b.id);
+    await lookupItems(items, [...allIds]);
+    const primary = done.reduce((a, b) => (b.lots > a.lots ? b : a));
     Object.assign(meta, {
-      updatedAt: now.toISOString(), hourTs: nowTs, region: REGION, faction: FACTION,
-      ruleset: rulesetId, house, houses, lots: lots.length, itemCount: Object.keys(agg).length,
-      lastError: null,
+      v: 2, updatedAt: now.toISOString(), hourTs: nowTs, region: REGION, faction: FACTION, ruleset: rulesetId,
+      houses: done, house: { id: primary.id, name: primary.name },
+      lots: done.reduce((s, h) => s + (h.lots || 0), 0), itemCount: allIds.size, lastError: null,
     });
     ok = true;
   } catch (e) {
     warn(e.message);
     Object.assign(meta, { lastError: e.message, lastErrorAt: now.toISOString() });
+    for (const h of meta.houses || []) await preserveHouse(h.id);
   }
-
-  // Пишем всё назад (даже при ошибке — чтобы сайт не потерял прошлые данные)
   await writeJson('meta.json', meta);
   await writeJson('items.json', items);
-  if (latest) await writeJson('latest.json', latest);
-  for (let i = 0; i < SHARDS; i++) await writeJson(`hist/h${i}.json`, shards[i]);
-  log(ok ? `Готово: ${meta.itemCount} предметов, ${meta.lots} лотов.` : 'Завершено с ошибкой, опубликую прежние данные.');
+  log(ok ? `Готово: ${meta.houses.length} аукционов, ${meta.itemCount} предметов, ${meta.lots} лотов.` : 'Завершено с ошибкой, опубликую прежние данные.');
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

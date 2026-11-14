@@ -1,0 +1,52 @@
+// Загрузка архива аддона на CurseForge (WoW Forever).
+// Окружение: CF_API_KEY, CF_PROJECT_ID, FILE (путь к zip), VERSION (например 1.0.1),
+//            CF_GAME_VERSION — необязательно: точное имя версии игры на CurseForge, если автоподбор ошибся.
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const { CF_API_KEY, CF_PROJECT_ID, FILE, VERSION, CF_GAME_VERSION, CHANGELOG } = process.env;
+const BASE = 'https://wow.curseforge.com/api';
+const log = (...a) => console.log('[curseforge]', ...a);
+
+if (!CF_API_KEY || !CF_PROJECT_ID) { log('Нет CF_API_KEY / CF_PROJECT_ID — пропускаю загрузку на CurseForge.'); process.exit(0); }
+
+const get = async (p) => {
+  const r = await fetch(BASE + p, { headers: { 'X-Api-Token': CF_API_KEY } });
+  if (!r.ok) throw new Error(`${p}: HTTP ${r.status} ${await r.text()}`);
+  return r.json();
+};
+
+const types = await get('/game/version-types');
+const versions = await get('/game/versions');
+const foreverTypes = types.filter(t => /forever/i.test(`${t.name} ${t.slug}`));
+log('Типы версий Forever:', foreverTypes.map(t => `${t.id}:${t.name}`).join(', ') || '(не найдены)');
+
+let pick;
+if (CF_GAME_VERSION) {
+  pick = versions.filter(v => v.name === CF_GAME_VERSION || v.slug === CF_GAME_VERSION);
+} else {
+  const pool = versions.filter(v => foreverTypes.some(t => t.id === v.gameVersionTypeID));
+  log('Версии Forever:', pool.map(v => `${v.id}:${v.name}`).join(', ') || '(нет)');
+  pool.sort((a, b) => b.id - a.id);
+  pick = pool.slice(0, 1); // самая свежая
+}
+if (!pick.length) {
+  throw new Error('Не нашёл версию игры Forever на CurseForge. Задайте переменную CF_GAME_VERSION (имя версии со страницы загрузки файла).');
+}
+log('Загружаю для версии игры:', pick.map(v => v.name).join(', '));
+
+const buf = await fs.readFile(FILE);
+const form = new FormData();
+form.append('metadata', JSON.stringify({
+  changelog: CHANGELOG || `WolfichMarket ${VERSION}`,
+  changelogType: 'markdown',
+  displayName: `WolfichMarket ${VERSION}`,
+  gameVersions: pick.map(v => v.id),
+  releaseType: 'release',
+}));
+form.append('file', new Blob([buf], { type: 'application/zip' }), path.basename(FILE));
+
+const r = await fetch(`${BASE}/projects/${CF_PROJECT_ID}/upload-file`, { method: 'POST', headers: { 'X-Api-Token': CF_API_KEY }, body: form });
+const text = await r.text();
+if (!r.ok) throw new Error(`Загрузка не удалась: HTTP ${r.status} ${text}`);
+log('Готово:', text);

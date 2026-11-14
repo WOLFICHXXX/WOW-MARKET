@@ -9,7 +9,7 @@ const w = (n, d) => fs.writeFile(path.join(dir, n), JSON.stringify(d));
 
 await w('ruleset_index.json', { rulesets: [{ key: { href: 'x/ruleset/1?' }, id: 1, name: 'Forever' }] });
 await w('ruleset_1_auctions.json', { auctions: [
-  { id: 110, name: 'Alliance' }, { id: 111, name: 'Horde' }, { id: 112, name: 'Blackwater Auction House' }] });
+  { id: 110, name: 'Alliance Auction House' }, { id: 111, name: 'Alliance Auction House' }, { id: 113, name: 'Horde Auction House' }, { id: 119, name: 'Alliance Auction House' }, { id: 116, name: 'Blackwater Auction House' }] });
 
 // id, имя, качество, класс, подкласс, базовая цена (медь), объём
 const ITEMS = [
@@ -70,6 +70,8 @@ for (const [id, , , c, , base, vol] of ITEMS) {
 }
 lots.push({ id: lotId++, item: { id: 2589 }, quantity: 1, bid: 5, time_left: 'SHORT' }); // только ставка
 await w('ruleset_1_auctions_110.json', { auctions: lots });
+await w('ruleset_1_auctions_119.json', { auctions: lots.filter((_, i) => i % 3 === 0).map(l => ({ ...l, unit_price: Math.round(l.unit_price * 1.3) })) });
+await w('ruleset_1_auctions_111.json', {});
 
 for (const [id, n, q, c, s] of ITEMS) {
   if (!c) continue; // «404»
@@ -77,7 +79,7 @@ for (const [id, n, q, c, s] of ITEMS) {
 }
 
 // Фальшивая история за 72 ч и 30 дней, чтобы графики и «24 ч / 7 дн» заработали
-const out = path.join(path.dirname(dir), 'out', 'hist');
+const out = path.join(path.dirname(dir), 'out', 'hist', '110');
 await fs.mkdir(out, { recursive: true });
 const nowTs = Math.floor(Date.now() / 3600e3) * 3600;
 const shards = Array.from({ length: 32 }, () => ({}));

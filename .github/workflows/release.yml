@@ -1,0 +1,51 @@
+name: Выпуск аддона
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия (например 1.0.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Версия
+        id: v
+        run: |
+          V="${{ github.event.inputs.version }}"
+          [ -z "$V" ] && V="${GITHUB_REF_NAME#v}"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          sed -i "s/^## Version:.*/## Version: $V/" addon/WolfichMarket/WolfichMarket.toc
+
+      - name: Архив
+        run: cd addon && zip -r "../WolfichMarket-${{ steps.v.outputs.version }}.zip" WolfichMarket
+
+      - name: Релиз на GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          T="v${{ steps.v.outputs.version }}"
+          gh release view "$T" >/dev/null 2>&1 || gh release create "$T" --title "WolfichMarket $T" --notes "Распакуйте в World of Warcraft\\_forever_\\Interface\\AddOns\\"
+          gh release upload "$T" "WolfichMarket-${{ steps.v.outputs.version }}.zip" --clobber
+
+      - name: Загрузка на CurseForge
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          CF_PROJECT_ID: ${{ secrets.CF_PROJECT_ID }}
+          CF_GAME_VERSION: ${{ vars.CF_GAME_VERSION }}
+          FILE: WolfichMarket-${{ steps.v.outputs.version }}.zip
+          VERSION: ${{ steps.v.outputs.version }}
+        run: node scripts/curseforge-upload.mjs
