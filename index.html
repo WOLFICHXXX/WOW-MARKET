@@ -292,7 +292,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
     <label class="opt"><input type="checkbox" id="mMine"> мои рецепты и материалы</label>
     <label class="inl">в продаже от <input type="number" id="mMinQty" min="0" value="1"></label>
   </div>
-  <div class="chips" id="mCats"></div>
+  <div id="mCats" style="margin-bottom:14px"></div>
   <div class="frame tbl-wrap"><table id="mTable"></table></div>
   <p class="more" id="mMore"></p>
 </section>
@@ -570,7 +570,7 @@ const LS = {
 };
 const S = {
   tab: LS.get('tab','market'),
-  offCats: new Set(LS.get('offCats', [])),
+  catPath: LS.get('catPath', []),
   offProfs: new Set(LS.get('offProfs', [])),
   scans: LS.get('scans', {}),        // charKey -> parsed
   shop: LS.get('shop', []),          // [{id,target,need}]
@@ -579,7 +579,7 @@ const S = {
   opts: Object.assign({cPrice:'mkt',cCut:'0.05',cProfit:false,cHideMissing:false,cHideGray:false,cNoItem:false,
     sThr:25,sBase:'24',sMinQty:5,sScope:'mine',mMine:false,mMinQty:1}, LS.get('opts', {})),
 };
-const save = () => { LS.set('tab',S.tab); LS.set('offCats',[...S.offCats]); LS.set('offProfs',[...S.offProfs]);
+const save = () => { LS.set('tab',S.tab); LS.set('catPath',S.catPath); LS.set('offProfs',[...S.offProfs]);
   LS.set('scans',S.scans); LS.set('shop',S.shop); LS.set('mSort',S.mSort); LS.set('cSort',S.cSort); LS.set('opts',S.opts); };
 
 let LATEST = {t:0, items:{}}, ITEMS = {}, META = {};
@@ -615,7 +615,7 @@ const itemLink = (id, cls='') => `<span class="it ${qClass(id)} ${cls}" data-ite
 async function getJson(p){ const r = await fetch(p + '?v=' + Math.floor(Date.now()/600000)); if (!r.ok) throw new Error(p+': '+r.status); return r.json(); }
 let HOUSE = null;
 const houseList = () => (META.houses || []).filter(h => h.lots);
-// номер аукциона → режим игры (выведено из номеров и объёма торгов; Blizzard названий не отдаёт)
+// номер аукциона → режим игры. 110 = PvP проверено по снимку из игры (совпадение цен); остальные — по номерам и объёму торгов
 const HOUSE_MODE = {110:'PvP', 111:'Обычный', 112:'Хардкор', 119:'Ролевой', 123:'Ролевой PvP'};
 const houseLabel = (h, i) => HOUSE_MODE[h.id] || `Альянс ${i + 1}`;
 async function loadLatest(){
@@ -626,6 +626,7 @@ async function loadLatest(){
 async function load(){
   try {
     [META, ITEMS] = await Promise.all([getJson('data/meta.json'), getJson('data/items.json')]);
+    try { prepCats(await getJson('data/categories.json')); } catch {}
     const hs = houseList(), saved = LS.get('house', null);
     HOUSE = hs.some(h => h.id === saved) ? saved : (META.v >= 2 ? META.house?.id : null);
     await loadLatest();
@@ -682,26 +683,77 @@ function myItemIds(){
 }
 
 // ---------- РЫНОК ----------
-function buildCats(){
-  const counts = {};
-  for (const id of Object.keys(LATEST.items)) { const c = ITEMS[id]?.c || 'Без категории'; counts[c] = (counts[c]||0)+1; }
-  const cats = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  $('#mCats').innerHTML = cats.map(([c,n]) => `<span class="chip ${S.offCats.has(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)} <span class="mute">${n}</span></span>`).join('')
-    + (cats.length ? `<span class="chip" data-cat-all="1">все</span><span class="chip" data-cat-none="1">ничего</span>` : '');
+// ---------- категории как в окне аукциона игры ----------
+let CATS = [], CLASSN = {};
+const larr = (t) => !t ? [] : Array.isArray(t) ? t.filter(Boolean) : Object.keys(t).sort((a, b) => a - b).map(k => t[k]);
+function prepCats(raw){
+  const conv = (list) => larr(list).map(c => ({ name: c.name, f: larr(c.filters).map(x => larr(x)), sub: conv(c.sub) }));
+  CATS = conv(raw?.ahCats);
+  for (const c of CATS) if (!c.f.length && /жетон/i.test(c.name)) c.f = [[18, -1, -1]];
+  CLASSN = {};
+  for (const [cid, c] of Object.entries(raw?.ahClasses || {})) {
+    CLASSN[c.name] = { id: +cid, subs: {} };
+    for (const [sid, sn] of Object.entries(c.subs || {})) if (sn) CLASSN[c.name].subs[sn] = +sid;
+  }
 }
-function renderMarket(){
+// номера класса/подкласса/слота предмета (из справочника; для старых записей — по названию)
+function itemCls(id){
+  const it = ITEMS[id]; if (!it) return null;
+  if (it.ci !== undefined && it.ci >= 0) return [it.ci, it.si, it.inv || 0];
+  const c = CLASSN[it.c]; if (!c) return null;
+  return [c.id, c.subs[it.s] ?? -1, -1];
+}
+const matchF = (cls, f) => cls && f.some(([c, sc, inv]) => c === cls[0] && (sc === -1 || cls[1] === -1 || sc === cls[1]) && (inv === -1 || cls[2] === -1 || inv === cls[2]));
+function catNode(){ let list = CATS, node = null; for (const i of S.catPath) { node = list[i]; if (!node) return null; list = node.sub; } return node; }
+function inCat(id, node){
+  if (!node) return true;
+  const cls = itemCls(id);
+  if (node.other) return !CATS.some(c => matchF(cls, c.f));
+  if (cls && cls[1] === -1 && !CATS.includes(node)) return false; // подкласс неизвестен — только в разделе целиком
+  return matchF(cls, node.f);
+}
+function buildCats(){
+  if (!CATS.length) { $('#mCats').innerHTML = ''; return; }
+  const base = marketBase();
+  const count = (node) => base.reduce((n, id) => n + (inCat(id, node) ? 1 : 0), 0);
+  const chip = (label, path, on, n) => `<span class="chip ${on ? 'on' : ''}" data-catpath="${path.join('.')}">${esc(label)}${n != null ? ` <span class="mute">${n}</span>` : ''}</span>`;
+  let html = '<div class="chips" style="margin:0 0 8px">' + chip('Все', [], !S.catPath.length, base.length);
+  CATS.forEach((c, i) => { const n = count(c); if (n || S.catPath[0] === i) html += chip(c.name, [i], S.catPath[0] === i, n); });
+  const other = { other: true }, no = count(other);
+  if (no) html += chip('Прочее', ['x'], S.catPath[0] === 'x', no);
+  html += '</div>';
+  let list = CATS, path = [];
+  for (let d = 0; d < S.catPath.length; d++) {
+    const node = list[S.catPath[d]]; if (!node || !node.sub.length) break;
+    path = S.catPath.slice(0, d + 1);
+    html += `<div class="chips sub" style="margin:0 0 8px;padding-left:${(d + 1) * 14}px">` + chip('Всё: ' + node.name, path, S.catPath.length === d + 1, null);
+    node.sub.forEach((c, i) => { const n = count(c); if (n) html += chip(c.name, [...path, i], S.catPath[d + 1] === i, n); });
+    html += '</div>';
+    list = node.sub;
+  }
+  $('#mCats').innerHTML = html;
+}
+// предметы с учётом поиска и фильтров, но без категории
+function marketBase(){
   const q = $('#mSearch').value.trim().toLowerCase();
   const mine = S.opts.mMine ? myItemIds() : null;
   const minQty = +S.opts.mMinQty || 0;
-  let rows = [];
+  const out = [];
   for (const [id, r] of Object.entries(LATEST.items)) {
-    const cat = ITEMS[id]?.c || 'Без категории';
-    if (S.offCats.has(cat)) continue;
     if (mine && !mine.has(+id)) continue;
     if (r[3] < minQty) continue;
     if (q && !(id === q || nameOf(id).toLowerCase().includes(q))) continue;
-    rows.push([+id, r]);
+    out.push(id);
   }
+  return out;
+}
+function renderMarket(){
+  buildCats();
+  const q = $('#mSearch').value.trim().toLowerCase();
+  const mine = S.opts.mMine ? myItemIds() : null;
+  const minQty = +S.opts.mMinQty || 0;
+  const node = S.catPath[0] === 'x' ? { other: true } : catNode();
+  let rows = marketBase().filter(id => inCat(id, node)).map(id => [+id, LATEST.items[id]]);
   const [key, dir] = S.mSort;
   const k = key === 'name' ? null : P[key];
   rows.sort((a,b) => key === 'name' ? nameOf(a[0]).localeCompare(nameOf(b[0]),'ru')*dir : ((a[1][k] ?? -1e15) - (b[1][k] ?? -1e15))*dir);
@@ -943,9 +995,7 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-t]'); if (t && t.closest('#tabs')) return setTab(t.dataset.t);
   const it = e.target.closest('[data-item]'); if (it) { e.stopPropagation(); return openItem(it.dataset.item); }
   if (e.target === $('#modal')) return closeItem();
-  const cat = e.target.closest('[data-cat]'); if (cat) { const c = cat.dataset.cat; S.offCats.has(c) ? S.offCats.delete(c) : S.offCats.add(c); save(); buildCats(); return renderMarket(); }
-  if (e.target.closest('[data-cat-all]')) { S.offCats.clear(); save(); buildCats(); return renderMarket(); }
-  if (e.target.closest('[data-cat-none]')) { document.querySelectorAll('[data-cat]').forEach(c => S.offCats.add(c.dataset.cat)); save(); buildCats(); return renderMarket(); }
+  const cp = e.target.closest('[data-catpath]'); if (cp) { const v = cp.dataset.catpath; S.catPath = v === '' ? [] : v === 'x' ? ['x'] : v.split('.').map(Number); save(); buildCats(); return renderMarket(); }
   const pr = e.target.closest('[data-prof]'); if (pr) { const n = pr.dataset.prof; S.offProfs.has(n) ? S.offProfs.delete(n) : S.offProfs.add(n); save(); return renderCraft(); }
   const ms = e.target.closest('[data-msort]'); if (ms) { const k = ms.dataset.msort; S.mSort = [k, S.mSort[0]===k ? -S.mSort[1] : (k==='name'?1:-1)]; save(); return renderMarket(); }
   const cs = e.target.closest('[data-csort]'); if (cs) { const k = cs.dataset.csort; S.cSort = [k, S.cSort[0]===k ? -S.cSort[1] : (k==='name'?1:-1)]; save(); return renderCraft(); }
@@ -966,7 +1016,7 @@ for (const k of Object.keys(S.opts)) {
   el.addEventListener(el.type === 'number' ? 'input' : 'change', () => { S.opts[k] = el.type === 'checkbox' ? el.checked : el.value; save(); renderAll(); });
 }
 let deb; const debounced = (fn) => () => { clearTimeout(deb); deb = setTimeout(fn, 150); };
-$('#mSearch').addEventListener('input', debounced(renderMarket));
+$('#mSearch').addEventListener('input', debounced(() => { buildCats(); renderMarket(); }));
 $('#cSearch').addEventListener('input', debounced(renderCraft));
 $('#pSearch').addEventListener('input', (e) => fillDatalist(e.target.value));
 const pAdd = () => { const v = $('#pSearch').value; const m = v.match(/\[(\d+)\]\s*$/) || v.match(/^\s*(\d+)\s*$/);

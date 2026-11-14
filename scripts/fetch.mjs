@@ -28,6 +28,9 @@ const DAILY_KEEP_D = 60;       // дневные точки: 60 дней
 const NEW_ITEM_LOOKUPS = 15000; // сколько новых предметов уточнять за запуск
 // где искать предмет: Forever, затем классика и розница (у Forever в справочнике нет почти половины предметов)
 const ITEM_NAMESPACES = [`static-forever-${REGION}`, `static-classic1x-${REGION}`, `static-classic-${REGION}`, `static-${REGION}`];
+// слоты экипировки → номера, которыми пользуется фильтр аукциона в игре
+const INV_TYPES = { NON_EQUIP: 0, HEAD: 1, NECK: 2, SHOULDER: 3, BODY: 4, SHIRT: 4, CHEST: 5, WAIST: 6, LEGS: 7, FEET: 8, WRIST: 9, HAND: 10, HANDS: 10, FINGER: 11, TRINKET: 12,
+  WEAPON: 13, SHIELD: 14, RANGED: 15, CLOAK: 16, TWOHWEAPON: 17, BAG: 18, TABARD: 19, ROBE: 20, WEAPONMAINHAND: 21, WEAPONOFFHAND: 22, HOLDABLE: 23, AMMO: 24, THROWN: 25, RANGEDRIGHT: 26, QUIVER: 27, RELIC: 28 };
 const MISS_RETRY_DAYS = 3;     // через сколько дней снова пробовать предмет, которого нет в API
 const AH_MARKET_SHARE = 0.15;  // «рыночная» цена = средняя по самым дешёвым 15% объёма
 
@@ -232,6 +235,7 @@ async function lookupItems(items, ids) {
   const todo = ids.filter(id => {
     const it = items[id];
     if (!it) return true;
+    if (!it.miss && it.ci === undefined) return true; // старые записи без номеров класса
     if (it.miss) return it.mv !== 2 || (Date.now() - Date.parse(it.miss)) / 864e5 >= MISS_RETRY_DAYS;
     return false;
   }).slice(0, NEW_ITEM_LOOKUPS);
@@ -256,6 +260,9 @@ async function lookupItems(items, ids) {
           q: d.quality?.type || null,
           c: d.item_class?.name ? nameOf(d.item_class) : null,
           s: d.item_subclass?.name ? nameOf(d.item_subclass) : null,
+          ci: d.item_class?.id ?? -1,
+          si: d.item_subclass?.id ?? -1,
+          inv: INV_TYPES[d.inventory_type?.type] ?? 0,
           v: d.sell_price ?? null,
           b: d.purchase_price ?? null,
         };
