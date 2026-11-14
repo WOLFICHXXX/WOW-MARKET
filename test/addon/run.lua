@@ -456,7 +456,7 @@ do
   -- приём от другого игрока
   local enc = function(n) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s = ""; n = math.floor(n); repeat local d = n % 36; s = D:sub(d + 1, d + 1) .. s; n = math.floor(n / 36) until n == 0; return s end
   local t = time() + 5000
-  local rk = ns.realmKey:gsub("|", "~")
+  local rk = ns.NetKey()
   ns._netReceive("WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^1^2.19", "CHANNEL", "Друг-Realm")
   ns._netReceive("WolfMkt1", "P^" .. rk .. "^" .. enc(t) .. "^" .. enc(2840) .. "," .. enc(160) .. "," .. enc(40) .. ";", "CHANNEL", "Друг-Realm")
   ns._netReceive("WolfMkt1", "E^" .. rk .. "^" .. enc(t), "CHANNEL", "Друг-Realm")
@@ -509,7 +509,7 @@ do
   for _ = 1, 30 do advance(1) end
   check(#bnSent > 0, "общий рынок: цены уходят через Battle.net (" .. #bnSent .. ")")
   local enc = function(n) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; n = math.floor(n); repeat local d = n % 36; s2 = D:sub(d + 1, d + 1) .. s2; n = math.floor(n / 36) until n == 0; return s2 end
-  local rk = ns.realmKey:gsub("|", "~"); local t = time() + 20000
+  local rk = ns.NetKey(); local t = time() + 20000
   fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^1^2.20", "WHISPER", 77)
   fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "P^" .. rk .. "^" .. enc(t) .. "^" .. enc(2840) .. "," .. enc(222) .. ",4;", "WHISPER", 77)
   fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "E^" .. rk .. "^" .. enc(t), "WHISPER", 77)
@@ -518,6 +518,16 @@ do
   BNGetNumFriends, BNSendGameData, C_BattleNet = nil, nil, nil
   printed = {}; SlashCmdList.WOLFICHMARKETNET()
   check(#printed > 2, "/wmnet работает")
+end
+-- другой сервер того же режима (общий аукцион WoW Forever) - один ключ
+do
+  local saved = ns.realmKey
+  ns.realmKey = "CAMWOWEU4Realm6PvP|Alliance"; local a = ns.NetKey()
+  ns.realmKey = "CAMWOWEU5Realm4PvP|Alliance"; local b = ns.NetKey()
+  ns.realmKey = "CAMWOWEU5Realm4|Alliance"; local c = ns.NetKey()
+  ns.realmKey = "CAMWOWEU5Realm4PvP|Horde"; local d = ns.NetKey()
+  ns.realmKey = saved
+  check(a == b and a ~= c and a ~= d, "общий рынок: разные сервера одного режима и фракции - один аукцион (" .. a .. ", " .. c .. ", " .. d .. ")")
 end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad

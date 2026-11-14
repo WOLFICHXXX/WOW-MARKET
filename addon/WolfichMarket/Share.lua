@@ -22,7 +22,17 @@ local function dec(s) return tonumber(s, 36) end
 
 local function S() return ns.DB.settings end
 -- поля сообщения разделяются «^»; в ключе аукциона «|» заменяем (вертикальная черта в чате - служебный символ)
-local function RK() return ns.realmKey and (ns.realmKey:gsub("|", "~")) end
+-- Ключ общего аукциона: в WoW Forever игроки с разных серверов (CAMWOWEU4Realm6PvP, CAMWOWEU5Realm4PvP...)
+-- видят один аукцион своего режима, поэтому важны только режим (PvP / обычный) и фракция, а не имя сервера
+local function RK()
+  if not ns.realmKey then return nil end
+  local realm, faction = ns.realmKey:match("^(.*)|([^|]*)$")
+  realm = realm or ns.realmKey
+  local mode = realm:match("(PvP)$") or realm:match("(PvE)$") or realm:match("(RP)$") or (realm:match("Realm%d+(%a*)$")) or realm
+  if mode == "" then mode = "Normal" end
+  return mode .. "~" .. (faction or "?")
+end
+ns.NetKey = RK
 local function netTable(rk)
   ns.DB.net = ns.DB.net or {}
   ns.DB.net[rk] = ns.DB.net[rk] or { items = {} }
