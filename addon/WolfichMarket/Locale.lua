@@ -221,4 +221,8 @@ ns.EN = {
   ["убраны чужие профессии у этого персонажа: "] = "removed professions that do not belong to this character: ",
   [". Цена на 1м ниже минимальной"] = ". Price 1c under the lowest",
   [", срок "] = ", duration ",
+  ["профессия удалена у персонажа: "] = "profession removed from the character: ",
+  ["Удалить профессию «%s» у этого персонажа из WolfichMarket? Она вернётся, когда вы снова откроете её окно этим персонажем."] = "Remove the profession \"%s\" from this character in WolfichMarket? It comes back when you open its window with this character again.",
+  ["Правый клик - удалить профессию у персонажа"] = "Right click - remove the profession from the character",
+  ["Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий."] = "No saved professions for this character - log in with it and open its profession windows.",
 }

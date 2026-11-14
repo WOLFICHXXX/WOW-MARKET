@@ -146,15 +146,21 @@ ProfessionsFrame.shown = false; openedRecipe, openedLine = nil, nil
 ns.OpenRecipeInGame(recs[2], "Кузнечное дело"); advance(2)
 check(openedLine == 164 and openedRecipe == recs[2].id, "«Крафт» открывает профессию, затем рецепт")
 ProfessionsFrame.shown = true
--- чужие профессии не попадают персонажу
-local oldInfo = C_TradeSkillUI.GetBaseProfessionInfo
-C_TradeSkillUI.GetBaseProfessionInfo = function() return { professionName = "Алхимия", skillLevel = 225, maxSkillLevel = 225, professionID = 171 } end
-ns.ScanProfession()
-check(ns.DB.chars[ns.charKey].profs["Алхимия"] == nil, "чужая профессия (ссылка из чата) не сохранена")
-C_TradeSkillUI.GetBaseProfessionInfo = oldInfo
+-- профессии не стираются при повторном входе; удаление — только вручную
+local before = 0; for _ in pairs(ns.DB.chars[ns.charKey].profs) do before = before + 1 end
+fire("PLAYER_LOGIN"); advance(5)
+local after = 0; for _ in pairs(ns.DB.chars[ns.charKey].profs) do after = after + 1 end
+check(before > 0 and after == before, "профессии сохраняются после повторного входа")
 ns.DB.chars[ns.charKey].profs["Травничество"] = { recipes = {} }
-ns.CleanForeignProfessions()
-check(ns.DB.chars[ns.charKey].profs["Травничество"] == nil and ns.DB.chars[ns.charKey].profs["Кузнечное дело"] ~= nil, "чужие профессии убраны, свои остались")
+ns.RemoveProfession(ns.charKey, "Травничество")
+check(ns.DB.chars[ns.charKey].profs["Травничество"] == nil and ns.DB.chars[ns.charKey].profs["Кузнечное дело"] ~= nil, "профессия удаляется вручную, остальные на месте")
+-- вход твинком: у обоих персонажей свои профессии
+local mainKey = ns.charKey
+local oldName = UnitName; UnitName = function() return "Твинк" end
+fire("PLAYER_LOGIN"); ns.CurrentScan().t = time() - 10; fire("TRADE_SKILL_SHOW"); advance(2)
+UnitName = oldName; fire("PLAYER_LOGIN")
+local tw = ns.DB.chars["Твинк-CAMWOWEU4Realm6PvP"]
+check(tw and tw.profs["Кузнечное дело"] and ns.DB.chars[mainKey].profs["Кузнечное дело"], "профессии основы и твинка хранятся раздельно")
 -- английский язык
 ns.DB.settings.lang = "en"
 check(ns.money(15000):find("g", 1, true) and ns.L("Купить") == "Buy" and ns.ago(time()) == "just now", "английский: деньги, кнопки, время")

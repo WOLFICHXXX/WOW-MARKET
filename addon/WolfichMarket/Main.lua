@@ -8,7 +8,7 @@ local DIFF = { [0] = "|cffff8040", [1] = "|cffffff00", [2] = "|cff40c040", [3] =
 
 local function chars()
   local list = {}
-  for ck, c in pairs(ns.DB.chars) do if c.profs and next(c.profs) then list[#list + 1] = ck end end
+  for ck, c in pairs(ns.DB.chars) do if (c.profs and next(c.profs)) or c.realmKey then list[#list + 1] = ck end end
   table.sort(list, function(a, b) if a == ns.charKey then return true elseif b == ns.charKey then return false end return a < b end)
   if #list == 0 and ns.charKey then list[1] = ns.charKey end
   return list
@@ -175,10 +175,27 @@ local function buildCraft(f)
   craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("TOPLEFT", 4, 0); craft.status:SetPoint("RIGHT", -4, 0)
   craft.profBtns = {}
   for i = 1, 6 do
-    local b = UI.Button(f, "", 128, 22, function(self) prof = self.prof; sel = nil; refreshCraft() end)
+    local b = UI.Button(f, "", 128, 22, function(self, btn)
+      if btn == "RightButton" then
+        if StaticPopupDialogs and StaticPopup_Show then
+          StaticPopupDialogs.WOLFICHMARKET_DELPROF = StaticPopupDialogs.WOLFICHMARKET_DELPROF or {
+            text = L"Удалить профессию «%s» у этого персонажа из WolfichMarket? Она вернётся, когда вы снова откроете её окно этим персонажем.",
+            button1 = YES or "Да", button2 = NO or "Нет", timeout = 0, whileDead = true, hideOnEscape = true,
+            OnAccept = function(_, data) ns.RemoveProfession(data.ck, data.prof) end,
+          }
+          local dlg = StaticPopup_Show("WOLFICHMARKET_DELPROF", self.prof)
+          if dlg then dlg.data = { ck = charKey, prof = self.prof } end
+        end
+        return
+      end
+      prof = self.prof; sel = nil; refreshCraft()
+    end)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L"Правый клик - удалить профессию у персонажа", 1, 1, 1); GameTooltip:Show() end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetPoint("TOPLEFT", (i - 1) * 132, -16); craft.profBtns[i] = b
   end
-  craft.noProf = UI.Font(f, 11, UI.DIM); craft.noProf:SetPoint("TOPLEFT", 4, -20); craft.noProf:SetText(L"Нет сохранённых профессий у этого персонажа.")
+  craft.noProf = UI.Font(f, 11, UI.DIM); craft.noProf:SetPoint("TOPLEFT", 4, -20); craft.noProf:SetText(L"Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий.")
   local S = ns.DB.settings
   local c1 = UI.Check(f, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshCraft(); ns.Fire("RECIPES") end); c1:SetPoint("TOPLEFT", 0, -42)
   local c2 = UI.Check(f, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshCraft(); ns.Fire("RECIPES"); if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end end); c2:SetPoint("TOPLEFT", 160, -42)
