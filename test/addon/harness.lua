@@ -54,6 +54,10 @@ GetLocale = function() return LOCALE or "ruRU" end; STANDARD_TEXT_FONT = "x"; UI
 function UnitName() return "Вульфыч" end
 function GetNormalizedRealmName() return "CAMWOWEU4Realm6PvP" end
 function UnitFactionGroup() return "Alliance" end
+function UnitClass() return "Друид", "DRUID" end
+RAID_CLASS_COLORS = { DRUID = { colorStr = "ffff7c0a" } }
+Minimap = newObj("Frame"); Minimap.GetCenter = function() return 100, 100 end
+GetCursorPosition = function() return 0, 0 end
 function IsAltKeyDown() return false end; function IsShiftKeyDown() return false end; function IsControlKeyDown() return false end
 local hooks = {}
 function hooksecurefunc(a, b, c) if type(a) == "string" then hooks[a] = b else end end

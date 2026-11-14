@@ -21,7 +21,7 @@ ns.Listen("SCAN_DONE", function(scan, prev)
       if not base and prev and prev.items and prev.items[id] and prev.items[id][1] > 0 then base = prev.items[id][1] end
       if p and base and base > 0 then
         local ch = (p - base) / base * 100
-        if math.abs(ch) >= (S.alertPct or 20) then hits[#hits + 1] = { id = id, p = p, ch = ch } end
+        if math.abs(ch) >= (ns.DB.alarm[id] or S.alertPct or 20) then hits[#hits + 1] = { id = id, p = p, ch = ch } end
       end
     end
     table.sort(hits, function(a, b) return math.abs(a.ch) > math.abs(b.ch) end)

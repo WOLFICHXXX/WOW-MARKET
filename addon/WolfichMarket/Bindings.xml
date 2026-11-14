@@ -2,4 +2,7 @@
   <Binding name="WOLFICHMARKET_POSTNEXT" header="WOLFICHMARKET" category="ADDONS">
     WolfichMarket_PostNext()
   </Binding>
+  <Binding name="WOLFICHMARKET_TOGGLE" header="WOLFICHMARKET" category="ADDONS">
+    WolfichMarket_Toggle()
+  </Binding>
 </Bindings>

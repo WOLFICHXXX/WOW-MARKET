@@ -110,6 +110,18 @@ local r1 = profRecs(); fire("TRADE_SKILL_SHOW"); advance(1)
 check(profRecs() == r1, "без нового снимка рецепты не перечитываются")
 ns.CurrentScan().t = time() + 100; fire("TRADE_SKILL_SHOW"); advance(1)
 check(profRecs() ~= r1, "после нового снимка рецепты перечитаны")
+-- главное окно: персонажи, профессии, карточка, сигналы
+check(WolfichMarketMinimapButton ~= nil, "кнопка у миникарты")
+ns.DB.chars["Альт-CAMWOWEU4Realm6PvP"] = { realmKey = ns.realmKey, class = "DRUID", profs = { ["Алхимия"] = { skill = 50, max = 75, recipes = { { id = 1, name = "Тестовое зелье", out = 2862, qmin = 1, qmax = 1, diff = 1, reag = { { 2835, 1 } } } } } } }
+local okW, errW = pcall(ns.ToggleMain); check(okW and WolfichMarketMainFrame and WolfichMarketMainFrame.shown, "окно WolfichMarket открылось" .. (okW and "" or (": " .. tostring(errW))))
+local alt = ns.AllRecipeProfits(nil, false, "Альт-CAMWOWEU4Realm6PvP")
+check(#alt == 1 and alt[1].profit, "прибыль по рецептам другого персонажа")
+local W = WolfichMarketMainFrame
+local okS, errS = pcall(W.tabs[2].scripts.OnClick, W.tabs[2]); check(okS, "вкладка «Сигналы»" .. (okS and "" or (": " .. tostring(errS))))
+local okC, errC = pcall(W.tabs[1].scripts.OnClick, W.tabs[1]); check(okC, "вкладка «Крафт»" .. (okC and "" or (": " .. tostring(errC))))
+SlashCmdList.WOLFICHMARKET("")
+check(not WolfichMarketMainFrame.shown, "/wm закрывает окно")
+ns.DB.alarm[2840] = 5
 -- английский язык
 ns.DB.settings.lang = "en"
 check(ns.money(15000):find("g", 1, true) and ns.L("Купить") == "Buy" and ns.ago(time()) == "just now", "английский: деньги, кнопки, время")

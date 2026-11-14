@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.3.0"
+ns.VERSION = "2.4.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -128,7 +128,8 @@ local DEFAULTS = {
   showUnlearned = false,  -- показывать неизученные рецепты
   minProfit = 0,
   tooltip = true,
-  bagGlow = true,         -- подсветка в сумках: жёлтый - торговцу, зелёный - аукцион
+  bagGlow = true,
+  minimapShown = true,         -- подсветка в сумках: жёлтый - торговцу, зелёный - аукцион
   debug = false,
 }
 ns.On("ADDON_LOADED", function(name)
@@ -141,7 +142,8 @@ ns.On("ADDON_LOADED", function(name)
   DB.names = DB.names or {}
   DB.marked = DB.marked or {}      -- [itemID] = true
   DB.hist = DB.hist or {}          -- [itemID] = { {t, min, qty}, ... }
-  DB.seen = DB.seen or {}          -- [itemID] = { p, t } - цены из поисков на аукционе
+  DB.seen = DB.seen or {}
+  DB.alarm = DB.alarm or {}        -- [itemID] = свой порог скачка, %          -- [itemID] = { p, t } - цены из поисков на аукционе
   DB.ahScans = DB.ahScans or {}
   DB.settings = DB.settings or {}
   for k, v in pairs(DEFAULTS) do if DB.settings[k] == nil then DB.settings[k] = v end end
@@ -158,6 +160,10 @@ ns.On("PLAYER_LOGIN", function()
   ns.realmKey = (realm ~= "" and realm or "?") .. "|" .. ((UnitFactionGroup and UnitFactionGroup("player")) or "?")
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
+  local c = DB.chars[ns.charKey]
+  c.realmKey = ns.realmKey
+  c.class = select(2, UnitClass("player"))
+  c.name = UnitName("player")
   ns.Fire("LOGIN")
   ns.say("v" .. ns.VERSION .. L" загружен. Цены и прибыль - в окнах аукциона и профессий. /wm - справка.")
 end)
@@ -168,9 +174,20 @@ end)
 
 -- ---------- цены ----------
 -- снимок аукциона для режима и фракции текущего персонажа
+-- ns.priceRealm — временно (расчёт для другого персонажа); если для его режима снимка нет — берём текущий
 function ns.CurrentScan()
   local DB = ns.DB
-  return DB and ns.realmKey and DB.ahScans[ns.realmKey] or nil
+  if not DB then return nil end
+  local rk = ns.priceRealm or ns.realmKey
+  return (rk and DB.ahScans[rk]) or (ns.realmKey and DB.ahScans[ns.realmKey]) or nil
+end
+function ns.WithRealm(rk, fn, ...)
+  local old = ns.priceRealm
+  ns.priceRealm = rk
+  local ok, a, b = pcall(fn, ...)
+  ns.priceRealm = old
+  if not ok then error(a, 0) end
+  return a, b
 end
 -- цена за штуку на аукционе: самая свежая из снимка и поисков. Возвращает цена, время, количество
 function ns.AHPrice(id)
@@ -179,7 +196,7 @@ function ns.AHPrice(id)
   local rec = scan and scan.items and scan.items[id]
   if rec and rec[1] and rec[1] > 0 then p, t, q = rec[1], scan.t, rec[2] end
   local s = ns.DB.seen[id]
-  if s and s.p and s.p > 0 and (not t or s.t > t) and s.r == ns.realmKey then p, t = s.p, s.t; q = s.q or q end
+  if s and s.p and s.p > 0 and (not t or s.t > t) and s.r == (ns.priceRealm or ns.realmKey) then p, t = s.p, s.t; q = s.q or q end
   return p, t, q
 end
 -- себестоимость материала: дешевле из торговца и аукциона

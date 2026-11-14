@@ -4,6 +4,8 @@ local L = ns.L
 
 local function help()
   ns.say("v" .. ns.VERSION .. L". Всё самое нужное - на панелях у окон аукциона и профессий (кнопка-лапа скрывает их).")
+  print(L"  |cffe6b450/wm|r - окно крафта и сигналов (или кнопка-лапа у миникарты)")
+  print(L"  |cffe6b450/wm help|r - эта справка")
   print(L"  |cffe6b450/wm scan|r - снимок аукциона (у аукциониста, раз в 15 мин)")
   print(L"  |cffe6b450/wm best|r - лучший крафт сейчас")
   print(L"  |cffe6b450/wm marks|r - отмеченные предметы")
@@ -26,9 +28,10 @@ local function slash(msg)
   elseif msg == "reset" then
     wipe(ns.DB.marked); wipe(ns.DB.hist); wipe(ns.DB.seen); ns.DB.lastBest = nil
     ns.say(L"отметки и история цен очищены."); ns.Fire("MARKS"); ns.Fire("PRICES")
+  elseif msg == "help" or msg == "?" then help()
   elseif msg == "debug" then
     ns.DB.settings.debug = not ns.DB.settings.debug; ns.say(L"отладка: " .. (ns.DB.settings.debug and L"вкл" or L"выкл"))
-  else help() end
+  else if ns.ToggleMain then ns.ToggleMain() else help() end end
 end
 
 SLASH_WOLFICHMARKET1 = "/wm"
@@ -40,6 +43,8 @@ end
 -- привязка клавиши: «Выставить следующий отмеченный лот» (Настройки → Управление → WolfichMarket)
 BINDING_HEADER_WOLFICHMARKET = "WolfichMarket"
 BINDING_NAME_WOLFICHMARKET_POSTNEXT = L"Выставить следующий отмеченный лот"
+BINDING_NAME_WOLFICHMARKET_TOGGLE = L"Окно WolfichMarket (крафт и сигналы)"
+function WolfichMarket_Toggle() if ns.ToggleMain then ns.ToggleMain() end end
 function WolfichMarket_PostNext() if ns.PostNext then ns.PostNext() end end
 
 SLASH_WOLFICHMARKETAH1 = "/wmah"

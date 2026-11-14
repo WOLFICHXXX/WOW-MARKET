@@ -100,10 +100,8 @@ end
 
 function ns.IsLearned(rec) return rec.learned ~= false end
 -- все рецепты всех профессий текущего персонажа с прибылью (неизученные — только если попросили)
-function ns.AllRecipeProfits(profFilter, withUnlearned)
+local function collect(c, profFilter, withUnlearned)
   local out = {}
-  local c = ns.DB.chars[ns.charKey]
-  if not c then return out end
   for prof, p in pairs(c.profs or {}) do
     if not profFilter or prof == profFilter then
       for _, rec in ipairs(p.recipes or {}) do
@@ -116,6 +114,13 @@ function ns.AllRecipeProfits(profFilter, withUnlearned)
     end
   end
   return out
+end
+-- charKey: другой персонаж — цены берутся из снимка его режима и фракции
+function ns.AllRecipeProfits(profFilter, withUnlearned, charKey)
+  local c = ns.DB.chars[charKey or ns.charKey]
+  if not c then return {} end
+  if charKey and charKey ~= ns.charKey and c.realmKey then return ns.WithRealm(c.realmKey, collect, c, profFilter, withUnlearned) end
+  return collect(c, profFilter, withUnlearned)
 end
 function ns.CraftCost(id)
   local best, bestRec, bestPr
