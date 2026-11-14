@@ -38,7 +38,7 @@ local function slash(msg)
     print("  " .. L"канал аддона" .. ": " .. ((id and id > 0) and ("|cff78d98a#" .. id .. "|r") or L"|cffff6060не подключён|r"))
     local rs = ns.NetRoutes and ns.NetRoutes() or {}
     local names = {}
-    for _, r in ipairs(rs) do names[#names + 1] = r[1] .. (r[2] and (" " .. r[2]) or "") end
+    for _, r in ipairs(rs) do names[#names + 1] = r[1] == "BN" and ("Battle.net " .. tostring(r[3])) or (r[1] .. (r[2] and (" " .. r[2]) or "")) end
     print("  " .. L"маршруты" .. ": " .. (#names > 0 and table.concat(names, ", ") or L"|cffff6060нет|r"))
     print("  " .. L"отправлено" .. ": " .. (st.sent or 0) .. "   " .. L"ошибок" .. ": " .. (st.fail or 0) .. (st.lastFail and (" (" .. st.lastFail .. ")") or ""))
     print("  " .. L"получено" .. ": " .. (st.recv or 0) .. (st.lastFrom and ("   " .. L"последнее от" .. " " .. st.lastFrom) or ""))
@@ -66,5 +66,10 @@ BINDING_NAME_WOLFICHMARKET_TOGGLE = L"Окно WolfichMarket (крафт и си
 function WolfichMarket_Toggle() if ns.ToggleMain then ns.ToggleMain() end end
 function WolfichMarket_PostNext() if ns.PostNext then ns.PostNext() end end
 
+-- короткие команды общего рынка (и на случай, если пишут без пробела)
+SLASH_WOLFICHMARKETNET1 = "/wmnet"
+SlashCmdList.WOLFICHMARKETNET = function() SlashCmdList.WOLFICHMARKET("net") end
+SLASH_WOLFICHMARKETNETSEND1 = "/wmnetsend"
+SlashCmdList.WOLFICHMARKETNETSEND = function() SlashCmdList.WOLFICHMARKET("netsend") end
 SLASH_WOLFICHMARKETAH1 = "/wmah"
 SlashCmdList.WOLFICHMARKETAH = function() local p = _G.WolfichMarketAHPanel; if p and ns.AHIsOpen and ns.AHIsOpen() then p:Show() end; SlashCmdList.WOLFICHMARKET("scan") end

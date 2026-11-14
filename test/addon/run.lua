@@ -495,6 +495,30 @@ do
   check(okNet, "/wm net показывает маршруты")
   C_FriendList = nil
 end
+-- друзья Battle.net в WoW - отдельный маршрут; приём через Battle.net
+do
+  local bnSent = {}
+  BNGetNumFriends = function() return 1 end
+  BNSendGameData = function(id, p, m) bnSent[#bnSent + 1] = { id, m } end
+  C_BattleNet = { GetFriendNumGameAccounts = function() return 1 end,
+    GetFriendGameAccountInfo = function() return { isOnline = true, gameAccountID = 77, characterName = "Латыш", realmName = "Realm" } end,
+    GetGameAccountInfoByID = function() return { characterName = "Латыш", realmName = "Realm" } end }
+  local bn = false; for _, r in ipairs(ns.NetRoutes()) do if r[1] == "BN" and r[2] == 77 then bn = true end end
+  check(bn, "общий рынок: друг Battle.net в WoW - получатель")
+  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
+  for _ = 1, 30 do advance(1) end
+  check(#bnSent > 0, "общий рынок: цены уходят через Battle.net (" .. #bnSent .. ")")
+  local enc = function(n) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; n = math.floor(n); repeat local d = n % 36; s2 = D:sub(d + 1, d + 1) .. s2; n = math.floor(n / 36) until n == 0; return s2 end
+  local rk = ns.realmKey:gsub("|", "~"); local t = time() + 20000
+  fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^1^2.20", "WHISPER", 77)
+  fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "P^" .. rk .. "^" .. enc(t) .. "^" .. enc(2840) .. "," .. enc(222) .. ",4;", "WHISPER", 77)
+  fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "E^" .. rk .. "^" .. enc(t), "WHISPER", 77)
+  check(ns.AHPrice(2840) == 222, "общий рынок: цены через Battle.net приняты")
+  ns.DB.net = nil
+  BNGetNumFriends, BNSendGameData, C_BattleNet = nil, nil, nil
+  printed = {}; SlashCmdList.WOLFICHMARKETNET()
+  check(#printed > 2, "/wmnet работает")
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

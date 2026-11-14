@@ -64,11 +64,25 @@ local function routes()
   if IsInGuild and IsInGuild() then r[#r + 1] = { "GUILD" } end
   if IsInRaid and IsInRaid() then r[#r + 1] = { "RAID" } elseif IsInGroup and IsInGroup() then r[#r + 1] = { "PARTY" } end
   local F = C_FriendList
+  local seen = {}
   if F and F.GetNumFriends and F.GetFriendInfoByIndex then
     local n = 0
     for i = 1, (safe(F.GetNumFriends) or 0) do
       local f = safe(F.GetFriendInfoByIndex, i)
-      if f and f.connected and f.name and n < 10 then r[#r + 1] = { "WHISPER", f.name }; n = n + 1 end
+      if f and f.connected and f.name and n < 10 then r[#r + 1] = { "WHISPER", f.name }; seen[f.name] = true; n = n + 1 end
+    end
+  end
+  -- друзья Battle.net, которые сейчас в WoW: служебное сообщение через Battle.net (работает и между мирами)
+  local B = C_BattleNet
+  if B and B.GetFriendNumGameAccounts and B.GetFriendGameAccountInfo and BNGetNumFriends and BNSendGameData then
+    local n = 0
+    for i = 1, (safe(BNGetNumFriends) or 0) do
+      for k = 1, (safe(B.GetFriendNumGameAccounts, i) or 0) do
+        local g = safe(B.GetFriendGameAccountInfo, i, k)
+        if g and g.isOnline and g.gameAccountID and g.characterName and g.characterName ~= "" and not seen[g.characterName] and n < 10 then
+          r[#r + 1] = { "BN", g.gameAccountID, g.characterName }; seen[g.characterName] = true; n = n + 1
+        end
+      end
     end
   end
   return r
@@ -79,7 +93,10 @@ local function pump()
   local e = table.remove(queue, 1)
   if not e then sending = false return end
   local C = C_ChatInfo
-  if C and C.SendAddonMessage then
+  if e[2] == "BN" then
+    local ok = pcall(BNSendGameData, e[3], PREFIX, e[1])
+    if ok then ns.netStats.sent = ns.netStats.sent + 1 else ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = "BN" end
+  elseif C and C.SendAddonMessage then
     local ok, res = pcall(C.SendAddonMessage, PREFIX, e[1], e[2], e[3])
     if not ok or res == false or (type(res) == "number" and res ~= 0) then
       ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = e[2] .. " " .. tostring(ok and res or "ошибка")
@@ -88,7 +105,7 @@ local function pump()
   ns.After(SEND_EVERY, pump)
 end
 local function send(msg)
-  for _, r in ipairs(routes()) do queue[#queue + 1] = { msg, r[1], r[2] } end
+  for _, r in ipairs(routes()) do queue[#queue + 1] = { msg, r[1], r[2], r[3] } end
   if not sending and #queue > 0 then sending = true; ns.After(0, pump) end
 end
 ns._netQueue = queue -- для автотестов
@@ -131,7 +148,7 @@ function ns.ShareScan(scan)
   send("E^" .. RK() .. "^" .. enc(scan.t))
   local rs = routes()
   local names = {}
-  for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or L"группа" end
+  for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or r[1] == "BN" and r[3] or L"группа" end
   ns.say(string.format(L"общий рынок: отправляю %d цен (%s)", n, #names > 0 and table.concat(names, ", ") or L"|cffff6060некому - нет канала, гильдии, группы и друзей онлайн|r"))
 end
 
@@ -274,8 +291,9 @@ local function onMessage(prefix, msg, _, sender)
       return
     end
     ns.say(string.format(L"общий рынок: принимаю цены от %s (%s)...", (sender:match("^[^-]+") or sender), ns.ago(t)))
-    if lastFrom[sender] and time() - lastFrom[sender] < 300 then return end
-    lastFrom[sender] = time()
+    -- один и тот же снимок мог прийти несколькими путями (канал, гильдия, Battle.net) - берём один раз
+    if lastFrom[sender .. t] then return end
+    lastFrom[sender .. t] = time()
     incoming[sender] = { t = t, items = {} }
     ns.After(120, function() if incoming[sender] then finish(sender) end end) -- конец потерялся - берём что пришло
   elseif kind == "P" then
@@ -294,6 +312,13 @@ end
 ns._netReceive = onMessage -- для автотестов
 
 ns.On("CHAT_MSG_ADDON", onMessage)
+-- сообщения от друзей Battle.net
+ns.On("BN_CHAT_MSG_ADDON", function(prefix, text, _, gameAccountID)
+  if prefix ~= PREFIX then return end
+  local g = C_BattleNet and C_BattleNet.GetGameAccountInfoByID and safe(C_BattleNet.GetGameAccountInfoByID, gameAccountID)
+  local who = g and g.characterName and (g.characterName .. (g.realmName and g.realmName ~= "" and ("-" .. g.realmName) or "")) or ("bn" .. tostring(gameAccountID))
+  onMessage(prefix, text, "BN", who)
+end)
 ns.Listen("LOGIN", function()
   if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then pcall(C_ChatInfo.RegisterAddonMessagePrefix, PREFIX) end
   ns.After(8, function()
