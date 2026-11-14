@@ -6,6 +6,7 @@ local function help()
   print("  |cffe6b450/wm scan|r - снимок аукциона (у аукциониста, раз в 15 мин)")
   print("  |cffe6b450/wm best|r - лучший крафт сейчас")
   print("  |cffe6b450/wm marks|r - отмеченные предметы")
+  print("  Клавиша для выставления по очереди: Настройки > Управление > WolfichMarket (или макрос /click WolfichMarketPostNextButton)")
   print("  |cffe6b450/wm reset|r - очистить отметки и историю цен")
   print("  Alt+клик по предмету - отметить |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t (уведомления о скачках цены только по отмеченным)")
 end
@@ -35,5 +36,10 @@ SlashCmdList.WOLFICHMARKET = function(msg)
   local ok, err = xpcall(function() slash(msg) end, function(e) return tostring(e) .. "\n" .. (debugstack and debugstack(2, 3, 0) or "") end)
   if not ok then ns.say("|cffff6060ошибка:|r " .. tostring(err)) end
 end
+-- привязка клавиши: «Выставить следующий отмеченный лот» (Настройки → Управление → WolfichMarket)
+BINDING_HEADER_WOLFICHMARKET = "WolfichMarket"
+BINDING_NAME_WOLFICHMARKET_POSTNEXT = "Выставить следующий отмеченный лот"
+function WolfichMarket_PostNext() if ns.PostNext then ns.PostNext() end end
+
 SLASH_WOLFICHMARKETAH1 = "/wmah"
 SlashCmdList.WOLFICHMARKETAH = function() SlashCmdList.WOLFICHMARKET("scan") end

@@ -421,6 +421,8 @@ local function pageSell(f)
     f.list:Refresh(); f.updateBulk()
   end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 188)
   f.bulk = UI.Button(f, "Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 188)
+  _G.WolfichMarketPostNextButton = f.bulk
+  ns.PostNext = function() if f:IsVisible() then f.postNext() else ns.say("откройте вкладку «Продать» у аукциониста.") end end
   f.bulkInfo = UI.Font(f, 10, UI.DIM); f.bulkInfo:SetPoint("LEFT", f.allBtn, "RIGHT", 8, 0); f.bulkInfo:SetPoint("RIGHT", f.bulk, "LEFT", -6, 0); f.bulkInfo:SetWordWrap(true)
   f.list.empty:SetText("В сумках нет предметов, которые можно выставить.")
   local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(180)
@@ -508,7 +510,8 @@ local function pageSell(f)
       f.bulkInfo:SetText(n > 0 and "У отмеченных нет цены - сделайте снимок." or "Отметьте предметы галочками.")
     else
       f.bulk:SetLabel("Выставить: " .. ns.itemName(q[1].d.id) .. (#q > 1 and (" (+" .. (#q - 1) .. ")") or "")); f.bulk:Enable()
-      f.bulkInfo:SetText("Каждый клик - один лот, по цене на 1м ниже минимальной, всё количество, срок " .. DURS[f.dur][2] .. ".")
+      local key = GetBindingKey and GetBindingKey("WOLFICHMARKET_POSTNEXT")
+      f.bulkInfo:SetText("Одно нажатие - один лот (так требует игра)" .. (key and (", клавиша |cffe6b450" .. key .. "|r") or ", можно назначить клавишу в настройках управления") .. ". Цена на 1м ниже минимальной, срок " .. DURS[f.dur][2] .. ".")
     end
   end
   f.postNext = function()
