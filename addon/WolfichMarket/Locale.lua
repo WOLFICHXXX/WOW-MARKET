@@ -271,10 +271,5 @@ ns.EN = {
   ["План"] = "Plan",
   ["< Назад"] = "< Back",
   ["Найти этот предмет на аукционе"] = "Find this item at the auction house",
-  ["откройте окно аукциона."] = "open the auction house.",
-  ["нечего обновлять: отметьте предметы звёздочкой или добавьте рецепт в план."] = "nothing to update: mark items with a star or add a recipe to the plan.",
-  ["Цены %d/%d"] = "Prices %d/%d",
-  ["Обновить цены"] = "Update prices",
-  ["Свежие цены отмеченных предметов, материалов из плана и выбранного к продаже - прямо сейчас, без 15-минутного ожидания. Каждое обновление добавляет точку на график и проверяет сигналы."] = "Fresh prices for marked items, plan materials and the item selected for sale - right now, without the 15-minute wait. Each update adds a chart point and checks alerts.",
   ["  /  вручную"] = "  /  manual",
 }

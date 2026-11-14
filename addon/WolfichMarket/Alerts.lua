@@ -9,35 +9,6 @@ local function sound()
   pcall(PlaySound, id, "Master")
 end
 
--- показать скачки цен: hits = { {id, p, ch}, ... }
-local function report(hits)
-  table.sort(hits, function(a, b) return math.abs(a.ch) > math.abs(b.ch) end)
-  if #hits == 0 then return end
-  for _, h in ipairs(hits) do
-    ns.say(string.format("%s %s - %s %s", h.ch > 0 and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r", ns.itemLinkText(h.id), ns.money(h.p), ns.pct(h.ch)))
-  end
-  local top = hits[1]
-  UI.Toast(string.format("%s %s %s", top.ch > 0 and L"|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t Подорожало:" or L"|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t Подешевело:", ns.itemName(top.id), ns.pct(top.ch)),
-    ns.money(top.p) .. L" за шт" .. (#hits > 1 and (L"  /  ещё скачков: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
-  sound()
-end
--- быстрое обновление цен: те же сигналы по отмеченным (сравнение со средней за сутки)
-ns.Listen("QUICK_DONE", function(ids)
-  local S = ns.DB.settings
-  if not S.alerts then return end
-  local hits = {}
-  for _, id in ipairs(ids or {}) do
-    if ns.IsMarked(id) then
-      local p, base = ns.AHPrice(id), ns.AvgPrice(id, 24)
-      if p and base and base > 0 then
-        local ch = (p - base) / base * 100
-        if math.abs(ch) >= (ns.DB.alarm[id] or S.alertPct or 20) then hits[#hits + 1] = { id = id, p = p, ch = ch } end
-      end
-    end
-  end
-  report(hits)
-end)
-
 ns.Listen("SCAN_DONE", function(scan, prev)
   local S = ns.DB.settings
   -- скачки цен по отмеченным
