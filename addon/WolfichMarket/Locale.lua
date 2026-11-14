@@ -303,4 +303,9 @@ ns.EN = {
   ["Стоп %d/%d"] = "Stop %d/%d",
   ["Свежие цены без 15-минутного ожидания: всё, что лежит в сумках, результаты и материалы рецептов ваших профессий, отмеченные и план. Предметы проверяются по очереди, примерно 2 в секунду; повторное нажатие - стоп."] = "Fresh prices without the 15-minute wait: everything in your bags, results and materials of your profession recipes, marked items and the plan. Items are checked one by one, about 2 per second; click again to stop.",
   ["Узнаю цену..."] = "Getting price...",
+  ["Обновить цены плана"] = "Update plan prices",
+  ["Выручка"] = "Revenue",
+  ["материалы"] = "materials",
+  ["прибыль"] = "profit",
+  [" |cffaa8866(не у всего есть цена)|r"] = " |cffaa8866(some prices missing)|r",
 }

@@ -775,12 +775,21 @@ end
 local function pagePlan(f)
   f.title = UI.Font(f, 13, UI.GOLD, "OVERLAY", "OUTLINE"); f.title:SetPoint("TOPLEFT", 2, -2); f.title:SetText(L"План закупки")
   f.clear = UI.Button(f, L"Очистить", 90, 20, function() ns.ClearPlans() end); f.clear:SetPoint("TOPRIGHT", 0, 0)
+  -- обновить цены только для плана: результаты и материалы всех рецептов плана
+  f.upd = UI.Button(f, L"Обновить цены плана", 150, 20, function()
+    local ids, seen = {}, {}
+    for _, pl in ipairs(ns.Plans()) do recipeIDs(pl, ids, seen) end
+    ns.QuickRefresh(ids)
+  end); f.upd:SetPoint("RIGHT", f.clear, "LEFT", -6, 0)
   f.recs = UI.List(f, 20, function(r)
     r.x = UI.Icon(r, "skin\\ai-x", 14, L"Убрать из плана", function(self) local d = self:GetParent().data; if d then ns.RemovePlan(d.i) end end); r.x:SetPoint("RIGHT", -2, 0)
     r.n = UI.Font(r, 11, UI.GOLD); r.n:SetPoint("RIGHT", r.x, "LEFT", -8, 0); r.n:SetJustifyH("RIGHT")
+    r.profit = UI.Font(r, 11); r.profit:SetPoint("RIGHT", r.n, "LEFT", -10, 0); r.profit:SetJustifyH("RIGHT")
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 2, 0)
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.n, "LEFT", -6, 0)
+    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.profit, "LEFT", -6, 0)
   end, function(r, d)
+    local pr = d.pr or {}
+    r.profit:SetText(pr.profit and ((pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(pr.profit, true) .. "|r") or L"|cffaa8866нет цены|r")
     r.icon:SetTexture(d.p.out and ns.itemIcon(d.p.out) or 134400)
     local who = d.p.ck and d.p.ck ~= ns.charKey and (" |cffaaaaaa(" .. (d.p.ck:match("^(.-)%-") or d.p.ck) .. ")|r") or ""
     r.name:SetText(d.p.name .. who); r.n:SetText("×" .. d.p.n)
@@ -811,18 +820,24 @@ local function pagePlan(f)
       r.buyBtn:Show()
     else r.buy:SetText(L"|cff78d98aготово|r"); r.buyBtn:Hide() end
   end)
-  f.items:SetPoint("TOPLEFT", 0, -152); f.items:SetPoint("RIGHT"); f.items:SetPoint("BOTTOM", 0, 26)
+  f.items:SetPoint("TOPLEFT", 0, -152); f.items:SetPoint("RIGHT"); f.items:SetPoint("BOTTOM", 0, 44)
   f.items.empty:SetText(L"Нечего докупать.")
-  f.total = UI.Font(f, 12, UI.TEXT); f.total:SetPoint("BOTTOMLEFT", 2, 6); f.total:SetPoint("RIGHT", -2, 0)
+  f.total = UI.Font(f, 12, UI.TEXT); f.total:SetPoint("BOTTOMLEFT", 2, 24); f.total:SetPoint("RIGHT", -2, 0)
+  f.profit = UI.Font(f, 11, UI.TEXT); f.profit:SetPoint("BOTTOMLEFT", 2, 6); f.profit:SetPoint("RIGHT", -2, 0)
   f.refresh = function()
     local plans = ns.Plans()
     local rd = {}
-    for i, p in ipairs(plans) do rd[#rd + 1] = { i = i, p = p } end
-    f.recs:SetData(rd); f.clear:SetShown(#plans > 0)
+    local prs, tot = ns.PlanProfit()
+    for i, p in ipairs(plans) do rd[#rd + 1] = { i = i, p = p, pr = prs[i] } end
+    f.recs:SetData(rd); f.clear:SetShown(#plans > 0); f.upd:SetShown(#plans > 0)
     local needs, total = ns.PlanNeeds()
     f.items:SetData(needs)
     local left = 0; for _, d in ipairs(needs) do if d.buy > 0 then left = left + 1 end end
-    f.total:SetText(#plans == 0 and "" or (left == 0 and L"|cff78d98aВсё есть - можно крафтить!|r" or string.format(L"Докупить: %d материалов на %s", left, ns.money(total))))
+    if #plans == 0 then f.total:SetText(""); f.profit:SetText("") return end
+    f.total:SetText(left == 0 and L"|cff78d98aВсё есть - можно крафтить!|r" or string.format(L"Докупить: %d материалов на %s", left, ns.money(total)))
+    -- прибыль всей партии: выручка за результаты минус стоимость всех материалов
+    f.profit:SetText(L"Выручка" .. " ~" .. ns.money(tot.revenue, true) .. "   " .. L"материалы" .. " " .. ns.money(tot.cost, true) .. "   " .. L"прибыль" .. " "
+      .. ((tot.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(tot.profit, true) .. "|r") .. (tot.missing and L" |cffaa8866(не у всего есть цена)|r" or ""))
   end
 end
 

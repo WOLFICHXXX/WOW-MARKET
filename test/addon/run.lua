@@ -323,6 +323,15 @@ do
   local all = true; for _, x in ipairs(ns.PlanNeeds()) do if x.buy ~= x.need then all = false end end
   check(all, "план без своих материалов - докупить всё")
   ns.DB.settings.planUseStock = nil
+  local prs, tot = ns.PlanProfit()
+  check(prs[1] and prs[1].cost > 0 and tot.cost == prs[1].cost, "план: стоимость материалов партии")
+  check(ns._ahPages[7].profit and ns._ahPages[7].upd, "план: строка прибыли и своя кнопка обновления цен")
+  ns.AHSelectTab(7)
+  asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
+  ns._ahPages[7].upd.scripts.OnClick(ns._ahPages[7].upd)
+  for _ = 1, 20 do advance(1) end
+  C_AuctionHouse.SendSearchQuery = oldQ
+  check(#asked == 3, "«Обновить цены плана» - только рецепты плана")
   ns.ClearPlans()
 end
 -- стоимость сумок: полная, «Сбросить» (только новое), «Обновить»
