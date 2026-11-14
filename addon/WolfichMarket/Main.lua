@@ -640,6 +640,8 @@ local function buildSettings(f)
   local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 8); t2:SetText(L"Общий рынок"); a.y = a.y - 32
   chk(a, L"Делиться своими снимками с игроками", "netSend", nil, true)
   chk(a, L"Принимать цены от игроков", "netRecv", nil, true)
+  chk(a, L"Рассылать весь аукцион, а не только рецепты", "netFull", nil, true)
+  chk(a, L"Турбо: рассылка в 4 раза быстрее", "netTurbo", nil, true)
   local net = UI.Button(f, L"Проверить связь (/wmnet)", 200, 22, function() if SlashCmdList.WOLFICHMARKET then SlashCmdList.WOLFICHMARKET("net") end end)
   net:SetPoint("TOPLEFT", a.x, a.y - 2)
 

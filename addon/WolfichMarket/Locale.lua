@@ -437,4 +437,6 @@ ns.EN = {
   ["Язык:"] = "Language:",
   ["Авто"] = "Auto",
   ["  -  обновление: WolfichMarket-Updater.bat с сайта или CurseForge.  Команды: /wm help"] = "  -  updates: WolfichMarket-Updater.bat from the site or CurseForge.  Commands: /wm help",
+  ["Рассылать весь аукцион, а не только рецепты"] = "Send the whole auction, not just recipes",
+  ["Турбо: рассылка в 4 раза быстрее"] = "Turbo: 4x faster sending",
 }
