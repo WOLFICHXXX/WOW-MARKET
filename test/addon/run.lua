@@ -39,7 +39,7 @@ ns.DB.ahLastReq = 0
 played = false
 ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); advance(15)
 check(played, "уведомление со звуком о скачке цены отмеченного")
-local found = false; for _, s in ipairs(printed) do if s:find("Медный слиток") and s:find("▲") then found = true end end
+local found = false; for _, s in ipairs(printed) do if s:find("Медный слиток") and s:find("media\\up", 1, true) then found = true end end
 check(found, "строка о подорожании меди в чате")
 -- поиск на аукционе
 ns.SearchAH(2835); check(searched == "Грубый камень", "поиск на аукционе по названию")
@@ -68,6 +68,9 @@ fire("COMMODITY_PRICE_UPDATED", 101, 505)
 check(buy.confirm.enabled, "покупка: кнопка подтверждения активна")
 buy.confirm.scripts.OnClick(buy.confirm)
 check(confirmedBuy and confirmedBuy[2] == 5, "покупка подтверждена: 5 шт")
+buy.back.scripts.OnClick(buy.back)
+local md = buy.mats.data
+check(#md >= 4 and md[1].header == "Кузнечное дело", "покупка: список материалов по профессиям (" .. #md .. " строк)")
 ns.OpenChart(2840)
 -- подсказка
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))

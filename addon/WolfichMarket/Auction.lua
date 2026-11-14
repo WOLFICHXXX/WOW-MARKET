@@ -13,7 +13,7 @@ local function setStatus() ns.Fire("SCAN_STATE") end
 local function finishScan()
   if processing then return end
   local n = safe(C_AuctionHouse.GetNumReplicateItems) or 0
-  if n == 0 then busy = false; ns.say("аукцион ответил пустым списком — попробуйте позже."); setStatus() return end
+  if n == 0 then busy = false; ns.say("аукцион ответил пустым списком - попробуйте позже."); setStatus() return end
   processing = true
   local items = {}
   local i = 0
@@ -54,7 +54,7 @@ end
 
 function ns.StartScan(auto)
   if not (C_AuctionHouse and C_AuctionHouse.ReplicateItems) then ns.say("в этой версии игры нет полного скана аукциона.") return end
-  if not ns.ahOpen then wanted = true; ns.say("откройте окно аукциона — скан начнётся сам.") return end
+  if not ns.ahOpen then wanted = true; ns.say("откройте окно аукциона - скан начнётся сам.") return end
   if busy then return end
   local left = (ns.DB.ahLastReq or 0) + COOLDOWN - time()
   if left > 0 then if not auto then ns.say(string.format("следующий снимок можно через %d:%02d.", math.floor(left / 60), left % 60)) end return end
@@ -62,9 +62,9 @@ function ns.StartScan(auto)
   ns.DB.ahLastReq = time()
   setStatus()
   local ok = pcall(C_AuctionHouse.ReplicateItems)
-  if not ok then busy = false; setStatus(); ns.say("сервер отказал — подождите 15 минут.") return end
+  if not ok then busy = false; setStatus(); ns.say("сервер отказал - подождите 15 минут.") return end
   ns.After(20, function() if busy and (safe(C_AuctionHouse.GetNumReplicateItems) or 0) > 0 then finishScan() end end)
-  ns.After(90, function() if busy and not processing then busy = false; setStatus(); ns.say("сервер не прислал аукцион — попробуйте позже.") end end)
+  ns.After(90, function() if busy and not processing then busy = false; setStatus(); ns.say("сервер не прислал аукцион - попробуйте позже.") end end)
 end
 function ns.ScanBusy() return busy end
 
@@ -133,15 +133,15 @@ local function updateHeader()
   local scan = ns.CurrentScan()
   local left = (ns.DB.ahLastReq or 0) + COOLDOWN - time()
   if busy then
-    panel.scanBtn:SetLabel(ns.progress and ("Обработка " .. ns.progress .. "%") or "Сканирую…"); panel.scanBtn:Disable()
+    panel.scanBtn:SetLabel(ns.progress and ("Обработка " .. ns.progress .. "%") or "Сканирую..."); panel.scanBtn:Disable()
   elseif left > 0 then
     panel.scanBtn:SetLabel(string.format("Скан через %d:%02d", math.floor(left / 60), left % 60)); panel.scanBtn:Disable()
   else
     panel.scanBtn:SetLabel("Сканировать"); panel.scanBtn:Enable()
   end
   local S = ns.DB.settings
-  panel.state:SetText((scan and ("Снимок: " .. ns.ago(scan.t) .. " · " .. scan.lots .. " лотов") or "|cffff9966Снимка ещё нет — нажмите «Сканировать».|r")
-    .. (S.autoScan and ("  ·  авто раз в " .. S.autoScanMin .. " мин") or ""))
+  panel.state:SetText((scan and ("Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. " лотов") or "|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
+    .. (S.autoScan and ("  /  авто раз в " .. S.autoScanMin .. " мин") or ""))
 end
 
 -- строка списка предметов: звезда, иконка, имя, цена, изменение, кнопки
@@ -158,6 +158,12 @@ local function itemRow(r, withBuy)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 local function fillItemRow(r, d)
+  local hdr = d.header ~= nil
+  for _, w in ipairs({ r.star, r.icon, r.buy, r.search, r.chart, r.chg }) do w:SetShown(not hdr) end
+  if hdr then
+    r.name:SetText("|cffe6b450" .. d.header .. "|r"); r.price:SetText(d.headerRight or "")
+    return
+  end
   r.star:SetIcon(ns.IsMarked(d.id) and "star-on" or "star-off")
   r.icon:SetTexture(ns.itemIcon(d.id))
   r.name:SetText(ns.itemLinkText(d.id) .. (d.extra or ""))
@@ -177,7 +183,7 @@ local function pageMarked(f)
     for id in pairs(ns.DB.marked) do d[#d + 1] = { id = id } end
     table.sort(d, function(a, b) return ns.itemName(a.id) < ns.itemName(b.id) end)
     l:SetData(d)
-    l.empty:SetText("Отметьте нужные материалы и предметы ★ —\nв окне профессии, во вкладке «Крафт»\nили Alt+клик по предмету в сумке.\nУведомления о скачках цены приходят только по ним.")
+    l.empty:SetText("Отметьте нужные материалы и предметы |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t -\nв окне профессии, во вкладке «Крафт»\nили Alt+клик по предмету в сумке.\nУведомления о скачках цены приходят только по ним.")
   end
 end
 
@@ -197,7 +203,7 @@ local function pageCraft(f)
     for _, pr in ipairs(ns.AllRecipeProfits()) do if pr.rec.out then d[#d + 1] = { id = pr.rec.out, pr = pr } end end
     table.sort(d, function(a, b) return (a.pr.profit or -1e12) > (b.pr.profit or -1e12) end)
     l:SetData(d)
-    l.empty:SetText("Откройте окна своих профессий — здесь появятся рецепты с прибылью.")
+    l.empty:SetText("Откройте окна своих профессий - здесь появятся рецепты с прибылью.")
   end
 end
 
@@ -224,19 +230,67 @@ local function pageBuy(f)
   f.qty = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); f.qty:SetSize(60, 20); f.qty:SetPoint("LEFT", f.qtyLabel, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true); f.qty:SetText("1")
   f.price = UI.Button(f, "Узнать цену", 110, 22, function()
     local q = tonumber(f.qty:GetText()) or 0
-    if buyItem and q > 0 then f.confirm:Disable(); f.total:SetText("запрос цены…"); pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q) end
+    if buyItem and q > 0 then f.confirm:Disable(); f.total:SetText("запрос цены..."); pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q) end
   end); f.price:SetPoint("LEFT", f.qty, "RIGHT", 10, 0)
   f.confirm = UI.Button(f, "Купить", 130, 22, function()
     local q = tonumber(f.qty:GetText()) or 0
     if buyItem and q > 0 then pcall(C_AuctionHouse.ConfirmCommoditiesPurchase, buyItem, q); f.confirm:Disable() end
   end, true); f.confirm:SetPoint("BOTTOMRIGHT", -4, 8); f.confirm:Disable()
   f.total = UI.Font(f, 11); f.total:SetPoint("BOTTOMLEFT", 4, 12); f.total:SetPoint("RIGHT", f.confirm, "LEFT", -8, 0)
-  f.list.empty:SetText("Нажмите на сумку у предмета во вкладках\n«Отмеченные» или «Крафт».")
+  f.list.empty:SetText("На аукционе сейчас нет.")
   f.setCommodity = function(c)
     for _, w in ipairs({ f.qtyLabel, f.qty, f.price, f.confirm, f.total }) do w:SetShown(c) end
   end
   f.setCommodity(false)
-  f.refresh = function() end
+  -- список материалов для всех рецептов персонажа, по профессиям
+  f.back = UI.Button(f, "< К материалам", 130, 20, function() buyItem = nil; f.refresh() end)
+  f.back:SetPoint("TOPRIGHT", 0, 0)
+  f.mats = UI.List(f, 22, itemRow, fillItemRow)
+  f.mats:SetPoint("TOPLEFT", 0, -42); f.mats:SetPoint("BOTTOMRIGHT")
+  f.mats.empty:SetText("Откройте окна своих профессий - здесь появятся\nвсе материалы для ваших рецептов.")
+  local function count(id)
+    local n = (C_Item and C_Item.GetItemCount and safe(C_Item.GetItemCount, id, true)) or (GetItemCount and safe(GetItemCount, id, true))
+    return n or 0
+  end
+  f.matsData = function()
+    local d = {}
+    local c = ns.DB.chars[ns.charKey]
+    local profs = {}
+    for prof in pairs(c and c.profs or {}) do profs[#profs + 1] = prof end
+    table.sort(profs)
+    for _, prof in ipairs(profs) do
+      local seen, items = {}, {}
+      for _, rec in ipairs(c.profs[prof].recipes or {}) do
+        for _, r in ipairs(rec.reag or {}) do
+          local id = r[1]
+          if not seen[id] then seen[id] = { id = id, recipes = 0 }; items[#items + 1] = seen[id] end
+          seen[id].recipes = seen[id].recipes + 1
+        end
+      end
+      if #items > 0 then
+        table.sort(items, function(a, b) return ns.itemName(a.id) < ns.itemName(b.id) end)
+        d[#d + 1] = { header = prof, headerRight = "|cffaaaaaaматериалов: " .. #items .. "|r" }
+        for _, it in ipairs(items) do
+          local have = count(it.id)
+          local v = ns.DB.vendor[it.id]
+          it.extra = (have > 0 and (" |cff78d98a(есть " .. have .. ")|r") or "") .. (v and " |cffaaaaaa(торговец)|r" or "")
+          d[#d + 1] = it
+        end
+      end
+    end
+    return d
+  end
+  f.refresh = function()
+    local item = buyItem ~= nil
+    f.mats:SetShown(not item); f.list:SetShown(item); f.back:SetShown(item)
+    if not item then
+      f.setCommodity(false)
+      f.icon:SetTexture(ns.MEDIA .. "bag")
+      f.title:SetText("Материалы для ваших рецептов")
+      f.sub:SetText("Нажмите на сумку у материала, чтобы купить. Зелёным - сколько уже есть.")
+      f.mats:SetData(f.matsData())
+    end
+  end
 end
 
 local function searchItem(id)
@@ -253,7 +307,7 @@ function ns.OpenBuy(id)
   buyItem = id
   tabs.select(3)
   local f = pages[3]
-  f.icon:SetTexture(ns.itemIcon(id)); f.title:SetText(ns.itemLinkText(id)); f.sub:SetText("ищу на аукционе…")
+  f.icon:SetTexture(ns.itemIcon(id)); f.title:SetText(ns.itemLinkText(id)); f.sub:SetText("ищу на аукционе...")
   f.list:SetData({}); f.total:SetText(""); f.confirm:Disable(); f.setCommodity(false)
   searchItem(id)
 end
@@ -322,7 +376,7 @@ local function pageSell(f)
     r:SetScript("OnClick", function(self) if self.data then f.select(self.data) end end)
   end, function(r, d)
     r.icon:SetTexture(ns.itemIcon(d.id))
-    r.name:SetText(ns.itemLinkText(d.id) .. " |cffaaaaaa×" .. d.count .. "|r" .. (sellSel and sellSel.id == d.id and " |cffe6b450◄|r" or ""))
+    r.name:SetText(ns.itemLinkText(d.id) .. " |cffaaaaaa×" .. d.count .. "|r" .. (sellSel and sellSel.id == d.id and " |cffe6b450<|r" or ""))
     local p = ns.AHPrice(d.id); r.price:SetText(p and ns.money(p, true) or "|cff777777нет|r")
   end)
   f.list:SetPoint("TOPLEFT"); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 118)
@@ -362,7 +416,7 @@ local function pageSell(f)
     if d.commodity then dep = safe(C_AuctionHouse.CalculateCommodityDeposit, d.id, f.dur, q)
     else dep = d.loc and safe(C_AuctionHouse.CalculateItemDeposit, d.loc, f.dur, q) end
     local p = ns.AHPrice(d.id)
-    f.info:SetText(string.format("Выручка: %s · залог: %s%s", ns.money(unit * q * (1 - ns.AH_CUT)), dep and ns.money(dep) or "?",
+    f.info:SetText(string.format("Выручка: %s / залог: %s%s", ns.money(unit * q * (1 - ns.AH_CUT)), dep and ns.money(dep) or "?",
       p and ("\nМин. на аукционе: " .. ns.money(p)) or ""))
     if q > 0 and q <= d.count and unit > 0 then f.post:Enable() else f.post:Disable() end
   end
@@ -399,9 +453,9 @@ local function pageChart(f)
     local a24, a7 = ns.AvgPrice(chartItem, 24), ns.AvgPrice(chartItem, 24 * 7)
     local lo, hi
     for _, x in ipairs(h) do lo = math.min(lo or x[2], x[2]); hi = math.max(hi or x[2], x[2]) end
-    f.stats:SetText(string.format("Сейчас %s · средняя 24 ч %s · 7 дн %s · мин %s · макс %s · точек %d",
-      p and ns.money(p, true) or "—", a24 and ns.money(a24, true) or "—", a7 and ns.money(a7, true) or "—", lo and ns.money(lo, true) or "—", hi and ns.money(hi, true) or "—", #h))
-    f.star:SetLabel(ns.IsMarked(chartItem) and "★ Снять отметку" or "☆ Отметить")
+    f.stats:SetText(string.format("Сейчас %s / средняя 24 ч %s / 7 дн %s / мин %s / макс %s / точек %d",
+      p and ns.money(p, true) or "-", a24 and ns.money(a24, true) or "-", a7 and ns.money(a7, true) or "-", lo and ns.money(lo, true) or "-", hi and ns.money(hi, true) or "-", #h))
+    f.star:SetLabel(ns.IsMarked(chartItem) and "|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t Снять отметку" or "|TInterface\\AddOns\\WolfichMarket\\media\\star-off:12:12|t Отметить")
     ns.After(0, function() f.chart:SetPoints(h) end)
   end
 end
@@ -434,7 +488,7 @@ local function pageSettings(f)
   e:SetScript("OnTextChanged", function(self, user) if user then local v = tonumber(self:GetText()); if v and v > 0 then S.alertPct = v end end end)
   y = y - 34
   local note = UI.Font(f, 10, UI.DIM); note:SetPoint("TOPLEFT", 6, y); note:SetPoint("RIGHT", -6, 0); note:SetWordWrap(true)
-  note:SetText("Сервер разрешает полный снимок аукциона не чаще раза в 15 минут. Это те же данные Blizzard, что и в API, только свежее.\nAlt+клик по предмету — отметить или снять отметку.")
+  note:SetText("Сервер разрешает полный снимок аукциона не чаще раза в 15 минут. Это те же данные Blizzard, что и в API, только свежее.\nAlt+клик по предмету - отметить или снять отметку.")
   f.refresh = function()
     for _, m in ipairs({ 15, 30, 60 }) do local b = f["m" .. m]; local on = S.autoScanMin == m; b:SetNormalTexture(M .. (on and "btn-gold" or "btn")); local c = on and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3]) end
   end

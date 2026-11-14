@@ -1,6 +1,6 @@
 -- WolfichMarket: ядро — база данных, события, цены, история, отметки.
 local addonName, ns = ...
-ns.VERSION = "2.0.0"
+ns.VERSION = "2.0.1"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -20,7 +20,7 @@ function ns.say(msg) print(PREFIX .. tostring(msg)) end
 
 -- ---------- деньги ----------
 function ns.money(c, short)
-  if not c then return "|cff777777—|r" end
+  if not c then return "|cff777777-|r" end
   local neg = c < 0
   c = math.floor(math.abs(c) + 0.5)
   local g, s, m = math.floor(c / 10000), math.floor(c % 10000 / 100), c % 100
@@ -28,7 +28,7 @@ function ns.money(c, short)
   if g > 0 then out[#out + 1] = g .. "|cffffd100з|r" end
   if (g > 0 or s > 0) and not (short and g >= 100) then out[#out + 1] = s .. "|cffc7c7cfс|r" end
   if g == 0 and not (short and s >= 10) then out[#out + 1] = m .. "|cffeda55fм|r" end
-  return (neg and "|cffff6060−|r" or "") .. table.concat(out, " ")
+  return (neg and "|cffff6060-|r" or "") .. table.concat(out, " ")
 end
 function ns.ago(t)
   if not t or t == 0 then return "никогда" end
@@ -39,7 +39,7 @@ function ns.ago(t)
   return math.floor(m / 1440) .. " дн назад"
 end
 function ns.pct(v)
-  if not v then return "|cff777777—|r" end
+  if not v then return "|cff777777-|r" end
   local r = math.floor(v * 10 + (v >= 0 and 0.5 or -0.5)) / 10
   if r > 0 then return "|cff78d98a+" .. r .. "%|r" end
   if r < 0 then return "|cffff7a66" .. r .. "%|r" end
@@ -110,7 +110,7 @@ local DEFAULTS = {
   alertSound = true,
   bestCraftAlert = true,
   autoScan = true,        -- сам снимать аукцион, пока открыт аукционист
-  autoScanMin = 15,       -- раз в N минут (не чаще 15 — ограничение сервера)
+  autoScanMin = 15,       -- раз в N минут (не чаще 15 - ограничение сервера)
   profitOnly = false,     -- фильтр в окне профессии
   minProfit = 0,
   tooltip = true,
@@ -126,7 +126,7 @@ ns.On("ADDON_LOADED", function(name)
   DB.names = DB.names or {}
   DB.marked = DB.marked or {}      -- [itemID] = true
   DB.hist = DB.hist or {}          -- [itemID] = { {t, min, qty}, ... }
-  DB.seen = DB.seen or {}          -- [itemID] = { p, t } — цены из поисков на аукционе
+  DB.seen = DB.seen or {}          -- [itemID] = { p, t } - цены из поисков на аукционе
   DB.ahScans = DB.ahScans or {}
   DB.settings = DB.settings or {}
   for k, v in pairs(DEFAULTS) do if DB.settings[k] == nil then DB.settings[k] = v end end
@@ -144,7 +144,7 @@ ns.On("PLAYER_LOGIN", function()
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   ns.Fire("LOGIN")
-  ns.say("v" .. ns.VERSION .. " загружен. Цены и прибыль — в окнах аукциона и профессий. /wm — справка.")
+  ns.say("v" .. ns.VERSION .. " загружен. Цены и прибыль - в окнах аукциона и профессий. /wm - справка.")
 end)
 
 ns.On("GET_ITEM_INFO_RECEIVED", function(id)
@@ -204,7 +204,7 @@ function ns.IsMarked(id) return ns.DB.marked[id] == true end
 function ns.ToggleMark(id)
   if not id then return end
   if ns.DB.marked[id] then ns.DB.marked[id] = nil else ns.DB.marked[id] = true end
-  ns.say((ns.DB.marked[id] and "|cfff0c85a★ отмечено|r: " or "отметка снята: ") .. ns.itemLinkText(id))
+  ns.say((ns.DB.marked[id] and "|cfff0c85a|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t отмечено|r: " or "отметка снята: ") .. ns.itemLinkText(id))
   ns.Fire("MARKS")
 end
 

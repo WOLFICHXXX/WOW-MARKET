@@ -2,7 +2,7 @@
 ## Title: |cffe6b450WolfichMarket|r
 ## Notes: Аукцион и прибыль крафта прямо в игре: прибыль на каждом рецепте, поиск на аукционе, отмеченные предметы с уведомлениями о скачках цен, график, покупка и продажа.
 ## Author: WOLFICH
-## Version: 2.0.0
+## Version: 2.0.1
 ## IconTexture: Interface\AddOns\WolfichMarket\media\paw
 ## SavedVariables: WolfichMarketDB
 ## Category: Professions

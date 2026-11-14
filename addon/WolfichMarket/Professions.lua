@@ -141,7 +141,7 @@ local function profitText(pr)
   if not pr.rec.out then return "|cff888888чары|r" end
   if pr.profit then return (pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(pr.profit, true):gsub("|r", "|r" .. (pr.profit >= 0 and "|cff78d98a" or "|cffff7a66")) .. "|r" end
   if pr.missing > 0 then return "|cffaa8866нет цены|r" end
-  return "|cff777777—|r"
+  return "|cff777777-|r"
 end
 
 local function refreshList()
@@ -159,9 +159,9 @@ local function refreshList()
     return x > y
   end)
   list:SetData(data)
-  list.empty:SetText(#rows == 0 and "Рецепты появятся после открытия окна профессии." or "Нет рецептов под фильтр.\nСнимите «только прибыльные» или обновите цены: окно аукциона → «Сканировать».")
+  list.empty:SetText(#rows == 0 and "Рецепты появятся после открытия окна профессии." or "Нет рецептов под фильтр.\nСнимите «только прибыльные» или обновите цены: окно аукциона > «Сканировать».")
   local scan = ns.CurrentScan()
-  panel.status:SetText(scan and ("Цены: снимок " .. ns.ago(scan.t)) or "|cffff9966Цен нет — откройте аукцион и нажмите «Сканировать».|r")
+  panel.status:SetText(scan and ("Цены: снимок " .. ns.ago(scan.t)) or "|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r")
 end
 
 local function fillDetail(rec)
@@ -179,14 +179,14 @@ local function fillDetail(rec)
     if not r then break end
     r.id = it.id
     r.icon:SetTexture(ns.itemIcon(it.id))
-    r.name:SetText((it.out and "|cffe6b450→ |r" or "") .. ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or ""))
+    r.name:SetText((it.out and "|cffe6b450> |r" or "") .. ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or ""))
     r.price:SetText(it.unit and ns.money(it.unit * (it.out and 1 or it.n), true) or "|cffaa8866нет цены|r")
     r.star:SetIcon(ns.IsMarked(it.id) and "star-on" or "star-off")
     r.search:SetEnabled(ns.AHIsOpen()); r.search:SetAlpha(ns.AHIsOpen() and 1 or 0.35)
     r:Show()
   end
-  local lines = { "Себестоимость: " .. (pr.missing > 0 and ("≥ " .. ns.money(pr.cost)) or ns.money(pr.cost)) }
-  if pr.revenue then lines[#lines + 1] = "Доход (−5%): " .. ns.money(pr.revenue) end
+  local lines = { "Себестоимость: " .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost)) }
+  if pr.revenue then lines[#lines + 1] = "Доход (-5%): " .. ns.money(pr.revenue) end
   if pr.profit then lines[#lines + 1] = "Прибыль: " .. profitText(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
   detail.total:SetText(table.concat(lines, "\n"))
 end
@@ -197,7 +197,8 @@ local function build()
   if panel or not h then return end
   panel = CreateFrame("Frame", "WolfichMarketProfPanel", h)
   panel:SetWidth(330)
-  panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 2, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 2, 0)
+  -- справа у окна профессий вертикальные вкладки профессий: отступаем, чтобы их не закрывать
+  panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 44, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 44, 0)
   panel:SetFrameStrata(h:GetFrameStrata()); panel:EnableMouse(true)
   UI.Skin(panel)
   UI.Title(panel, "Прибыль крафта")

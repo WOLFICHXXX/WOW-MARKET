@@ -14,7 +14,7 @@ local function addLines(tt, id)
   local p, t = ns.AHPrice(id)
   local v = ns.DB.vendor[id]
   if not p and not v and not ns.IsMarked(id) then return end
-  local head = "|cffe6b450WolfichMarket|r" .. (ns.IsMarked(id) and " |cfff0c85a★|r" or "")
+  local head = "|cffe6b450WolfichMarket|r" .. (ns.IsMarked(id) and " |cfff0c85a|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t|r" or "")
   if p then
     local avg = ns.AvgPrice(id, 24)
     tt:AddDoubleLine(head, ns.money(p) .. (avg and ("  " .. ns.pct((p - avg) / avg * 100)) or ""))
