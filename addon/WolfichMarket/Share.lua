@@ -86,13 +86,12 @@ end
 -- разослать свой снимок (только свой, не пересланный чужой)
 function ns.ShareScan(scan)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
-  -- порядок: сначала предметы с сигналами, потом рецепты моих профессий, потом остальные рецепты игры
+  -- порядок: сначала предметы, на которые игроки поставили сигналы (из общего снимка аукциона), потом все рецепты игры
   local order, seen = {}, {}
   local function add(id) if id and not seen[id] then local r = scan.items[id]; if r and r[1] and r[1] > 0 then seen[id] = true; order[#order + 1] = id end end end
   for id in pairs(ns.NetWanted()) do add(id) end -- сначала то, на что другие игроки поставили сигналы
   for id in pairs(ns.DB.marked) do add(id) end
-  for id in pairs(ns.RecipeItems and ns.RecipeItems() or {}) do add(id) end
-  for id in pairs(sharedIDs()) do add(id) end
+  for id in pairs(sharedIDs()) do add(id) end -- затем материалы и результаты всех рецептов игры - от профессий сканирующего не зависит
   local parts, n = {}, 0
   local head = "P^" .. RK() .. "^" .. enc(scan.t) .. "^"
   local cur = head
