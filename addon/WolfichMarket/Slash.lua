@@ -9,6 +9,7 @@ local function help()
   print(L"  |cffe6b450/wm scan|r - снимок аукциона (у аукциониста, раз в 15 мин)")
   print(L"  |cffe6b450/wm best|r - лучший крафт сейчас")
   print(L"  |cffe6b450/wm marks|r - отмеченные предметы")
+  print(L"  |cffe6b450/wm net|r - проверка общего рынка, |cffe6b450/wm netsend|r - разослать свой снимок ещё раз")
   print(L"  Клавиша для выставления по очереди: Настройки > Управление > WolfichMarket (или макрос /click WolfichMarketPostNextButton)")
   print(L"  |cffe6b450/wm reset|r - очистить отметки и историю цен")
   print(L"  Alt+клик по предмету - отметить |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t (уведомления о скачках цены только по отмеченным)")
@@ -29,6 +30,24 @@ local function slash(msg)
     wipe(ns.DB.marked); wipe(ns.DB.hist); wipe(ns.DB.seen); ns.DB.lastBest = nil
     ns.say(L"отметки и история цен очищены."); ns.Fire("MARKS"); ns.Fire("PRICES")
   elseif msg == "help" or msg == "?" then help()
+  elseif msg == "net" then
+    -- проверка общего рынка: куда уходят и откуда приходят цены
+    local st = ns.netStats or {}
+    local id = GetChannelName and GetChannelName("WolfichMarketNet")
+    ns.say(L"общий рынок:")
+    print("  " .. L"канал аддона" .. ": " .. ((id and id > 0) and ("|cff78d98a#" .. id .. "|r") or L"|cffff6060не подключён|r"))
+    local rs = ns.NetRoutes and ns.NetRoutes() or {}
+    local names = {}
+    for _, r in ipairs(rs) do names[#names + 1] = r[1] .. (r[2] and (" " .. r[2]) or "") end
+    print("  " .. L"маршруты" .. ": " .. (#names > 0 and table.concat(names, ", ") or L"|cffff6060нет|r"))
+    print("  " .. L"отправлено" .. ": " .. (st.sent or 0) .. "   " .. L"ошибок" .. ": " .. (st.fail or 0) .. (st.lastFail and (" (" .. st.lastFail .. ")") or ""))
+    print("  " .. L"получено" .. ": " .. (st.recv or 0) .. (st.lastFrom and ("   " .. L"последнее от" .. " " .. st.lastFrom) or ""))
+    local t, from = ns.NetInfo and ns.NetInfo()
+    print("  " .. L"цены игроков" .. ": " .. (t and (ns.ago(t) .. " (" .. tostring(from) .. ")") or L"ещё не приходили"))
+    print("  " .. L"делиться" .. ": " .. (ns.DB.settings.netSend ~= false and L"вкл" or L"выкл") .. "   " .. L"принимать" .. ": " .. (ns.DB.settings.netRecv ~= false and L"вкл" or L"выкл"))
+  elseif msg == "netsend" then
+    local scan = ns.DB.ahScans[ns.realmKey]
+    if scan and ns.ShareScan then ns.ShareScan(scan) else ns.say(L"своего снимка аукциона нет - сделайте его у аукциониста.") end
   elseif msg == "debug" then
     ns.DB.settings.debug = not ns.DB.settings.debug; ns.say(L"отладка: " .. (ns.DB.settings.debug and L"вкл" or L"выкл"))
   else if ns.ToggleMain then ns.ToggleMain() else help() end end

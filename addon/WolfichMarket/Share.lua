@@ -54,19 +54,42 @@ if ChatFrame_AddMessageEventFilter then
 end
 
 -- ---------- очередь отправки ----------
+-- маршруты: общий канал аддона + гильдия + группа + друзья онлайн (личным сообщением аддона).
+-- Если клиент не пускает служебные сообщения в канал, цены всё равно дойдут до друзей, гильдии и группы.
+ns.netStats = { sent = 0, recv = 0, fail = 0 }
+local function routes()
+  local r = {}
+  local id = channel()
+  if id then r[#r + 1] = { "CHANNEL", id } end
+  if IsInGuild and IsInGuild() then r[#r + 1] = { "GUILD" } end
+  if IsInRaid and IsInRaid() then r[#r + 1] = { "RAID" } elseif IsInGroup and IsInGroup() then r[#r + 1] = { "PARTY" } end
+  local F = C_FriendList
+  if F and F.GetNumFriends and F.GetFriendInfoByIndex then
+    local n = 0
+    for i = 1, (safe(F.GetNumFriends) or 0) do
+      local f = safe(F.GetFriendInfoByIndex, i)
+      if f and f.connected and f.name and n < 10 then r[#r + 1] = { "WHISPER", f.name }; n = n + 1 end
+    end
+  end
+  return r
+end
+ns.NetRoutes = routes
 local queue, sending = {}, false
 local function pump()
-  local msg = table.remove(queue, 1)
-  if not msg then sending = false return end
-  local id = channel()
+  local e = table.remove(queue, 1)
+  if not e then sending = false return end
   local C = C_ChatInfo
-  if id and C and C.SendAddonMessage then pcall(C.SendAddonMessage, PREFIX, msg, "CHANNEL", id)
-  elseif IsInGuild and IsInGuild() and C and C.SendAddonMessage then pcall(C.SendAddonMessage, PREFIX, msg, "GUILD") end
+  if C and C.SendAddonMessage then
+    local ok, res = pcall(C.SendAddonMessage, PREFIX, e[1], e[2], e[3])
+    if not ok or res == false or (type(res) == "number" and res ~= 0) then
+      ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = e[2] .. " " .. tostring(ok and res or "ошибка")
+    else ns.netStats.sent = ns.netStats.sent + 1 end
+  end
   ns.After(SEND_EVERY, pump)
 end
 local function send(msg)
-  queue[#queue + 1] = msg
-  if not sending then sending = true; ns.After(0, pump) end
+  for _, r in ipairs(routes()) do queue[#queue + 1] = { msg, r[1], r[2] } end
+  if not sending and #queue > 0 then sending = true; ns.After(0, pump) end
 end
 ns._netQueue = queue -- для автотестов
 
@@ -106,7 +129,10 @@ function ns.ShareScan(scan)
   send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or ""))
   for _, p in ipairs(parts) do send(p) end
   send("E^" .. RK() .. "^" .. enc(scan.t))
-  ns.dbg(string.format("общий рынок: отправлено %d цен (%d сообщений)", n, #parts))
+  local rs = routes()
+  local names = {}
+  for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or L"группа" end
+  ns.say(string.format(L"общий рынок: отправляю %d цен (%s)", n, #names > 0 and table.concat(names, ", ") or L"|cffff6060некому - нет канала, гильдии, группы и друзей онлайн|r"))
 end
 
 -- ---------- «что нужно»: каждый сообщает в канал свои предметы с сигналами ----------
@@ -196,6 +222,7 @@ end
 
 local function onMessage(prefix, msg, _, sender)
   if prefix ~= PREFIX or not msg or not ns.DB then return end
+  ns.netStats.recv = ns.netStats.recv + 1; ns.netStats.lastFrom = sender
   if S().netRecv == false then return end
   local me = UnitName and UnitName("player")
   if sender and me and (sender == me or sender:match("^[^-]+") == me) then return end

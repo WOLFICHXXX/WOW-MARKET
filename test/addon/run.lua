@@ -483,6 +483,18 @@ do
   ns.DB.net = nil
   C_ChatInfo.SendAddonMessage = oldS; GetChannelName = oldG
 end
+-- /wm net: проверка общего рынка без ошибок; друзья онлайн - отдельный маршрут
+do
+  C_FriendList = { GetNumFriends = function() return 1 end, GetFriendInfoByIndex = function() return { connected = true, name = "Друг" } end }
+  local rs = ns.NetRoutes()
+  local fr = false; for _, r in ipairs(rs) do if r[1] == "WHISPER" and r[2] == "Друг" then fr = true end end
+  check(fr, "общий рынок: друзья онлайн получают цены личным сообщением аддона")
+  printed = {}
+  SlashCmdList.WOLFICHMARKET("net")
+  local okNet = false; for _, l in ipairs(printed) do if l:find("WHISPER Друг", 1, true) then okNet = true end end
+  check(okNet, "/wm net показывает маршруты")
+  C_FriendList = nil
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
