@@ -86,17 +86,20 @@ end
 -- разослать свой снимок (только свой, не пересланный чужой)
 function ns.ShareScan(scan)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
-  local want = sharedIDs()
-  for id in pairs(ns.DB.marked) do want[id] = true end
+  -- порядок: сначала предметы с сигналами, потом рецепты моих профессий, потом остальные рецепты игры
+  local order, seen = {}, {}
+  local function add(id) if id and not seen[id] then local r = scan.items[id]; if r and r[1] and r[1] > 0 then seen[id] = true; order[#order + 1] = id end end end
+  for id in pairs(ns.DB.marked) do add(id) end
+  for id in pairs(ns.RecipeItems and ns.RecipeItems() or {}) do add(id) end
+  for id in pairs(sharedIDs()) do add(id) end
   local parts, n = {}, 0
   local head = "P^" .. RK() .. "^" .. enc(scan.t) .. "^"
   local cur = head
-  for id, r in pairs(scan.items) do
-    if want[id] and r[1] and r[1] > 0 then
-      local item = enc(id) .. "," .. enc(r[1]) .. "," .. enc(r[2] or 0) .. ";"
-      if #cur + #item > MAXLEN then parts[#parts + 1] = cur; cur = head end
-      cur = cur .. item; n = n + 1
-    end
+  for _, id in ipairs(order) do
+    local r = scan.items[id]
+    local item = enc(id) .. "," .. enc(r[1]) .. "," .. enc(r[2] or 0) .. ";"
+    if #cur + #item > MAXLEN then parts[#parts + 1] = cur; cur = head end
+    cur = cur .. item; n = n + 1
   end
   if cur ~= head then parts[#parts + 1] = cur end
   if n == 0 then return end
