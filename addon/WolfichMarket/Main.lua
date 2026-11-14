@@ -208,7 +208,10 @@ local function refreshCraft()
   craft.list.empty:SetText(L"Откройте окна профессий этим персонажем - здесь появятся его рецепты с прибылью.")
   local c = ns.DB.chars[charKey] or {}
   local scan = ns.priceRealm == nil and ns.DB.ahScans[c.realmKey or ""] or nil
-  craft.status:SetText(scan and (L"Цены: снимок " .. ns.ago(scan.t)) or (ns.CurrentScan() and (L"Цены: снимок " .. ns.ago(ns.CurrentScan().t) .. L" |cffaaaaaa(режим текущего персонажа)|r") or L"|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r"))
+  local nt, nfrom = ns.NetInfo and ns.NetInfo()
+  local netTxt = (nt and (not scan or nt > scan.t)) and ("  |cff78d98a" .. L"цены игроков" .. ": " .. ns.ago(nt) .. " (" .. ((nfrom or ""):match("^[^-]+") or "") .. ")|r") or ""
+  local own = scan and (L"Цены: снимок " .. ns.ago(scan.t)) or (ns.CurrentScan() and (L"Цены: снимок " .. ns.ago(ns.CurrentScan().t) .. L" |cffaaaaaa(режим текущего персонажа)|r"))
+  craft.status:SetText(own and (own .. netTxt) or (netTxt ~= "" and netTxt) or L"|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r")
   fillCard(sel)
 end
 

@@ -399,4 +399,6 @@ ns.EN = {
   ["принимать"] = "accept",
   ["своего снимка аукциона нет - сделайте его у аукциониста."] = "you have no auction snapshot - make one at the auctioneer.",
   ["  |cffe6b450/wm net|r - проверка общего рынка, |cffe6b450/wm netsend|r - разослать свой снимок ещё раз"] = "  |cffe6b450/wm net|r - shared market check, |cffe6b450/wm netsend|r - send your snapshot again",
+  ["общий рынок: %s прислал снимок (%s), но ваши цены свежее - оставлены ваши."] = "shared market: %s sent a snapshot (%s), but your prices are fresher - kept yours.",
+  ["общий рынок: принимаю цены от %s (%s)..."] = "shared market: receiving prices from %s (%s)...",
 }

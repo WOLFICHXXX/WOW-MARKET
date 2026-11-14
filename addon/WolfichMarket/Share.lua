@@ -266,7 +266,14 @@ local function onMessage(prefix, msg, _, sender)
     ns._netAnswered = math.max(ns._netAnswered or 0, t) -- кто-то уже рассылает такой снимок - сами не отвечаем
     local mine = ns.DB.ahScans[ns.realmKey]
     local net = netTable(ns.realmKey)
-    if (mine and mine.t >= t) or (net.t and net.t >= t) then return end -- у нас не хуже
+    if (mine and mine.t >= t) or (net.t and net.t >= t) then -- у нас не хуже
+      if not lastFrom["old" .. sender] or time() - lastFrom["old" .. sender] > 300 then
+        lastFrom["old" .. sender] = time()
+        ns.say(string.format(L"общий рынок: %s прислал снимок (%s), но ваши цены свежее - оставлены ваши.", (sender:match("^[^-]+") or sender), ns.ago(t)))
+      end
+      return
+    end
+    ns.say(string.format(L"общий рынок: принимаю цены от %s (%s)...", (sender:match("^[^-]+") or sender), ns.ago(t)))
     if lastFrom[sender] and time() - lastFrom[sender] < 300 then return end
     lastFrom[sender] = time()
     incoming[sender] = { t = t, items = {} }
