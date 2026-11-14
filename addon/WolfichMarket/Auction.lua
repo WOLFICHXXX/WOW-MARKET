@@ -125,8 +125,8 @@ local chartItem, buyItem, sellSel
 local function header()
   local S = ns.DB.settings
   panel.scanBtn = UI.Button(panel, L"Сканировать", 120, 22, function() ns.StartScan() end, true)
-  panel.scanBtn:SetPoint("TOPRIGHT", -14, -13)
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 14, -72); panel.state:SetPoint("RIGHT", -12, 0)
+  panel.scanBtn:SetPoint("TOPRIGHT", -62, -19)
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -62); panel.state:SetPoint("RIGHT", -22, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
 local function updateHeader()
@@ -396,7 +396,7 @@ local function pageSell(f)
   local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 46, 0); h1:SetText(L"Предмет")
   col(L"Прибыль", -12); col(L"Аукцион", -84); col(L"Себест.", -156)
   f.list = UI.List(f, 22, function(r)
-    r.chk = CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate"); r.chk:SetSize(20, 20); r.chk:SetPoint("LEFT", 0, 0)
+    r.chk = UI.CheckBox(r, 18); r.chk:SetPoint("LEFT", 1, 0)
     r.chk:SetScript("OnClick", function(self) local d = self:GetParent().data; if d then f.checked[d.id] = self:GetChecked() and true or nil; f.updateBulk() end end)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.chk, "RIGHT", 2, 0)
     r.prof = UI.Font(r, 11); r.prof:SetPoint("RIGHT", -4, 0); r.prof:SetWidth(68); r.prof:SetJustifyH("RIGHT")
@@ -432,7 +432,7 @@ local function pageSell(f)
   f.bulkInfo = UI.Font(f, 10, UI.DIM); f.bulkInfo:SetPoint("TOPLEFT", f.allBtn, "BOTTOMLEFT", 2, -3); f.bulkInfo:SetPoint("RIGHT", f, "RIGHT", -2, 0); f.bulkInfo:SetWordWrap(true); f.bulkInfo:SetMaxLines(2)
   f.list.empty:SetText(L"В сумках нет предметов, которые можно выставить.")
   local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(180)
-  local bg = box:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.3)
+  UI.Skin(box, { theme = "acard" })
   f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 8, -6); f.sel:SetPoint("RIGHT", -8, 0)
   -- разбор: себестоимость / аукцион / торговец / итог
   f.analysis = UI.Font(box, 11); f.analysis:SetPoint("TOPLEFT", 8, -24); f.analysis:SetPoint("RIGHT", -8, 0); f.analysis:SetWordWrap(true); f.analysis:SetJustifyV("TOP"); f.analysis:SetHeight(64)
@@ -445,7 +445,7 @@ local function pageSell(f)
     f.markup = k
     for i, b in ipairs(f.mulBtns or {}) do
       local on = ({ 1, 1.05, 1.10 })[i] == k
-      b:SetNormalTexture(M .. (on and "btn-gold" or "btn")); local c = on and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3])
+      b:SetGold(on)
     end
     if f.basePrice and f.basePrice > 0 then f.money:Set(math.floor(f.basePrice * k + 0.5)); f.calc() end
     if f.updateBulk then f.updateBulk() end
@@ -478,7 +478,7 @@ local function pageSell(f)
     f.list:Refresh(); f.calc()
   end
   f.calc = function()
-    for i, b in ipairs(f.durBtns) do b:SetNormalTexture(M .. (DURS[i][1] == f.dur and "btn-gold" or "btn")); local c = DURS[i][1] == f.dur and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3]) end
+    for i, b in ipairs(f.durBtns) do b:SetGold(DURS[i][1] == f.dur) end
     local d = sellSel
     if not d then f.analysis:SetText(""); f.info:SetText(L"Выберите предмет в списке."); f.post:Disable() return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
@@ -624,7 +624,7 @@ local function pageSettings(f)
   y = y - 30
   local note = UI.Font(f, 10, UI.DIM); note:SetPoint("TOPLEFT", 6, y); note:SetPoint("RIGHT", -6, 0); note:SetWordWrap(true)
   note:SetText(L"Сервер разрешает полный снимок аукциона не чаще раза в 15 минут. Это те же данные Blizzard, что и в API, только свежее.\nAlt+клик по предмету - отметить или снять отметку.")
-  local function hl(b, on) b:SetNormalTexture(M .. (on and "btn-gold" or "btn")); local c = on and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3]) end
+  local function hl(b, on) b:SetGold(on) end
   f.refresh = function()
     for _, m in ipairs({ 15, 30, 60 }) do hl(f["m" .. m], S.autoScanMin == m) end
     for _, b in ipairs(f.langBtns) do hl(b, (S.lang or "auto") == b.lang) end
@@ -641,27 +641,26 @@ function ns.BuildAHPanel()
   panel:SetWidth(440)
   panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 2, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 2, 0)
   panel:EnableMouse(true)
-  UI.Skin(panel)
+  UI.Skin(panel, { theme = "ah" })
   UI.Title(panel, "WolfichMarket")
+  UI.Close(panel, function() ns.DB.settings.ahPanelHidden = true; panel:Hide() end)
   header()
   -- вкладки в два ряда по три
   tabs = {}
   for i, n in ipairs(NAMES) do
-    local b = UI.Button(panel, L(n), 134, 22, function() tabs.select(i) end)
-    b:SetPoint("TOPLEFT", 14 + ((i - 1) % 3) * 138, i <= 3 and -88 or -112)
+    local b = UI.Button(panel, L(n), 128, 24, function() tabs.select(i) end)
+    b:SetPoint("TOPLEFT", 20 + ((i - 1) % 3) * 132, i <= 3 and -88 or -114)
     tabs[i] = b
   end
   for i, build in ipairs(BUILDERS) do
     local f = CreateFrame("Frame", nil, panel)
-    f:SetPoint("TOPLEFT", 14, -142); f:SetPoint("BOTTOMRIGHT", -14, 14)
+    f:SetPoint("TOPLEFT", 20, -146); f:SetPoint("BOTTOMRIGHT", -24, 16)
     build(f); f:Hide()
     pages[i] = f
   end
   function tabs.select(i)
     for k, b in ipairs(tabs) do
-      b:SetNormalTexture(M .. (k == i and "btn-gold" or "btn"))
-      local c = k == i and { 0.15, 0.09, 0.02 } or UI.TEXT
-      b.label:SetTextColor(c[1], c[2], c[3])
+      b:SetGold(k == i)
       pages[k]:SetShown(k == i)
     end
     tabs.current = i
@@ -669,7 +668,7 @@ function ns.BuildAHPanel()
     if pages[i].refresh then pages[i].refresh() end
   end
   -- кнопка-лапа на окне аукциона: показать/скрыть
-  local tg = UI.Icon(h, "paw", 22, "WolfichMarket", function()
+  local tg = UI.Icon(h, "skin\\ai-paw", 24, "WolfichMarket", function()
     ns.DB.settings.ahPanelHidden = not ns.DB.settings.ahPanelHidden
     panel:SetShown(not ns.DB.settings.ahPanelHidden)
   end)

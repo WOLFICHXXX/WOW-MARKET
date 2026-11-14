@@ -9,9 +9,40 @@ UI.GOLD = { 0.95, 0.80, 0.42 }
 UI.TEXT = { 0.93, 0.89, 0.80 }
 UI.DIM = { 0.66, 0.62, 0.53 }
 
--- рамка: фон-дерево + бронзовые кромки + уголки с заклёпками
-function UI.Skin(f, opts)
-  opts = opts or {}
+-- шрифты: основной (FRIZ, с кириллицей) с лёгкой чёрной обводкой; заголовки окон - MORPHEUS
+UI.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+UI.TITLE_FONT = "Fonts\\MORPHEUS_CYR.TTF"
+local function setFont(fs, font, size, flags)
+  local ok = fs:SetFont(font, size, flags)
+  if ok == false and font ~= UI.FONT then fs:SetFont(UI.FONT, size, flags) end
+end
+
+-- темы оформления (макеты пользователя, нарезанные tools/make_skin.py)
+-- scale - во сколько раз уменьшать части макета; title/close - места в пикселях макета
+UI.THEMES = {
+  main = { scale = 0.85, title = { 84, -40 }, close = { -2, -6, 60, 62 }, btn = "mbtn" },
+  ah = { scale = 0.5, title = { 186, -60 }, close = { -56, -38, 56, 48 }, btn = "abtn" },
+  mcard = { scale = 0.5, btn = "mbtn" },
+  acard = { scale = 0.3, btn = "abtn" },
+}
+-- текстура оформления: картинка лежит в углу текстуры-степени-двойки, берём только её
+function UI.SkinTex(t, name)
+  if not t then return end
+  t:SetTexture(M .. "skin\\" .. name)
+  local tc = ns.SKIN_TC and ns.SKIN_TC[name]
+  if tc then t:SetTexCoord(0, tc[1], 0, tc[2]) else t:SetTexCoord(0, 1, 0, 1) end
+end
+local function themeOf(f)
+  local n = 0
+  while f and n < 30 do
+    if f.wmTheme then return f.wmTheme end
+    f = f.GetParent and f:GetParent() or nil; n = n + 1
+  end
+end
+UI.ThemeOf = themeOf
+
+-- старая рамка (дерево + бронза) - для всплывающих уведомлений
+local function plainSkin(f, opts)
   local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
   bg:SetTexture(M .. "bg", "REPEAT", "REPEAT")
   bg:SetHorizTile(true); bg:SetVertTile(true)
@@ -41,9 +72,34 @@ function UI.Skin(f, opts)
   return f
 end
 
+-- рамка из 9 частей: UI.Skin(f, { theme = "main" | "ah" | "mcard" | "acard", scale = ... })
+function UI.Skin(f, opts)
+  opts = opts or {}
+  local sz = opts.theme and ns.SKIN and ns.SKIN[opts.theme]
+  if not sz then return plainSkin(f, opts) end
+  local s = opts.scale or UI.THEMES[opts.theme].scale
+  f.wmTheme, f.wmScale = opts.theme, s
+  local function tex(k, layer, sub)
+    local t = f:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.SkinTex(t, opts.theme .. "-" .. k); return t
+  end
+  -- фон под рамкой: от внутреннего края кромки (рамка к нему плавно растворяется - без швов)
+  local ins = sz.inset or { sz.l * 0.5, sz.t * 0.5, sz.r * 0.5, sz.b * 0.5 }
+  local c = tex("c", "BACKGROUND", -8)
+  c:SetPoint("TOPLEFT", ins[1] * s, -ins[2] * s); c:SetPoint("BOTTOMRIGHT", -ins[3] * s, ins[4] * s)
+  local t = tex("t"); t:SetHeight(sz.t * s); t:SetPoint("TOPLEFT", sz.tl[1] * s, 0); t:SetPoint("TOPRIGHT", -sz.tr[1] * s, 0)
+  local b = tex("b"); b:SetHeight(sz.b * s); b:SetPoint("BOTTOMLEFT", sz.bl[1] * s, 0); b:SetPoint("BOTTOMRIGHT", -sz.br[1] * s, 0)
+  local l = tex("l"); l:SetWidth(sz.l * s); l:SetPoint("TOPLEFT", 0, -sz.tl[2] * s); l:SetPoint("BOTTOMLEFT", 0, sz.bl[2] * s)
+  local r = tex("r"); r:SetWidth(sz.r * s); r:SetPoint("TOPRIGHT", 0, -sz.tr[2] * s); r:SetPoint("BOTTOMRIGHT", 0, sz.br[2] * s)
+  for _, k in ipairs({ "tl", "tr", "bl", "br" }) do
+    local q = tex(k, "BORDER", 1); q:SetSize(sz[k][1] * s, sz[k][2] * s)
+    q:SetPoint(({ tl = "TOPLEFT", tr = "TOPRIGHT", bl = "BOTTOMLEFT", br = "BOTTOMRIGHT" })[k])
+  end
+  return f
+end
+
 function UI.Font(parent, size, color, layer, flags)
   local fs = parent:CreateFontString(nil, layer or "OVERLAY")
-  fs:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", size or 12, flags or "")
+  setFont(fs, UI.FONT, size or 12, flags or "OUTLINE")
   local c = color or UI.TEXT
   fs:SetTextColor(c[1], c[2], c[3])
   fs:SetJustifyH("LEFT")
@@ -52,6 +108,15 @@ function UI.Font(parent, size, color, layer, flags)
 end
 
 function UI.Title(parent, text)
+  local th = parent.wmTheme and UI.THEMES[parent.wmTheme]
+  if th and th.title then
+    local s = parent.wmScale
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    setFont(fs, UI.TITLE_FONT, s >= 0.8 and 18 or 15, "OUTLINE")
+    fs:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); fs:SetJustifyH("LEFT"); fs:SetWordWrap(false)
+    fs:SetPoint("LEFT", parent, "TOPLEFT", th.title[1] * s, th.title[2] * s); fs:SetText(text)
+    return fs
+  end
   local h = parent:CreateTexture(nil, "ARTWORK")
   h:SetTexture(M .. "header")
   h:SetPoint("TOPLEFT", 10, -9); h:SetPoint("TOPRIGHT", -10, -9); h:SetHeight(30)
@@ -62,19 +127,74 @@ function UI.Title(parent, text)
   return fs, h
 end
 
+-- невидимая кнопка поверх нарисованного в рамке крестика
+function UI.Close(parent, onClick)
+  local th = parent.wmTheme and UI.THEMES[parent.wmTheme]
+  local b
+  if th and th.close then
+    local s = parent.wmScale
+    b = CreateFrame("Button", nil, parent)
+    b:SetSize(th.close[3] * s, th.close[4] * s); b:SetPoint("TOPRIGHT", th.close[1] * s, th.close[2] * s)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.4, 0.18)
+  else
+    b = CreateFrame("Button", nil, parent, "UIPanelCloseButton"); b:SetPoint("TOPRIGHT", -8, -8)
+  end
+  b:SetScript("OnClick", onClick or function() parent:Hide() end)
+  return b
+end
+
+-- кнопка из 3 частей (края + растягиваемая середина); b:SetGold(on) - золотая/тёмная
+local GOLD_TXT, DARK_TXT = { 1, 0.95, 0.82 }, { 0.98, 0.84, 0.48 }
 function UI.Button(parent, text, w, h, onClick, gold)
   local b = CreateFrame("Button", nil, parent)
-  b:SetSize(w or 100, h or 22)
-  b:SetNormalTexture(M .. (gold and "btn-gold" or "btn"))
-  b:SetHighlightTexture(M .. "btn-hover")
-  b:SetPushedTexture(M .. "btn-down")
-  b:SetDisabledTexture(M .. "btn-off")
-  local fs = UI.Font(b, 11, gold and { 0.15, 0.09, 0.02 } or UI.TEXT, "OVERLAY")
-  fs:SetPoint("CENTER"); fs:SetJustifyH("CENTER"); fs:SetText(text or "")
+  w, h = w or 100, h or 22
+  b:SetSize(w, h)
+  local th = themeOf(parent)
+  local pre = (th and UI.THEMES[th] and UI.THEMES[th].btn) or "mbtn"
+  local cap = math.max(4, math.floor(h * 36 / 82 + 0.5))
+  if cap * 2 > w - 2 then cap = math.floor((w - 2) / 2) end
+  local parts, hls = {}, {}
+  local function place(t, k)
+    if k == "l" then t:SetPoint("TOPLEFT"); t:SetPoint("BOTTOMLEFT"); t:SetWidth(cap)
+    elseif k == "r" then t:SetPoint("TOPRIGHT"); t:SetPoint("BOTTOMRIGHT"); t:SetWidth(cap)
+    else t:SetPoint("TOPLEFT", cap, 0); t:SetPoint("BOTTOMRIGHT", -cap, 0) end
+  end
+  for _, k in ipairs({ "l", "m", "r" }) do
+    local t = b:CreateTexture(nil, "BACKGROUND"); place(t, k); parts[k] = t
+    local hl = b:CreateTexture(nil, "HIGHLIGHT"); place(hl, k); hl:SetBlendMode("ADD"); hl:SetAlpha(0.35); hls[k] = hl
+  end
+  local fs = b:CreateFontString(nil, "OVERLAY")
+  fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs
-  function b:SetLabel(t) fs:SetText(t) end
-  b:SetScript("OnDisable", function() fs:SetTextColor(0.5, 0.5, 0.5) end)
-  b:SetScript("OnEnable", function() local c = gold and { 0.15, 0.09, 0.02 } or UI.TEXT; fs:SetTextColor(c[1], c[2], c[3]) end)
+  local base = math.max(10, math.min(13, math.floor(h * 0.5)))
+  -- надпись уменьшается, пока не влезет в кнопку; если и на 8 не влезает - обрезается
+  local function fit()
+    local maxw = (b:GetWidth() or w) - math.max(8, cap)
+    local size = base
+    setFont(fs, UI.FONT, size, "OUTLINE"); fs:SetWidth(0)
+    local function sw() return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end
+    while sw() > maxw and size > 8 do size = size - 1; setFont(fs, UI.FONT, size, "OUTLINE") end
+    if sw() > maxw then fs:SetWidth(maxw) end
+  end
+  local isGold
+  function b:SetGold(on)
+    isGold = on and true or false
+    local kind = isGold and "-gold-" or "-dark-"
+    for k, t in pairs(parts) do UI.SkinTex(t, pre .. kind .. k); UI.SkinTex(hls[k], pre .. kind .. k) end
+    if self:IsEnabled() ~= false then local c = isGold and GOLD_TXT or DARK_TXT; fs:SetTextColor(c[1], c[2], c[3]) end
+  end
+  function b:IsGold() return isGold end
+  function b:SetLabel(t) fs:SetText(t or ""); fit() end
+  b:SetGold(gold); b:SetLabel(text)
+  b:SetScript("OnDisable", function()
+    fs:SetTextColor(0.55, 0.52, 0.46); for _, t in pairs(parts) do t:SetDesaturated(true) end
+  end)
+  b:SetScript("OnEnable", function()
+    local c = isGold and GOLD_TXT or DARK_TXT; fs:SetTextColor(c[1], c[2], c[3]); for _, t in pairs(parts) do t:SetDesaturated(false) end
+  end)
+  b:HookScript("OnMouseDown", function(self) if self:IsEnabled() ~= false then fs:SetPoint("CENTER", 1, 0) end end)
+  b:HookScript("OnMouseUp", function() fs:SetPoint("CENTER", 0, 1) end)
+  b:HookScript("OnSizeChanged", fit)
   if onClick then b:SetScript("OnClick", onClick) end
   return b
 end
@@ -82,21 +202,36 @@ end
 function UI.Icon(parent, tex, size, tip, onClick)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(size or 16, size or 16)
-  local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); t:SetTexture(M .. tex); b.tex = t
-  local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetTexture(M .. tex); hl:SetBlendMode("ADD"); hl:SetAlpha(0.5)
+  local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); b.tex = t
+  local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetBlendMode("ADD"); hl:SetAlpha(0.5)
+  local function set(name)
+    local sk = name:match("^skin\\(.+)$")
+    if sk then UI.SkinTex(t, sk); UI.SkinTex(hl, sk) else t:SetTexture(M .. name); hl:SetTexture(M .. name) end
+  end
+  set(tex)
   if tip then
     b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(type(tip) == "function" and tip() or tip, 1, 1, 1, 1, true); GameTooltip:Show() end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
   if onClick then b:SetScript("OnClick", onClick) end
-  function b:SetIcon(name) t:SetTexture(M .. name); hl:SetTexture(M .. name) end
+  function b:SetIcon(name) set(name) end
   return b
 end
 
+-- галочка в стиле оформления
+function UI.CheckBox(parent, size)
+  local c = CreateFrame("CheckButton", nil, parent)
+  c:SetSize(size or 20, size or 20)
+  c:SetNormalTexture(M .. "skin\\mchk-off"); UI.SkinTex(c:GetNormalTexture(), "mchk-off")
+  c:SetCheckedTexture(M .. "skin\\mchk-on"); UI.SkinTex(c:GetCheckedTexture(), "mchk-on")
+  c:SetDisabledCheckedTexture(M .. "skin\\mchk-on"); UI.SkinTex(c:GetDisabledCheckedTexture(), "mchk-on")
+  local hl = c:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); UI.SkinTex(hl, "mchk-off"); hl:SetBlendMode("ADD"); hl:SetAlpha(0.4)
+  return c
+end
+
 function UI.Check(parent, text, get, set)
-  local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-  c:SetSize(22, 22)
-  local fs = UI.Font(c, 11, UI.TEXT); fs:SetPoint("LEFT", c, "RIGHT", 2, 0); fs:SetText(text)
+  local c = UI.CheckBox(parent, 20)
+  local fs = UI.Font(c, 11, UI.TEXT); fs:SetPoint("LEFT", c, "RIGHT", 4, 0); fs:SetText(text)
   c.label = fs
   c:SetScript("OnShow", function(self) self:SetChecked(get()) end)
   c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
@@ -115,11 +250,7 @@ function UI.Tabs(parent, names, onSelect)
     tabs[i] = b
   end
   function tabs.select(i)
-    for k, b in ipairs(tabs) do
-      b:SetNormalTexture(M .. (k == i and "btn-gold" or "btn"))
-      local c = k == i and { 0.15, 0.09, 0.02 } or UI.TEXT
-      b.label:SetTextColor(c[1], c[2], c[3])
-    end
+    for k, b in ipairs(tabs) do b:SetGold(k == i) end
     tabs.current = i
     onSelect(i)
   end

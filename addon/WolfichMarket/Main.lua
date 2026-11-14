@@ -41,8 +41,7 @@ local function refreshProfs()
     if p then
       local d = c.profs[p]
       b.prof = p; b:SetLabel(p .. " |cffaaaaaa" .. (d.skill or 0) .. "/" .. (d.max or 0) .. "|r"); b:Show()
-      b:SetNormalTexture(M .. (p == prof and "btn-gold" or "btn"))
-      local col = p == prof and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(col[1], col[2], col[3])
+      b:SetGold(p == prof)
     else b:Hide() end
   end
   craft.noProf:SetShown(#names == 0)
@@ -103,17 +102,17 @@ local dlg
 function craft.openAlarms(rec)
   if not dlg then
     dlg = CreateFrame("Frame", "WolfichMarketAlarmDialog", win)
-    dlg:SetSize(480, 330); dlg:SetPoint("CENTER", win, "CENTER"); dlg:SetFrameStrata("DIALOG"); dlg:EnableMouse(true); dlg:SetToplevel(true)
-    UI.Skin(dlg)
+    dlg:SetSize(500, 360); dlg:SetPoint("CENTER", win, "CENTER"); dlg:SetFrameStrata("DIALOG"); dlg:EnableMouse(true); dlg:SetToplevel(true)
+    UI.Skin(dlg, { theme = "main", scale = 0.6 })
     dlg.title = select(1, UI.Title(dlg, L"Сигналы для рецепта"))
-    local close = CreateFrame("Button", nil, dlg, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -8, -8)
-    dlg.sub = UI.Font(dlg, 11, UI.DIM); dlg.sub:SetPoint("TOPLEFT", 16, -46); dlg.sub:SetPoint("RIGHT", -16, 0); dlg.sub:SetWordWrap(true)
-    local h1 = UI.Font(dlg, 10, UI.DIM); h1:SetPoint("TOPRIGHT", -24, -72); h1:SetText(L"Порог, %")
-    local h2 = UI.Font(dlg, 10, UI.DIM); h2:SetPoint("TOPRIGHT", -100, -72); h2:SetText(L"Цена")
+    UI.Close(dlg)
+    dlg.sub = UI.Font(dlg, 11, UI.DIM); dlg.sub:SetPoint("TOPLEFT", 18, -50); dlg.sub:SetPoint("RIGHT", -18, 0); dlg.sub:SetWordWrap(true)
+    local h1 = UI.Font(dlg, 10, UI.DIM); h1:SetPoint("TOPRIGHT", -26, -80); h1:SetText(L"Порог, %")
+    local h2 = UI.Font(dlg, 10, UI.DIM); h2:SetPoint("TOPRIGHT", -102, -80); h2:SetText(L"Цена")
     dlg.rows = {}
     for i = 1, 8 do
-      local r = CreateFrame("Frame", nil, dlg); r:SetHeight(24); r:SetPoint("TOPLEFT", 14, -86 - (i - 1) * 26); r:SetPoint("RIGHT", -16, 0)
-      r.chk = CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate"); r.chk:SetSize(22, 22); r.chk:SetPoint("LEFT")
+      local r = CreateFrame("Frame", nil, dlg); r:SetHeight(24); r:SetPoint("TOPLEFT", 16, -94 - (i - 1) * 26); r:SetPoint("RIGHT", -18, 0)
+      r.chk = UI.CheckBox(r, 20); r.chk:SetPoint("LEFT")
       r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", r.chk, "RIGHT", 4, 0)
       r.thr = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.thr:SetSize(40, 18); r.thr:SetPoint("RIGHT", -6, 0); r.thr:SetAutoFocus(false); r.thr:SetNumeric(true)
       r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.thr, "LEFT", -18, 0); r.price:SetWidth(80); r.price:SetJustifyH("RIGHT")
@@ -121,7 +120,7 @@ function craft.openAlarms(rec)
       r:Hide(); dlg.rows[i] = r
     end
     dlg.all = UI.Button(dlg, L"Отметить все", 120, 24, function() for _, r in ipairs(dlg.rows) do if r:IsShown() then r.chk:SetChecked(true) end end end)
-    dlg.all:SetPoint("BOTTOMLEFT", 16, 14)
+    dlg.all:SetPoint("BOTTOMLEFT", 18, 16)
     dlg.save = UI.Button(dlg, L"Сохранить", 130, 26, function()
       for _, r in ipairs(dlg.rows) do
         if r:IsShown() and r.id then
@@ -133,7 +132,7 @@ function craft.openAlarms(rec)
       end
       dlg:Hide(); ns.Fire("MARKS")
     end, true)
-    dlg.save:SetPoint("BOTTOMRIGHT", -16, 14)
+    dlg.save:SetPoint("BOTTOMRIGHT", -18, 16)
     local cancel = UI.Button(dlg, L"Отмена", 100, 26, function() dlg:Hide() end); cancel:SetPoint("RIGHT", dlg.save, "LEFT", -8, 0)
   end
   dlg.sub:SetText(rec.name .. " - " .. L"отметьте, по каким предметам присылать уведомления о скачках цены. Пустой порог - общий (" .. ns.DB.settings.alertPct .. "%).")
@@ -218,12 +217,12 @@ local function buildCraft(f)
   -- карточка рецепта
   local card = CreateFrame("Frame", nil, f)
   card:SetPoint("TOPLEFT", f, "TOP", 10, -70); card:SetPoint("BOTTOMRIGHT")
-  local bg = card:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.3)
-  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 10, -10); card.title:SetPoint("RIGHT", -10, 0)
+  UI.Skin(card, { theme = "mcard" })
+  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 14, -14); card.title:SetPoint("RIGHT", -14, 0)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(20)
-    r:SetPoint("TOPLEFT", 8, -34 - (i - 1) * 22); r:SetPoint("RIGHT", -8, 0)
+    r:SetPoint("TOPLEFT", 12, -38 - (i - 1) * 22); r:SetPoint("RIGHT", -12, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT")
     r.search = UI.Icon(r, "search", 16, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT")
     r.star = UI.Icon(r, "star-off", 16, L"Отметить: уведомления о скачках цены", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
@@ -246,7 +245,7 @@ local function buildCraft(f)
   card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", card.craft, "BOTTOMLEFT", 2, -6); card.total:SetPoint("RIGHT", -10, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
   card.chartTitle = UI.Font(card, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", 0, -10); card.chartTitle:SetPoint("RIGHT", -10, 0)
   card.chart = UI.Chart(card); card.chart.showPeaks = true
-  card.chart:SetPoint("TOPLEFT", card.chartTitle, "BOTTOMLEFT", -8, -4); card.chart:SetPoint("BOTTOMRIGHT", -4, 4)
+  card.chart:SetPoint("TOPLEFT", card.chartTitle, "BOTTOMLEFT", -8, -4); card.chart:SetPoint("BOTTOMRIGHT", -10, 10)
   craft.card = card
 end
 
@@ -305,8 +304,7 @@ local function refresh() if not win or not win:IsShown() then return end; if vie
 local function selectView(i)
   view = i
   for k, b in ipairs(win.tabs) do
-    b:SetNormalTexture(M .. (k == i and "btn-gold" or "btn"))
-    local c = k == i and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3])
+    b:SetGold(k == i)
     win.pages[k]:SetShown(k == i)
   end
   refresh()
@@ -316,28 +314,28 @@ local function setChar(ck) charKey = ck; prof = nil; sel = nil; win.charName:Set
 local function build()
   if win then return end
   win = CreateFrame("Frame", "WolfichMarketMainFrame", UIParent)
-  win:SetSize(860, 580); win:SetPoint("CENTER"); win:SetFrameStrata("HIGH"); win:SetToplevel(true)
+  win:SetSize(860, 600); win:SetPoint("CENTER"); win:SetFrameStrata("HIGH"); win:SetToplevel(true)
   win:SetMovable(true); win:EnableMouse(true); win:RegisterForDrag("LeftButton"); win:SetClampedToScreen(true)
   win:SetScript("OnDragStart", win.StartMoving); win:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-  UI.Skin(win)
+  UI.Skin(win, { theme = "main" })
   UI.Title(win, "WolfichMarket")
-  local close = CreateFrame("Button", nil, win, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -8, -8)
+  UI.Close(win)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
   -- персонаж
-  local prev = UI.Button(win, "<", 26, 22, function() local l = chars(); for i, ck in ipairs(l) do if ck == charKey then setChar(l[(i - 2) % #l + 1]); return end end end)
-  prev:SetPoint("TOPLEFT", 16, -46)
+  local prev = UI.Icon(win, "skin\\mi-left", 24, nil, function() local l = chars(); for i, ck in ipairs(l) do if ck == charKey then setChar(l[(i - 2) % #l + 1]); return end end end)
+  prev:SetPoint("TOPLEFT", 24, -64)
   win.charName = UI.Font(win, 13, nil, "OVERLAY", "OUTLINE"); win.charName:SetPoint("LEFT", prev, "RIGHT", 8, 0); win.charName:SetWidth(240)
-  local nextB = UI.Button(win, ">", 26, 22, function() local l = chars(); for i, ck in ipairs(l) do if ck == charKey then setChar(l[i % #l + 1]); return end end end)
+  local nextB = UI.Icon(win, "skin\\mi-right", 24, nil, function() local l = chars(); for i, ck in ipairs(l) do if ck == charKey then setChar(l[i % #l + 1]); return end end end)
   nextB:SetPoint("LEFT", win.charName, "RIGHT", 4, 0)
   -- вкладки
   win.tabs = {}
   for i, n in ipairs({ L"Крафт", L"Сигналы" }) do
-    local b = UI.Button(win, n, 120, 22, function() selectView(i) end)
-    b:SetPoint("TOPRIGHT", -16 - (2 - i) * 124, -46); win.tabs[i] = b
+    local b = UI.Button(win, n, 124, 26, function() selectView(i) end)
+    b:SetPoint("TOPRIGHT", -24 - (2 - i) * 130, -63); win.tabs[i] = b
   end
   win.pages = {}
   for i, builder in ipairs({ buildCraft, buildSignals }) do
-    local f = CreateFrame("Frame", nil, win); f:SetPoint("TOPLEFT", 16, -78); f:SetPoint("BOTTOMRIGHT", -16, 16)
+    local f = CreateFrame("Frame", nil, win); f:SetPoint("TOPLEFT", 24, -100); f:SetPoint("BOTTOMRIGHT", -24, 22)
     builder(f); f:Hide(); win.pages[i] = f
   end
   win:SetScript("OnShow", refresh)
