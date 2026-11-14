@@ -7,7 +7,7 @@ local safe = ns.safe
 
 local PREFIX = "WolfMkt1"
 local CHANNEL = "WolfichMarketNet"
-local SEND_EVERY = 0.3          -- не чаще ~3 сообщений в секунду: сервер не любит частые сообщения
+local SEND_EVERY = 0.3          -- пауза для Battle.net; обычные пути - раз в секунду (ограничение игры)
 local MAXLEN = 240
 
 -- ---------- компактная запись чисел (36-ричная) ----------
@@ -90,25 +90,40 @@ local function routes()
   return r
 end
 ns.NetRoutes = routes
-local queue, sending = {}, false
+-- Игра ограничивает служебные сообщения аддона: ~10 подряд, дальше около одного в секунду
+-- (ответ 3/8 - «слишком часто»). Поэтому обычные сообщения идут раз в секунду, а при отказе
+-- сообщение возвращается в начало очереди и повторяется позже. Через Battle.net - крупными пачками.
+local THROTTLED = { [3] = true, [8] = true }
+local queue, bnQueue, sending = {}, {}, false
 local function pump()
-  local e = table.remove(queue, 1)
+  local e = table.remove(bnQueue, 1) or table.remove(queue, 1) -- Battle.net - быстро и первым
   if not e then sending = false return end
   local C = C_ChatInfo
+  local wait = SEND_EVERY
   if e[2] == "BN" then
     local ok = pcall(BNSendGameData, e[3], PREFIX, e[1])
     if ok then ns.netStats.sent = ns.netStats.sent + 1 else ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = "BN" end
   elseif C and C.SendAddonMessage then
     local ok, res = pcall(C.SendAddonMessage, PREFIX, e[1], e[2], e[3])
-    if not ok or res == false or (type(res) == "number" and res ~= 0) then
+    if ok and type(res) == "number" and THROTTLED[res] then
+      e.tries = (e.tries or 0) + 1
+      if e.tries <= 5 then table.insert(queue, 1, e) end -- повторить, когда игра разрешит
+      ns.netStats.throttled = (ns.netStats.throttled or 0) + 1
+      wait = 2
+    elseif not ok or res == false or (type(res) == "number" and res ~= 0) then
       ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = e[2] .. " " .. tostring(ok and res or "ошибка")
-    else ns.netStats.sent = ns.netStats.sent + 1 end
+    else ns.netStats.sent = ns.netStats.sent + 1; wait = 1.05 end
   end
-  ns.After(SEND_EVERY, pump)
+  ns.After(wait, pump)
 end
-local function send(msg)
-  for _, r in ipairs(routes()) do queue[#queue + 1] = { msg, r[1], r[2], r[3] } end
-  if not sending and #queue > 0 then sending = true; ns.After(0, pump) end
+-- msg - для обычных путей (до 255 символов), big - то же крупной пачкой для Battle.net (если есть)
+local function send(msg, big, onlyBig)
+  for _, r in ipairs(routes()) do
+    if r[1] == "BN" then
+      if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3] } end
+    elseif not onlyBig then queue[#queue + 1] = { msg, r[1], r[2], r[3] } end
+  end
+  if not sending and (#queue > 0 or #bnQueue > 0) then sending = true; ns.After(0, pump) end
 end
 ns._netQueue = queue -- для автотестов
 
@@ -145,8 +160,17 @@ function ns.ShareScan(scan)
   end
   if cur ~= head then parts[#parts + 1] = cur end
   if n == 0 then return end
+  -- для Battle.net те же цены крупными пачками (до ~3800 символов): в 15 раз меньше сообщений
+  local bigParts, bcur = {}, head
+  for _, p in ipairs(parts) do
+    local body = p:sub(#head + 1)
+    if #bcur + #body > 3800 then bigParts[#bigParts + 1] = bcur; bcur = head end
+    bcur = bcur .. body
+  end
+  if bcur ~= head then bigParts[#bigParts + 1] = bcur end
   send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or ""))
-  for _, p in ipairs(parts) do send(p) end
+  for _, p in ipairs(parts) do send(p, false) end  -- обычные пути: мелкими сообщениями
+  for _, p in ipairs(bigParts) do send(p, p, true) end -- Battle.net: крупными
   send("E^" .. RK() .. "^" .. enc(scan.t))
   local rs = routes()
   local names = {}
@@ -301,7 +325,7 @@ local function onMessage(prefix, msg, dist, sender)
     if lastFrom[sender .. t] then return end
     lastFrom[sender .. t] = time()
     incoming[sender] = { t = t, items = {} }
-    ns.After(120, function() if incoming[sender] then finish(sender) end end) -- конец потерялся - берём что пришло
+    ns.After(600, function() if incoming[sender] and incoming[sender].t == t then finish(sender) end end) -- конец потерялся - берём что пришло
   elseif kind == "P" then
     local inc = incoming[sender]
     if not inc then return end

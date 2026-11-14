@@ -450,9 +450,10 @@ do
   C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m end
   local oldG = GetChannelName; GetChannelName = function() return 5 end
   ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [999999] = { 5, 1, 1 } } })
-  for _ = 1, 10 do advance(1) end
+  for _ = 1, 90 do advance(1) end
   local hasP = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then hasP = true end end
-  check(sent[1] and sent[1]:sub(1, 2) == "H^" and hasP and sent[#sent]:sub(1, 2) == "E^", "общий рынок: снимок рассылается (" .. #sent .. " сообщ.)")
+  local hasH, hasE = false, false; for _, m in ipairs(sent) do if m:sub(1, 2) == "H^" then hasH = true end; if m:sub(1, 2) == "E^" then hasE = true end end
+  check(hasH and hasP and hasE, "общий рынок: снимок рассылается (" .. #sent .. " сообщ.)")
   -- приём от другого игрока
   local enc = function(n) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s = ""; n = math.floor(n); repeat local d = n % 36; s = D:sub(d + 1, d + 1) .. s; n = math.floor(n / 36) until n == 0; return s end
   local t = time() + 5000
@@ -470,7 +471,7 @@ do
   check(ns.NetWanted()[3470], "общий рынок: получен список сигналов другого игрока")
   sent = {}
   ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [3470] = { 90, 5, 1 } } })
-  for _ = 1, 10 do advance(1) end
+  for _ = 1, 90 do advance(1) end
   local firstP; for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then firstP = m; break end end
   check(firstP and firstP:match("%^[^%^]+%^(%w+),") == enc(3470), "общий рынок: чужие сигналы рассылаются первыми")
   sent = {}
@@ -538,6 +539,18 @@ do
   ns.MigrateRealmKeys()
   check(DB.ahScans["PvP|Alliance"] and DB.ahScans["PvP|Alliance"].t == 200 and not DB.ahScans["CAMWOWEU4Realm6PvP|Alliance"], "снимки разных серверов одного режима объединены")
   DB.ahScans, DB.realmKeysV = keep[1], keep[2]
+end
+-- «слишком часто» (ответ 3): сообщение не теряется, а повторяется позже
+do
+  local got, calls = {}, 0
+  local oldS, oldG = C_ChatInfo.SendAddonMessage, GetChannelName
+  GetChannelName = function() return 6 end
+  C_ChatInfo.SendAddonMessage = function(p, m) calls = calls + 1; if calls % 2 == 1 then return 3 end; got[#got + 1] = m; return 0 end
+  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
+  for _ = 1, 120 do advance(1) end
+  local hasE = false; for _, m in ipairs(got) do if m:sub(1, 2) == "E^" then hasE = true end end
+  check(hasE and (ns.netStats.throttled or 0) > 0, "общий рынок: при «слишком часто» сообщения повторяются, а не теряются")
+  C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
 end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
