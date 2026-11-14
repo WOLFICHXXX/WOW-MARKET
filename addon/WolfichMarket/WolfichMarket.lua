@@ -11,10 +11,11 @@ local pendingNames = {}
 
 -- ---------- утилиты ----------
 local unpack = unpack or table.unpack
+local function pack(...) return { n = select("#", ...), ... } end
 local function safe(fn, ...)
   if type(fn) ~= "function" then return nil end
-  local r = { pcall(fn, ...) }
-  if r[1] then return unpack(r, 2, table.maxn and table.maxn(r) or #r) end
+  local r = pack(pcall(fn, ...))
+  if r[1] then return unpack(r, 2, r.n) end
   return nil
 end
 
@@ -253,6 +254,105 @@ on("MERCHANT_UPDATE")
 on("GET_ITEM_INFO_RECEIVED")
 on("SKILL_LINES_CHANGED")
 
+-- ---------- аукцион: категории и полный снимок ----------
+on("AUCTION_HOUSE_SHOW")
+on("AUCTION_HOUSE_CLOSED")
+on("REPLICATE_ITEM_LIST_UPDATE")
+local ahOpen, ahWanted, ahBusy, replPending = false, false, false, false
+
+local function dumpCats(list, depth)
+  local out = {}
+  if type(list) ~= "table" or depth > 4 then return out end
+  for _, c in ipairs(list) do
+    local e = { name = clean(c.name), filters = {} }
+    for _, fl in ipairs(c.filters or {}) do
+      table.insert(e.filters, { fl.classID or -1, fl.subClassID or -1, fl.inventoryType or -1 })
+    end
+    if c.subCategories then e.sub = dumpCats(c.subCategories, depth + 1) end
+    table.insert(out, e)
+  end
+  return out
+end
+
+local function saveCategories()
+  if type(AuctionCategories) == "table" then
+    DB.ahCats = dumpCats(AuctionCategories, 1)
+  end
+  -- названия классов и подклассов предметов (как их зовёт игра)
+  local getC = (C_Item and C_Item.GetItemClassInfo) or GetItemClassInfo
+  local getS = (C_Item and C_Item.GetItemSubClassInfo) or GetItemSubClassInfo
+  if getC then
+    DB.ahClasses = {}
+    for cid = 0, 20 do
+      local cn = safe(getC, cid)
+      if cn and cn ~= "" then
+        local subs = {}
+        for sid = 0, 25 do local sn = safe(getS, cid, sid); if sn and sn ~= "" then subs[sid] = clean(sn) end end
+        DB.ahClasses[cid] = { name = clean(cn), subs = subs }
+      end
+    end
+  end
+end
+
+local function finishReplicate()
+  local n = safe(C_AuctionHouse.GetNumReplicateItems) or 0
+  if n == 0 then say("аукцион ответил пустым списком — попробуйте ещё раз через минуту.") ahBusy = false return end
+  say(string.format("получено лотов: %d, обрабатываю…", n))
+  local items, classes = {}, {}
+  local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  local i = 0
+  local function step()
+    local last = math.min(i + 3000, n - 1)
+    for k = i, last do
+      local name, _, count, quality, _, level, _, minBid, _, buyout, bidAmount, _, _, _, _, _, itemID = safe(C_AuctionHouse.GetReplicateItemInfo, k)
+      if itemID then
+        count = math.max(count or 1, 1)
+        local rec = items[itemID]
+        if not rec then rec = { 0, 0, 0, 0 }; items[itemID] = rec end -- мин. цена за шт, кол-во, лотов, качество
+        if buyout and buyout > 0 then
+          local unit = math.floor(buyout / count + 0.5)
+          if rec[1] == 0 or unit < rec[1] then rec[1] = unit end
+        end
+        rec[2] = rec[2] + count
+        rec[3] = rec[3] + 1
+        rec[4] = quality or rec[4]
+        if not classes[itemID] and instant then
+          local _, _, _, _, _, cid, sid = safe(instant, itemID)
+          classes[itemID] = { cid or -1, sid or -1 }
+        end
+        if name and name ~= "" and not DB.names[itemID] then DB.names[itemID] = clean(name) end
+      end
+    end
+    i = last + 1
+    if i < n then C_Timer.After(0, step) return end
+    local count = 0
+    for _ in pairs(items) do count = count + 1 end
+    DB.ahScan = {
+      t = time(), lots = n, char = charKey,
+      realm = clean(GetRealmName and GetRealmName() or ""),
+      realmN = clean(GetNormalizedRealmName and GetNormalizedRealmName() or ""),
+      faction = UnitFactionGroup and UnitFactionGroup("player") or "",
+      items = items, classes = classes,
+    }
+    ahBusy = false
+    say(string.format("|cff78d98aснимок аукциона готов|r: %d лотов, %d предметов. Наберите /reload — и пришлите файл WolfichMarket.lua из папки WTF.", n, count))
+  end
+  step()
+end
+
+local function startReplicate()
+  if not (C_AuctionHouse and C_AuctionHouse.ReplicateItems) then say("в этой версии игры нет полного скана аукциона.") return end
+  if not ahOpen then ahWanted = true say("откройте окно аукциона — скан начнётся сам.") return end
+  if ahBusy then say("скан уже идёт…") return end
+  ahBusy, ahWanted = true, false
+  saveCategories()
+  say("запрашиваю весь аукцион (сервер разрешает это раз в 15 минут), подождите…")
+  local ok = pcall(C_AuctionHouse.ReplicateItems)
+  if not ok then ahBusy = false say("сервер отказал — подождите 15 минут после прошлого скана.") return end
+  -- если событие не придёт, проверим сами через 20 секунд
+  C_Timer.After(20, function() if ahBusy and (safe(C_AuctionHouse.GetNumReplicateItems) or 0) > 0 then finishReplicate() end end)
+end
+
 local scanTimer
 f:SetScript("OnEvent", function(_, event, arg1)
   if event == "ADDON_LOADED" and arg1 == addonName then
@@ -287,6 +387,14 @@ f:SetScript("OnEvent", function(_, event, arg1)
     end
   elseif event == "SKILL_LINES_CHANGED" then
     scanSkillLevels()
+  elseif event == "AUCTION_HOUSE_SHOW" then
+    ahOpen = true
+    saveCategories()
+    if ahWanted then C_Timer.After(1, startReplicate) end
+  elseif event == "AUCTION_HOUSE_CLOSED" then
+    ahOpen = false
+  elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
+    if ahBusy and not replPending then replPending = true; C_Timer.After(1, function() replPending = false; if ahBusy then finishReplicate() end end) end
   end
 end)
 
@@ -299,6 +407,8 @@ SlashCmdList.WOLFICHMARKET = function(msg)
     DB.chars[charKey] = { profs = {} }
     DB.vendor = {}
     say("данные этого персонажа и цены торговцев очищены.")
+  elseif msg == "ah" then
+    startReplicate()
   elseif msg == "status" then
     local c = DB.chars[charKey] or { profs = {} }
     local n = 0
@@ -306,6 +416,7 @@ SlashCmdList.WOLFICHMARKET = function(msg)
     local v = 0
     for _ in pairs(DB.vendor) do v = v + 1 end
     say(string.format("профессий с рецептами: %d, цен торговцев: %d", n, v))
+    if DB.ahScan then say(string.format("снимок аукциона: %d лотов, %s", DB.ahScan.lots or 0, date("%d.%m %H:%M", DB.ahScan.t or 0))) end
   else
     showExport()
   end
