@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WOW-MARKET</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#14110c; --bg2:#1c1811; --card:#221d14; --line:#3a3122; --line2:#4d412b;
+  --fg:#ece3cf; --dim:#a69a80; --mute:#7a6f58;
+  --gold:#e6b450; --gold2:#f5d27a; --good:#6fcf7f; --bad:#ef6f5e; --info:#6fb7e6;
+  --q-poor:#9d9d9d; --q-common:#ffffff; --q-uncommon:#1eff00; --q-rare:#0070dd; --q-epic:#a335ee; --q-legendary:#ff8000;
+  --c-g:#f2c94c; --c-s:#c9d1d9; --c-c:#d08c5a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,sans-serif;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+a{color:var(--gold)}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:18px 0 12px;border-bottom:1px solid var(--line)}
+h1{font:700 28px/1 "Cormorant SC",serif;letter-spacing:.04em;color:var(--gold);margin:0}
+h1 small{font:500 12px Inter,sans-serif;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-left:8px}
+.status{margin-left:auto;font-size:12.5px;color:var(--dim);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+.dot.warn{background:var(--bad)}
+nav{display:flex;gap:4px;flex-wrap:wrap;padding:12px 0;position:sticky;top:0;background:var(--bg);z-index:5}
+nav button{background:none;border:1px solid transparent;border-radius:8px;padding:7px 14px;color:var(--dim);cursor:pointer;font-weight:500}
+nav button:hover{color:var(--fg)}
+nav button.on{border-color:var(--line2);background:var(--card);color:var(--gold2)}
+nav .badge{background:var(--bad);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:6px}
+.bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:4px 0 12px}
+input[type=text],input[type=number],input[type=search],select,textarea{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:7px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+input[type=number]{width:90px}
+.grow{flex:1 1 220px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{border:1px solid var(--line2);background:var(--bg2);border-radius:999px;padding:4px 11px;font-size:12.5px;cursor:pointer;color:var(--dim);user-select:none}
+.chip.on{border-color:var(--gold);color:var(--gold2);background:#2c2416}
+.btn{background:var(--gold);color:#1b1408;border:0;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer}
+.btn.ghost{background:none;color:var(--gold);border:1px solid var(--line2)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--bg2)}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:600;cursor:pointer;position:sticky;top:0;background:var(--bg2)}
+th.on{color:var(--gold)}
+th:first-child,td:first-child{text-align:left}
+td.name{white-space:normal;min-width:200px}
+tr:hover td{background:#241e14}
+tr.sub td{background:#1a160f;font-size:12.5px;color:var(--dim)}
+.it{cursor:pointer;font-weight:500}
+.it:hover{text-decoration:underline}
+.q-poor{color:var(--q-poor)}.q-common{color:var(--q-common)}.q-uncommon{color:var(--q-uncommon)}.q-rare{color:#3d9bff}.q-epic{color:#c17bff}.q-legendary{color:var(--q-legendary)}
+.money{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px}
+.money .g{color:var(--c-g)}.money .s{color:var(--c-s)}.money .c{color:var(--c-c)}
+.up{color:var(--good)}.down{color:var(--bad)}.dim{color:var(--dim)}.mute{color:var(--mute)}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.d0{color:#ff8040}.d1{color:#ffff00}.d2{color:#40c040}.d3{color:#808080}
+.note{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;margin:0 0 14px;color:var(--dim)}
+.note b{color:var(--fg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.card h3{margin:0 0 8px;font:700 18px "Cormorant SC",serif;color:var(--gold2);letter-spacing:.03em}
+.list{display:flex;flex-direction:column;gap:2px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.row > :first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ol.steps{margin:0;padding-left:20px;color:var(--dim)} ol.steps li{margin:4px 0} ol.steps b{color:var(--fg)}
+code{background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--gold2)}
+textarea{width:100%;min-height:150px;font-family:"JetBrains Mono",monospace;font-size:12px}
+.empty{padding:30px;text-align:center;color:var(--mute)}
+/* модальное окно предмета */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+.panel{background:var(--bg2);border:1px solid var(--line2);border-radius:12px;width:min(820px,100%);max-height:92vh;overflow:auto;padding:18px}
+.panel h2{margin:0;font:700 22px "Cormorant SC",serif}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+svg.chart{width:100%;height:auto;display:block}
+svg.chart text{fill:var(--mute);font-size:11px;font-family:Inter,sans-serif}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--dim);flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:5px}
+#tip{position:fixed;pointer-events:none;background:#0d0b07;border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:12px;z-index:30}
+@media (max-width:560px){h1{font-size:23px}.status{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>WOW-MARKET <small>Forever · EU · Альянс</small></h1>
+  <div class="status" id="status">Загрузка…</div>
+</header>
+<nav id="tabs">
+  <button data-t="market" class="on">Рынок</button>
+  <button data-t="craft">Крафт</button>
+  <button data-t="signals">Сигналы</button>
+  <button data-t="shop">Покупки<span class="badge" id="shopBadge" hidden></span></button>
+  <button data-t="scan">Скан</button>
+</nav>
+
+<!-- РЫНОК -->
+<section id="t-market">
+  <div class="bar">
+    <input type="search" id="mSearch" class="grow" placeholder="Поиск: название или ID предмета">
+    <label class="dim"><input type="checkbox" id="mMine"> только мои рецепты и материалы</label>
+    <label class="dim">мин. в продаже <input type="number" id="mMinQty" min="0" value="1"></label>
+  </div>
+  <div class="chips" id="mCats"></div>
+  <div class="tbl-wrap"><table id="mTable"></table></div>
+  <p class="mute" id="mMore"></p>
+</section>
+
+<!-- КРАФТ -->
+<section id="t-craft" hidden>
+  <div id="cNoScan" class="note"><b>Нет данных о ваших профессиях.</b> Установите аддон и сделайте скан — вкладка «Скан».</div>
+  <div id="cBody">
+    <div class="chips" id="cProfs"></div>
+    <div class="bar">
+      <input type="search" id="cSearch" class="grow" placeholder="Поиск рецепта">
+      <label class="dim">цена продажи
+        <select id="cPrice"><option value="mkt">рыночная</option><option value="min">минимальная</option><option value="med">медиана</option></select></label>
+      <label class="dim">комиссия
+        <select id="cCut"><option value="0.05">5% (аукцион фракции)</option><option value="0.15">15% (нейтральный)</option></select></label>
+    </div>
+    <div class="bar">
+      <label class="dim"><input type="checkbox" id="cProfit"> только прибыльные</label>
+      <label class="dim"><input type="checkbox" id="cHideMissing"> скрыть без цен</label>
+      <label class="dim"><input type="checkbox" id="cHideGray"> скрыть серые</label>
+      <label class="dim"><input type="checkbox" id="cNoItem"> показывать чары без предмета</label>
+    </div>
+    <div class="note" style="font-size:12.5px">Себестоимость — каждый материал по <b>самой дешёвой цене</b>: у торговца (если аддон её видел) или на аукционе. Доход = цена продажи × среднее число предметов − комиссия. Цвет названия — шанс поднять навык: <span class="d0">оранж.</span> <span class="d1">жёлт.</span> <span class="d2">зелён.</span> <span class="d3">серый</span>. Нажмите на строку — увидите материалы.</div>
+    <div class="tbl-wrap"><table id="cTable"></table></div>
+  </div>
+</section>
+
+<!-- СИГНАЛЫ -->
+<section id="t-signals" hidden>
+  <div class="bar">
+    <label class="dim">порог, % <input type="number" id="sThr" value="25" min="1"></label>
+    <label class="dim">сравнить со средней за
+      <select id="sBase"><option value="24">24 часа</option><option value="7">7 дней</option></select></label>
+    <label class="dim">мин. в продаже <input type="number" id="sMinQty" value="5" min="0"></label>
+    <label class="dim">что смотреть
+      <select id="sScope"><option value="mine">мои рецепты, материалы и покупки</option><option value="all">весь рынок</option></select></label>
+  </div>
+  <div class="note" style="font-size:12.5px">История копится с первого запуска: сравнение «за 24 часа» заработает через несколько часов, «за 7 дней» — через пару суток.</div>
+  <div class="cards">
+    <div class="card"><h3>↓ Подешевело — время покупать</h3><div class="list" id="sDown"></div></div>
+    <div class="card"><h3>↑ Подорожало — время продавать</h3><div class="list" id="sUp"></div></div>
+  </div>
+</section>
+
+<!-- ПОКУПКИ -->
+<section id="t-shop" hidden>
+  <div class="bar">
+    <input type="search" id="pSearch" class="grow" list="pList" placeholder="Добавить предмет: начните вводить название">
+    <datalist id="pList"></datalist>
+    <button class="btn" id="pAdd">Добавить</button>
+  </div>
+  <div class="note" style="font-size:12.5px">Задайте <b>целевую цену</b> за штуку и сколько нужно. Когда минимальная цена на аукционе опустится до цели, строка станет зелёной, а на вкладке появится счётчик.</div>
+  <div class="tbl-wrap"><table id="pTable"></table></div>
+  <p class="dim" id="pTotal"></p>
+</section>
+
+<!-- СКАН -->
+<section id="t-scan" hidden>
+  <div class="cards">
+    <div class="card">
+      <h3>1. Аддон WolfichMarket</h3>
+      <ol class="steps">
+        <li><a href="addon/WolfichMarket.zip" id="addonLink"><b>Скачать WolfichMarket.zip</b></a></li>
+        <li>Распакуйте в <code>World of Warcraft\_forever_\Interface\AddOns\</code> — должна получиться папка <code>WolfichMarket</code>.</li>
+        <li>В игре на экране выбора персонажа → «Модификации» → включите WolfichMarket (и «Загружать устаревшие», если просит).</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>2. Скан в игре</h3>
+      <ol class="steps">
+        <li>Откройте <b>окно каждой</b> вашей профессии (кулинария, алхимия и т.д.) — аддон сам запишет все выученные рецепты.</li>
+        <li>Загляните к торговцам реагентами — аддон запомнит их цены (фляги, нити, соль…).</li>
+        <li>Наберите <code>/wm</code> — откроется окно с текстом, он уже выделен. Нажмите <b>Ctrl+C</b>.</li>
+        <li><code>/wm status</code> — проверить, что записано; <code>/wm reset</code> — начать заново.</li>
+      </ol>
+    </div>
+  </div>
+  <h3 style="font:700 18px 'Cormorant SC',serif;color:var(--gold2);margin:18px 0 8px">3. Вставьте текст сюда</h3>
+  <textarea id="scanIn" placeholder="WM1^Имя-Мир^..."></textarea>
+  <div class="bar" style="margin-top:8px">
+    <button class="btn" id="scanBtn">Загрузить скан</button>
+    <span id="scanMsg" class="dim"></span>
+  </div>
+  <div id="scanList" class="cards"></div>
+</section>
+</div>
+
+<div class="modal" id="modal" hidden><div class="panel" id="panel"></div></div>
+<div id="tip" hidden></div>
+
+<script>
+'use strict';
+// ---------- хранилище ----------
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem('wm.'+k); return v==null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('wm.'+k, JSON.stringify(v)); }catch{} },
+};
+const S = {
+  tab: LS.get('tab','market'),
+  offCats: new Set(LS.get('offCats', [])),
+  offProfs: new Set(LS.get('offProfs', [])),
+  scans: LS.get('scans', {}),        // charKey -> parsed
+  shop: LS.get('shop', []),          // [{id,target,need}]
+  mSort: LS.get('mSort', ['qty',-1]),
+  cSort: LS.get('cSort', ['profit',-1]),
+  opts: Object.assign({cPrice:'mkt',cCut:'0.05',cProfit:false,cHideMissing:false,cHideGray:false,cNoItem:false,
+    sThr:25,sBase:'24',sMinQty:5,sScope:'mine',mMine:false,mMinQty:1}, LS.get('opts', {})),
+};
+const save = () => { LS.set('tab',S.tab); LS.set('offCats',[...S.offCats]); LS.set('offProfs',[...S.offProfs]);
+  LS.set('scans',S.scans); LS.set('shop',S.shop); LS.set('mSort',S.mSort); LS.set('cSort',S.cSort); LS.set('opts',S.opts); };
+
+let LATEST = {t:0, items:{}}, ITEMS = {}, META = {};
+const HIST = {};
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- справочники ----------
+function scanNames(){ const o = {}; for (const sc of Object.values(S.scans)) Object.assign(o, sc.names); return o; }
+function scanVendor(){ const o = {}; for (const sc of Object.values(S.scans)) for (const [id,p] of Object.entries(sc.vendor)) if (!(id in o) || p < o[id]) o[id] = p; return o; }
+let NAMES = {}, VENDOR = {};
+function refreshScanCaches(){ NAMES = scanNames(); VENDOR = scanVendor(); }
+const nameOf = (id) => NAMES[id] || ITEMS[id]?.n || ('#'+id);
+const qClass = (id) => { const q = ITEMS[id]?.q; return q ? 'q-'+q.toLowerCase() : ''; };
+const L = (id) => LATEST.items[id]; // [min,mkt,med,qty,lots,avg24,avg7,chg24,chg7]
+const P = { min:0, mkt:1, med:2, qty:3, lots:4, avg24:5, avg7:6, chg24:7, chg7:8 };
+const ah = (id, kind='mkt') => { const r = L(id); return r ? r[P[kind]] : null; };
+
+function money(c){
+  if (c == null || !isFinite(c)) return '<span class="mute">—</span>';
+  const neg = c < 0; c = Math.round(Math.abs(c));
+  const g = Math.floor(c/10000), s = Math.floor(c%10000/100), m = c%100;
+  let h = '';
+  if (g) h += `${g.toLocaleString('ru-RU')}<span class="g">з</span> `;
+  if (g || s) h += `${s}<span class="s">с</span> `;
+  if (!g) h += `${m}<span class="c">м</span>`;
+  return `<span class="money">${neg?'−':''}${h.trim()}</span>`;
+}
+const pct = (v) => v == null ? '<span class="mute">—</span>' : `<span class="${v>0?'up':v<0?'down':'dim'}">${v>0?'+':''}${v}%</span>`;
+const itemLink = (id, cls='') => `<span class="it ${qClass(id)} ${cls}" data-item="${id}">${esc(nameOf(id))}</span>`;
+
+// ---------- загрузка ----------
+async function getJson(p){ const r = await fetch(p + '?v=' + Math.floor(Date.now()/600000)); if (!r.ok) throw new Error(p+': '+r.status); return r.json(); }
+async function load(){
+  try {
+    [META, LATEST, ITEMS] = await Promise.all([getJson('data/meta.json'), getJson('data/latest.json'), getJson('data/items.json')]);
+  } catch(e) {
+    $('#status').innerHTML = `<span class="dot warn"></span> Данных пока нет — дождитесь первого запуска сборщика (вкладка Actions на GitHub).`;
+    LATEST = LATEST || {items:{}};
+  }
+  renderStatus(); refreshScanCaches(); buildCats(); renderAll();
+}
+function renderStatus(){
+  if (!META.updatedAt) return;
+  const t = new Date(META.updatedAt);
+  const ago = Math.round((Date.now() - t) / 60000);
+  const agoTxt = ago < 60 ? `${ago} мин назад` : `${Math.round(ago/60)} ч назад`;
+  const err = META.lastError ? ` · <span class="down" title="${esc(META.lastErrorAt)}">ошибка: ${esc(META.lastError)}</span>` : '';
+  $('#status').innerHTML = `<span class="dot ${META.lastError || ago > 180 ? 'warn':''}"></span>
+    ${esc(META.house?.name || 'аукцион')} · обновлено ${t.toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} (${agoTxt})
+    · ${(META.itemCount||0).toLocaleString('ru-RU')} предметов, ${(META.lots||0).toLocaleString('ru-RU')} лотов${err}`;
+}
+
+// ---------- «мои» предметы ----------
+function myRecipes(){
+  const out = [];
+  for (const sc of Object.values(S.scans)) for (const r of sc.recipes) out.push({...r, char: sc.char});
+  // убираем дубли одного рецепта у нескольких персонажей
+  const seen = new Set();
+  return out.filter(r => { const k = r.prof+'|'+r.rid; if (seen.has(k)) return false; seen.add(k); return true; });
+}
+function myItemIds(){
+  const s = new Set();
+  for (const r of myRecipes()) { if (r.out) s.add(r.out); for (const [id] of r.reag) s.add(id); }
+  for (const p of S.shop) s.add(p.id);
+  return s;
+}
+
+// ---------- РЫНОК ----------
+function buildCats(){
+  const counts = {};
+  for (const id of Object.keys(LATEST.items)) { const c = ITEMS[id]?.c || 'Без категории'; counts[c] = (counts[c]||0)+1; }
+  const cats = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  $('#mCats').innerHTML = cats.map(([c,n]) => `<span class="chip ${S.offCats.has(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)} <span class="mute">${n}</span></span>`).join('')
+    + (cats.length ? `<span class="chip" data-cat-all="1">все</span><span class="chip" data-cat-none="1">ничего</span>` : '');
+}
+function renderMarket(){
+  const q = $('#mSearch').value.trim().toLowerCase();
+  const mine = S.opts.mMine ? myItemIds() : null;
+  const minQty = +S.opts.mMinQty || 0;
+  let rows = [];
+  for (const [id, r] of Object.entries(LATEST.items)) {
+    const cat = ITEMS[id]?.c || 'Без категории';
+    if (S.offCats.has(cat)) continue;
+    if (mine && !mine.has(+id)) continue;
+    if (r[3] < minQty) continue;
+    if (q && !(id === q || nameOf(id).toLowerCase().includes(q))) continue;
+    rows.push([+id, r]);
+  }
+  const [key, dir] = S.mSort;
+  const k = key === 'name' ? null : P[key];
+  rows.sort((a,b) => key === 'name' ? nameOf(a[0]).localeCompare(nameOf(b[0]),'ru')*dir : ((a[1][k] ?? -1e15) - (b[1][k] ?? -1e15))*dir);
+  const total = rows.length; rows = rows.slice(0, 300);
+  const cols = [['name','Предмет'],['min','Мин. цена'],['mkt','Рыночная'],['qty','В продаже'],['lots','Лотов'],['chg24','24 ч'],['chg7','7 дн']];
+  $('#mTable').innerHTML = `<thead><tr>${cols.map(([c,t]) => `<th data-msort="${c}" class="${key===c?'on':''}">${t}${key===c?(dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>`
+    + (rows.length ? rows.map(([id,r]) => `<tr><td class="name">${itemLink(id)} <span class="mute" style="font-size:11px">${esc(ITEMS[id]?.s||'')}</span></td>
+      <td>${money(r[0])}</td><td>${money(r[1])}</td><td>${r[3].toLocaleString('ru-RU')}</td><td class="dim">${r[4]}</td><td>${pct(r[7])}</td><td>${pct(r[8])}</td></tr>`).join('')
+      : `<tr><td colspan="7" class="empty">Ничего не найдено</td></tr>`) + '</tbody>';
+  $('#mMore').textContent = total > 300 ? `Показаны первые 300 из ${total.toLocaleString('ru-RU')} — уточните поиск или категории.` : '';
+}
+
+// ---------- КРАФТ ----------
+function unitCost(id){
+  const v = VENDOR[id], a = ah(id, 'mkt');
+  if (v != null && (a == null || v <= a)) return { p: v, src: 'торговец' };
+  if (a != null) return { p: a, src: 'аукцион' };
+  return { p: null, src: '' };
+}
+function calcRecipe(r){
+  const cut = +S.opts.cCut;
+  let cost = 0, missing = 0;
+  const parts = r.reag.map(([id, n]) => { const u = unitCost(id); if (u.p == null) missing++; else cost += u.p*n; return {id, n, ...u}; });
+  const avgQ = (r.qmin + r.qmax) / 2;
+  const sell = r.out ? ah(r.out, S.opts.cPrice) : null;
+  const revenue = sell != null ? sell * avgQ * (1 - cut) : null;
+  const profit = revenue != null && !missing ? revenue - cost : null;
+  const margin = profit != null && cost > 0 ? Math.round(profit / cost * 100) : null;
+  return { ...r, parts, cost: missing ? null : cost, partialCost: cost, missing, avgQ, sell, revenue, profit, margin,
+    supply: r.out ? (ah(r.out,'qty') ?? 0) : null };
+}
+function renderProfs(){
+  const profs = {};
+  for (const sc of Object.values(S.scans)) for (const [name, p] of Object.entries(sc.profs)) {
+    profs[name] = profs[name] || {skill:0, max:0, n:0}; profs[name].skill = Math.max(profs[name].skill, p.skill); profs[name].max = Math.max(profs[name].max, p.max);
+  }
+  for (const r of myRecipes()) if (profs[r.prof]) profs[r.prof].n++;
+  $('#cProfs').innerHTML = Object.entries(profs).map(([n,p]) => `<span class="chip ${S.offProfs.has(n)?'':'on'}" data-prof="${esc(n)}">${esc(n)} <span class="mute">${p.skill}/${p.max} · ${p.n}</span></span>`).join('');
+}
+let openRecipe = null;
+function renderCraft(){
+  const has = Object.keys(S.scans).length > 0;
+  $('#cNoScan').hidden = has; $('#cBody').hidden = !has;
+  if (!has) return;
+  renderProfs();
+  const q = $('#cSearch').value.trim().toLowerCase();
+  let rows = myRecipes().filter(r => !S.offProfs.has(r.prof)).map(calcRecipe);
+  rows = rows.filter(r => {
+    if (!r.out && !S.opts.cNoItem) return false;
+    if (q && !(r.name.toLowerCase().includes(q) || (r.out && nameOf(r.out).toLowerCase().includes(q)))) return false;
+    if (S.opts.cProfit && !(r.profit > 0)) return false;
+    if (S.opts.cHideMissing && (r.profit == null)) return false;
+    if (S.opts.cHideGray && r.diff === 3) return false;
+    return true;
+  });
+  const [key, dir] = S.cSort;
+  const val = (r) => key === 'name' ? r.name : (r[key] ?? -1e15);
+  rows.sort((a,b) => key === 'name' ? a.name.localeCompare(b.name,'ru')*dir : (val(a)-val(b))*dir);
+  const cols = [['name','Рецепт'],['cost','Себестоимость'],['sell','Цена шт.'],['revenue','Доход'],['profit','Прибыль'],['margin','Маржа'],['supply','В продаже']];
+  const hdr = `<thead><tr>${cols.map(([c,t]) => `<th data-csort="${c}" class="${key===c?'on':''}">${t}${key===c?(dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead>`;
+  const body = rows.map(r => {
+    const k = r.prof+'|'+r.rid;
+    const nm = `<span class="d${r.diff >= 0 ? r.diff : 3}" style="font-weight:600">${esc(r.name)}</span>`
+      + (r.out ? ` → ${itemLink(r.out)}${r.avgQ !== 1 ? ` <span class="mute">×${r.avgQ}</span>` : ''}` : ' <span class="mute">(без предмета)</span>')
+      + `<br><span class="mute" style="font-size:11px">${esc(r.prof)}${r.missing ? ` · <span class="down">нет цены: ${r.missing} мат.</span>` : ''}</span>`;
+    let h = `<tr data-recipe="${esc(k)}" style="cursor:pointer"><td class="name">${nm}</td>
+      <td>${r.cost != null ? money(r.cost) : `<span title="без учёта материалов без цены">≥ ${money(r.partialCost)}</span>`}</td>
+      <td>${money(r.sell)}</td><td>${money(r.revenue)}</td>
+      <td class="${r.profit>0?'pos':r.profit<0?'neg':''}">${r.profit != null ? money(r.profit) : '<span class="mute">—</span>'}</td>
+      <td>${r.margin != null ? `<span class="${r.margin>0?'up':'down'}">${r.margin}%</span>` : '<span class="mute">—</span>'}</td>
+      <td class="dim">${r.supply ?? '—'}</td></tr>`;
+    if (openRecipe === k) h += r.parts.map(p => `<tr class="sub"><td class="name">&nbsp;&nbsp;• ${itemLink(p.id)} × ${p.n}</td>
+      <td>${p.p != null ? money(p.p*p.n) : '<span class="down">нет цены</span>'}</td><td>${money(p.p)}</td>
+      <td colspan="4" class="mute" style="text-align:left">${p.src}${VENDOR[p.id]!=null && p.src==='аукцион' ? ' (у торговца дороже: '+money(VENDOR[p.id])+')' : ''}</td></tr>`).join('');
+    return h;
+  }).join('');
+  $('#cTable').innerHTML = hdr + '<tbody>' + (body || `<tr><td colspan="7" class="empty">Нет рецептов под фильтры</td></tr>`) + '</tbody>';
+}
+
+// ---------- СИГНАЛЫ ----------
+function renderSignals(){
+  const thr = +S.opts.sThr || 25, k = S.opts.sBase === '7' ? 8 : 7, baseK = S.opts.sBase === '7' ? 6 : 5, minQty = +S.opts.sMinQty || 0;
+  const scope = S.opts.sScope === 'mine' ? myItemIds() : null;
+  const up = [], down = [];
+  for (const [id, r] of Object.entries(LATEST.items)) {
+    if (scope && !scope.has(+id)) continue;
+    if (r[3] < minQty || r[k] == null) continue;
+    if (r[k] >= thr) up.push([+id, r]); else if (r[k] <= -thr) down.push([+id, r]);
+  }
+  up.sort((a,b)=>b[1][k]-a[1][k]); down.sort((a,b)=>a[1][k]-b[1][k]);
+  const line = ([id, r]) => `<div class="row"><span>${itemLink(id)}</span><span>${money(r[1])} <span class="mute">было ${money(r[baseK]).replace('money','money mute')}</span> ${pct(r[k])}</span></div>`;
+  const none = scope && !scope.size ? 'Сделайте скан профессий или добавьте покупки — или выберите «весь рынок».' : 'Пока нет скачков выше порога.';
+  $('#sDown').innerHTML = down.slice(0,60).map(line).join('') || `<div class="empty">${none}</div>`;
+  $('#sUp').innerHTML = up.slice(0,60).map(line).join('') || `<div class="empty">${none}</div>`;
+}
+
+// ---------- ПОКУПКИ ----------
+function renderShop(){
+  let ready = 0, total = 0;
+  const rows = S.shop.map((p, i) => {
+    const min = ah(p.id, 'min'), mkt = ah(p.id, 'mkt'), qty = ah(p.id, 'qty');
+    const ok = min != null && p.target > 0 && min <= p.target;
+    if (ok) ready++;
+    if (min != null) total += min * (p.need || 0);
+    return `<tr style="${ok ? 'background:#16301a' : ''}"><td class="name">${itemLink(p.id)} ${ok ? '<span class="up">● можно брать</span>' : ''}</td>
+      <td>${money(min)}</td><td>${money(mkt)}</td><td class="dim">${qty ?? '—'}</td>
+      <td><input type="number" min="0" step="any" value="${p.target ? (p.target/10000) : ''}" placeholder="0,05" title="в золоте: 0,05 = 5 серебра" data-shop-target="${i}" style="width:90px"> з</td>
+      <td><input type="number" min="0" value="${p.need || ''}" data-shop-need="${i}" style="width:70px"></td>
+      <td><button class="btn ghost sm" data-shop-del="${i}">убрать</button></td></tr>`;
+  }).join('');
+  $('#pTable').innerHTML = `<thead><tr><th>Предмет</th><th>Мин. цена</th><th>Рыночная</th><th>В продаже</th><th>Цель за шт.</th><th>Нужно</th><th></th></tr></thead><tbody>`
+    + (rows || `<tr><td colspan="7" class="empty">Список пуст. Добавьте предмет через поиск выше или кнопкой «В покупки» в карточке предмета.</td></tr>`) + '</tbody>';
+  $('#pTotal').innerHTML = S.shop.length ? `Купить всё по текущим минимальным ценам: ${money(total)}` : '';
+  const b = $('#shopBadge'); b.hidden = !ready; b.textContent = ready;
+}
+function fillDatalist(q){
+  q = q.trim().toLowerCase(); if (q.length < 2) { $('#pList').innerHTML = ''; return; }
+  const out = [];
+  for (const id of Object.keys(LATEST.items)) { const n = nameOf(id); if (n.toLowerCase().includes(q)) out.push(`<option value="${esc(n)} [${id}]">`); if (out.length > 30) break; }
+  $('#pList').innerHTML = out.join('');
+}
+function addShop(id){ id = +id; if (!id || S.shop.some(p => p.id === id)) return; S.shop.push({id, target: ah(id,'mkt') ? Math.round(ah(id,'mkt')*0.8/100)*100 : 0, need: 20}); save(); renderShop(); }
+
+// ---------- СКАН ----------
+function parseScan(text){
+  const lines = text.replace(/\r/g,'').split('\n').map(s => s.trim()).filter(Boolean);
+  const head = lines[0]?.split('^');
+  if (!head || head[0] !== 'WM1') throw new Error('Это не экспорт WolfichMarket (строка должна начинаться с WM1^).');
+  const sc = { char: head[1] || '?', t: +head[2] || 0, skills: [], profs: {}, recipes: [], vendor: {}, names: {} };
+  for (const ln of lines.slice(1)) {
+    const f = ln.split('^');
+    switch (f[0]) {
+      case 'S': sc.skills.push({name: f[1], skill: +f[2], max: +f[3]}); break;
+      case 'P': sc.profs[f[1]] = {skill: +f[2], max: +f[3], t: +f[4]}; break;
+      case 'R': sc.recipes.push({prof: f[1], rid: +f[2], name: f[3], out: +f[4] || 0, qmin: +f[5] || 1, qmax: +f[6] || 1, diff: +f[7],
+        reag: (f[8] || '').split(',').filter(Boolean).map(x => x.split('x').map(Number)).filter(x => x[0] && x[1])}); break;
+      case 'V': sc.vendor[f[1]] = +f[2]; break;
+      case 'N': sc.names[f[1]] = f.slice(2).join('^'); break;
+    }
+  }
+  return sc;
+}
+function renderScan(){
+  $('#scanList').innerHTML = Object.values(S.scans).map(sc => `<div class="card"><h3>${esc(sc.char)}</h3>
+    <div class="list">${Object.entries(sc.profs).map(([n,p]) => `<div class="row"><span>${esc(n)}</span><span class="dim">${p.skill}/${p.max} · ${sc.recipes.filter(r=>r.prof===n).length} рец.</span></div>`).join('')}
+    ${sc.skills.filter(s => !sc.profs[s.name]).map(s => `<div class="row"><span>${esc(s.name)}</span><span class="dim">${s.skill}/${s.max}</span></div>`).join('')}
+    <div class="row"><span>Цен торговцев</span><span class="dim">${Object.keys(sc.vendor).length}</span></div></div>
+    <p class="mute" style="font-size:12px">скан от ${sc.t ? new Date(sc.t*1000).toLocaleString('ru-RU') : '—'}</p>
+    <button class="btn ghost sm" data-scan-del="${esc(sc.char)}">удалить</button></div>`).join('');
+}
+
+// ---------- карточка предмета + график ----------
+async function loadHist(id){
+  const sh = id % 32;
+  if (!HIST[sh]) { try { HIST[sh] = await getJson(`data/hist/h${sh}.json`); } catch { HIST[sh] = {}; } }
+  return HIST[sh][id] || {h:[], d:[]};
+}
+let chartMode = 'h';
+async function openItem(id){
+  id = +id; const r = L(id); const it = ITEMS[id] || {};
+  const inShop = S.shop.some(p => p.id === id);
+  $('#panel').innerHTML = `<div style="display:flex;gap:10px;align-items:start;flex-wrap:wrap">
+      <div style="flex:1;min-width:0"><h2 class="${qClass(id)}">${esc(nameOf(id))}</h2>
+      <div class="mute" style="font-size:12px">${esc([it.c, it.s].filter(Boolean).join(' · '))} · ID ${id}
+       · <a href="https://www.wowhead.com/classic/ru/item=${id}" target="_blank" rel="noopener">Wowhead</a></div></div>
+      <button class="btn ${inShop?'ghost':''} sm" id="toShop" ${inShop?'disabled':''}>${inShop ? 'уже в покупках' : '+ В покупки'}</button>
+      <button class="btn ghost sm" id="closeM">✕</button></div>
+    <div class="stats">
+      <div class="stat"><div class="l">Минимальная</div>${money(r?.[0])}</div>
+      <div class="stat"><div class="l">Рыночная</div>${money(r?.[1])}</div>
+      <div class="stat"><div class="l">Медиана</div>${money(r?.[2])}</div>
+      <div class="stat"><div class="l">В продаже</div>${r ? r[3].toLocaleString('ru-RU') + ' <span class="mute">/ ' + r[4] + ' лотов</span>' : '—'}</div>
+      <div class="stat"><div class="l">Средняя 24 ч</div>${money(r?.[5])} ${pct(r?.[7])}</div>
+      <div class="stat"><div class="l">Средняя 7 дн</div>${money(r?.[6])} ${pct(r?.[8])}</div>
+      ${VENDOR[id] != null ? `<div class="stat"><div class="l">У торговца</div>${money(VENDOR[id])}</div>` : ''}
+      ${it.v ? `<div class="stat"><div class="l">Продать торговцу</div>${money(it.v)}</div>` : ''}
+    </div>
+    <div class="bar"><span class="chip ${chartMode==='h'?'on':''}" data-cm="h">72 часа</span><span class="chip ${chartMode==='d'?'on':''}" data-cm="d">60 дней</span>
+      <span class="legend"><span><i style="background:var(--gold)"></i>рыночная</span><span><i style="background:var(--info)"></i>минимальная</span><span><i style="background:var(--line2);height:8px"></i>в продаже</span></span></div>
+    <div id="chart"><div class="empty">Загрузка истории…</div></div>`;
+  $('#modal').hidden = false;
+  $('#closeM').onclick = closeItem;
+  $('#toShop').onclick = () => { addShop(id); openItem(id); };
+  $('#panel').querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { chartMode = b.dataset.cm; openItem(id); });
+  const h = await loadHist(id);
+  drawChart($('#chart'), chartMode === 'h' ? h.h.map(p => [p[0]*1000, p[1], p[2], p[3]]) : h.d.map(p => [Date.parse(p[0]), p[1], p[2], p[3]]), chartMode);
+}
+function closeItem(){ $('#modal').hidden = true; }
+function drawChart(el, pts, mode){
+  if (pts.length < 2) { el.innerHTML = `<div class="empty">Мало точек для графика (${pts.length}). История копится каждый час.</div>`; return; }
+  const W = 760, H = 260, pl = 70, pr = 12, pt = 12, pb = 28;
+  const xs = pts.map(p=>p[0]), x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const ys = pts.flatMap(p=>[p[1],p[2]]).filter(v=>v!=null), y1 = Math.max(...ys)*1.08, y0 = Math.max(0, Math.min(...ys)*0.9);
+  const qmax = Math.max(...pts.map(p=>p[3]||0)) || 1;
+  const X = (t) => pl + (t - x0) / (x1 - x0 || 1) * (W - pl - pr);
+  const Y = (v) => pt + (1 - (v - y0) / (y1 - y0 || 1)) * (H - pt - pb);
+  const path = (k) => pts.map((p,i) => (i?'L':'M') + X(p[0]).toFixed(1) + ' ' + Y(p[k]).toFixed(1)).join(' ');
+  const bw = Math.max(1, (W-pl-pr)/pts.length*0.7);
+  const bars = pts.map(p => { const h = (p[3]||0)/qmax*(H-pt-pb)*0.35; return `<rect x="${(X(p[0])-bw/2).toFixed(1)}" y="${(H-pb-h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="var(--line)"/>`; }).join('');
+  const gy = [0,.25,.5,.75,1].map(f => y0 + (y1-y0)*f);
+  const fmtShort = (c) => { c = Math.round(c);
+    if (c >= 10000) return (c/10000).toFixed(c >= 1e5 ? 0 : 1).replace('.', ',') + 'з';
+    if (c >= 100) return Math.floor(c/100) + 'с' + (c >= 1000 ? '' : ' ' + (c%100) + 'м');
+    return c + 'м'; };
+  const grid = gy.map(v => `<line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${pl-8}" y="${Y(v)+4}" text-anchor="end">${fmtShort(v)}</text>`).join('');
+  const nT = 5, tx = Array.from({length:nT}, (_,i) => x0 + (x1-x0)*i/(nT-1));
+  const fmtT = (t) => { const d = new Date(t); return mode === 'h' ? d.toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit'}) : d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}); };
+  const xl = tx.map((t,i) => `<text x="${X(t)}" y="${H-8}" text-anchor="${i===0?'start':i===nT-1?'end':'middle'}">${fmtT(t)}</text>`).join('');
+  el.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="График цены">${grid}${bars}${xl}
+    <path d="${path(2)}" fill="none" stroke="var(--info)" stroke-width="1.5" opacity=".85"/>
+    <path d="${path(1)}" fill="none" stroke="var(--gold)" stroke-width="2.2"/>
+    <line id="cx" y1="${pt}" y2="${H-pb}" stroke="var(--dim)" stroke-width="1" opacity="0"/>
+    <rect x="${pl}" y="${pt}" width="${W-pl-pr}" height="${H-pt-pb}" fill="transparent" id="ch"/></svg>`;
+  const svg = el.querySelector('svg'), tip = $('#tip'), cx = el.querySelector('#cx');
+  const move = (e) => {
+    const r = svg.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * W;
+    let best = 0; for (let i = 1; i < pts.length; i++) if (Math.abs(X(pts[i][0]) - x) < Math.abs(X(pts[best][0]) - x)) best = i;
+    const p = pts[best]; cx.setAttribute('x1', X(p[0])); cx.setAttribute('x2', X(p[0])); cx.setAttribute('opacity', '.6');
+    tip.hidden = false; tip.style.left = Math.min(e.clientX + 12, innerWidth - 190) + 'px'; tip.style.top = (e.clientY + 12) + 'px';
+    tip.innerHTML = `${fmtT(p[0])}<br>рыночная ${money(p[1])}<br>мин. ${money(p[2])}<br>в продаже ${p[3]}`;
+  };
+  el.querySelector('#ch').addEventListener('pointermove', move);
+  el.querySelector('#ch').addEventListener('pointerleave', () => { tip.hidden = true; cx.setAttribute('opacity','0'); });
+}
+
+// ---------- события ----------
+function setTab(t){
+  S.tab = t; save();
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  document.querySelectorAll('section[id^="t-"]').forEach(s => s.hidden = s.id !== 't-'+t);
+  renderAll();
+}
+function renderAll(){
+  ({market:renderMarket, craft:renderCraft, signals:renderSignals, shop:renderShop, scan:renderScan}[S.tab] || renderMarket)();
+  if (S.tab !== 'shop') renderShop();
+}
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-t]'); if (t && t.closest('#tabs')) return setTab(t.dataset.t);
+  const it = e.target.closest('[data-item]'); if (it) { e.stopPropagation(); return openItem(it.dataset.item); }
+  if (e.target === $('#modal')) return closeItem();
+  const cat = e.target.closest('[data-cat]'); if (cat) { const c = cat.dataset.cat; S.offCats.has(c) ? S.offCats.delete(c) : S.offCats.add(c); save(); buildCats(); return renderMarket(); }
+  if (e.target.closest('[data-cat-all]')) { S.offCats.clear(); save(); buildCats(); return renderMarket(); }
+  if (e.target.closest('[data-cat-none]')) { document.querySelectorAll('[data-cat]').forEach(c => S.offCats.add(c.dataset.cat)); save(); buildCats(); return renderMarket(); }
+  const pr = e.target.closest('[data-prof]'); if (pr) { const n = pr.dataset.prof; S.offProfs.has(n) ? S.offProfs.delete(n) : S.offProfs.add(n); save(); return renderCraft(); }
+  const ms = e.target.closest('[data-msort]'); if (ms) { const k = ms.dataset.msort; S.mSort = [k, S.mSort[0]===k ? -S.mSort[1] : (k==='name'?1:-1)]; save(); return renderMarket(); }
+  const cs = e.target.closest('[data-csort]'); if (cs) { const k = cs.dataset.csort; S.cSort = [k, S.cSort[0]===k ? -S.cSort[1] : (k==='name'?1:-1)]; save(); return renderCraft(); }
+  const rc = e.target.closest('[data-recipe]'); if (rc) { openRecipe = openRecipe === rc.dataset.recipe ? null : rc.dataset.recipe; return renderCraft(); }
+  const sd = e.target.closest('[data-shop-del]'); if (sd) { S.shop.splice(+sd.dataset.shopDel, 1); save(); return renderShop(); }
+  const scd = e.target.closest('[data-scan-del]'); if (scd) { delete S.scans[scd.dataset.scanDel]; save(); refreshScanCaches(); return renderScan(); }
+});
+document.addEventListener('change', (e) => {
+  const tg = e.target.dataset.shopTarget, nd = e.target.dataset.shopNeed;
+  if (tg != null) { S.shop[+tg].target = Math.round(parseFloat(e.target.value.replace(',','.')||0)*10000); save(); renderShop(); }
+  if (nd != null) { S.shop[+nd].need = +e.target.value || 0; save(); renderShop(); }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeItem(); });
+// опции-переключатели
+for (const k of Object.keys(S.opts)) {
+  const el = document.getElementById(k); if (!el) continue;
+  if (el.type === 'checkbox') el.checked = !!S.opts[k]; else el.value = S.opts[k];
+  el.addEventListener(el.type === 'number' ? 'input' : 'change', () => { S.opts[k] = el.type === 'checkbox' ? el.checked : el.value; save(); renderAll(); });
+}
+let deb; const debounced = (fn) => () => { clearTimeout(deb); deb = setTimeout(fn, 150); };
+$('#mSearch').addEventListener('input', debounced(renderMarket));
+$('#cSearch').addEventListener('input', debounced(renderCraft));
+$('#pSearch').addEventListener('input', (e) => fillDatalist(e.target.value));
+const pAdd = () => { const v = $('#pSearch').value; const m = v.match(/\[(\d+)\]\s*$/) || v.match(/^\s*(\d+)\s*$/);
+  let id = m ? m[1] : Object.keys(LATEST.items).find(i => nameOf(i).toLowerCase() === v.trim().toLowerCase());
+  if (id) { addShop(id); $('#pSearch').value = ''; } };
+$('#pAdd').onclick = pAdd; $('#pSearch').addEventListener('keydown', e => { if (e.key === 'Enter') pAdd(); });
+$('#scanBtn').onclick = () => {
+  try { const sc = parseScan($('#scanIn').value); S.scans[sc.char] = sc; save(); refreshScanCaches();
+    $('#scanMsg').innerHTML = `<span class="up">Загружено: ${esc(sc.char)} — ${Object.keys(sc.profs).length} проф., ${sc.recipes.length} рецептов, ${Object.keys(sc.vendor).length} цен торговцев.</span> Откройте вкладку «Крафт».`;
+    $('#scanIn').value = ''; renderScan(); }
+  catch (err) { $('#scanMsg').innerHTML = `<span class="down">${esc(err.message)}</span>`; }
+};
+setTab(S.tab);
+load();
+</script>
+</body>
+</html>
