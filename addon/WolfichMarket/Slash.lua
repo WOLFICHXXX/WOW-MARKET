@@ -48,4 +48,4 @@ function WolfichMarket_Toggle() if ns.ToggleMain then ns.ToggleMain() end end
 function WolfichMarket_PostNext() if ns.PostNext then ns.PostNext() end end
 
 SLASH_WOLFICHMARKETAH1 = "/wmah"
-SlashCmdList.WOLFICHMARKETAH = function() SlashCmdList.WOLFICHMARKET("scan") end
+SlashCmdList.WOLFICHMARKETAH = function() local p = _G.WolfichMarketAHPanel; if p and ns.AHIsOpen and ns.AHIsOpen() then p:Show() end; SlashCmdList.WOLFICHMARKET("scan") end

@@ -86,7 +86,7 @@ end
 ns.On("AUCTION_HOUSE_SHOW", function()
   ns.ahOpen = true
   ns.Fire("AH_STATE")
-  if panel == nil then ns.BuildAHPanel() end
+  if panel == nil then ns.BuildAHPanel() elseif panel then panel:Show() end -- крестик скрывает панель только до следующего открытия
   if wanted then ns.After(1, function() ns.StartScan() end) else ns.After(2, autoTick) end
   if not autoTicker and C_Timer and C_Timer.NewTicker then autoTicker = C_Timer.NewTicker(30, autoTick) end
 end)
@@ -643,7 +643,7 @@ function ns.BuildAHPanel()
   panel:EnableMouse(true)
   UI.Skin(panel, { theme = "ah" })
   UI.Title(panel, "WolfichMarket")
-  UI.Close(panel, function() ns.DB.settings.ahPanelHidden = true; panel:Hide() end)
+  UI.Close(panel, function() panel:Hide() end)
   header()
   -- вкладки в два ряда по три
   tabs = {}
@@ -668,12 +668,10 @@ function ns.BuildAHPanel()
     if pages[i].refresh then pages[i].refresh() end
   end
   -- кнопка-лапа на окне аукциона: показать/скрыть
-  local tg = UI.Icon(h, "skin\\ai-paw", 24, "WolfichMarket", function()
-    ns.DB.settings.ahPanelHidden = not ns.DB.settings.ahPanelHidden
-    panel:SetShown(not ns.DB.settings.ahPanelHidden)
-  end)
-  tg:SetPoint("TOPRIGHT", h, "TOPRIGHT", -28, -2); tg:SetFrameLevel(h:GetFrameLevel() + 20)
-  panel:SetShown(not ns.DB.settings.ahPanelHidden)
+  local tg = UI.Icon(h, "skin\\ai-paw", 24, L"WolfichMarket: показать/скрыть панель", function() panel:SetShown(not panel:IsShown()) end)
+  tg:SetPoint("RIGHT", h, "TOPRIGHT", -36, -16); tg:SetFrameStrata("HIGH")
+  ns.DB.settings.ahPanelHidden = nil -- старый флаг «скрыта навсегда» больше не используется
+  panel:Show()
   tabs.select(ns.DB.settings.ahTab or 1)
   ns.AHSelectTab = function(i) tabs.select(i) end
   ns._ahPages = pages
