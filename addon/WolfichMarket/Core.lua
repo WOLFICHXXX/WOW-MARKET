@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.20.11"
+ns.VERSION = "2.21.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -24,7 +24,51 @@ local safe = ns.safe
 
 function ns.clean(s) return (tostring(s or ""):gsub("[%^\r\n]", " ")) end
 local PREFIX = "|cffe6b450WolfichMarket|r: "
-function ns.say(msg) print(PREFIX .. tostring(msg)) end
+-- куда писать сообщения аддона: settings.chatMode = "main" (общий чат), "tab" (своя вкладка «WolfichMarket»),
+-- "quiet" (только сигналы о ценах), "off" (ничего, кроме ответов на команды)
+local CHAT_TAB = "WolfichMarket"
+local function chatFrame()
+  local mode = ns.DB and ns.DB.settings and ns.DB.settings.chatMode or "window"
+  if mode == "tab" and GetChatWindowInfo then
+    for i = 1, (NUM_CHAT_WINDOWS or 10) do
+      local name, _, _, _, _, _, shown = GetChatWindowInfo(i)
+      local f = _G["ChatFrame" .. i]
+      if name == CHAT_TAB and f and (shown or (f.isDocked)) then return f end
+    end
+    -- вкладки ещё нет - создаём один раз; в ней только сообщения аддона
+    if FCF_OpenNewWindow and not ns._tabTried then
+      ns._tabTried = true
+      local ok, f = pcall(FCF_OpenNewWindow, CHAT_TAB)
+      if ok and f then
+        if ChatFrame_RemoveAllMessageGroups then pcall(ChatFrame_RemoveAllMessageGroups, f) end
+        if ChatFrame_RemoveAllChannels then pcall(ChatFrame_RemoveAllChannels, f) end
+        return f
+      end
+    end
+  end
+  return DEFAULT_CHAT_FRAME
+end
+-- строка в выбранное окно чата (ответы на команды - всегда)
+function ns.out(text)
+  local f = chatFrame()
+  if f and f.AddMessage then f:AddMessage(tostring(text)) else print(tostring(text)) end
+end
+function ns.tell(msg) ns.out(PREFIX .. tostring(msg)) end
+-- журнал сообщений аддона (вкладка «Журнал» в главном окне): последние 200
+ns.log = {}
+local function addLog(msg, important)
+  table.insert(ns.log, 1, { t = time(), msg = tostring(msg), imp = important })
+  while #ns.log > 200 do table.remove(ns.log) end
+  if ns.Fire then ns.Fire("LOG") end
+end
+-- обычное сообщение аддона; important - сигналы о ценах.
+-- По умолчанию («window») сообщения идут только в журнал главного окна, а не в чат.
+function ns.say(msg, important)
+  local mode = ns.DB and ns.DB.settings and ns.DB.settings.chatMode or "window"
+  addLog(msg, important)
+  if mode == "window" or mode == "off" or (mode == "quiet" and not important) then return end
+  ns.out(PREFIX .. tostring(msg))
+end
 function ns.dbg(msg) if ns.DB and ns.DB.settings and ns.DB.settings.debug then ns.say("|cff888888" .. tostring(msg) .. "|r") end end
 
 -- ---------- деньги ----------

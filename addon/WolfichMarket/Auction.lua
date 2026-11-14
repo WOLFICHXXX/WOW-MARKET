@@ -752,6 +752,16 @@ local function pageSettings(f)
   chk(L"Стоимость сумок над окном сумок", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end)
   chk(L"Общий рынок: делиться своими снимками с игроками", "netSend")
   chk(L"Общий рынок: принимать цены от игроков", "netRecv")
+  -- куда писать сообщения аддона
+  local cl = UI.Font(f, 11); cl:SetPoint("TOPLEFT", 6, y - 4); cl:SetText(L"Сообщения:")
+  f.chatBtns = {}
+  local cx = 90
+  for _, m in ipairs({ { "window", L"в журнал окна" }, { "main", L"в чат" }, { "off", L"никуда" } }) do
+    local b = UI.Button(f, m[2], 100, 20, function() S.chatMode = m[1]; f.refresh() end)
+    b:SetPoint("TOPLEFT", cx, y); b.mode = m[1]; cx = cx + 104
+    f.chatBtns[#f.chatBtns + 1] = b
+  end
+  y = y - 28
   chk(L"Снимать аукцион автоматически, пока он открыт", "autoScan", updateHeader)
   local l1 = UI.Font(f, 11); l1:SetPoint("TOPLEFT", 6, y - 4); l1:SetText(L"Автоснимок раз в:")
   local x = 130
@@ -786,6 +796,7 @@ local function pageSettings(f)
   f.refresh = function()
     for _, m in ipairs({ 15, 30, 60 }) do hl(f["m" .. m], S.autoScanMin == m) end
     for _, b in ipairs(f.langBtns) do hl(b, (S.lang or "auto") == b.lang) end
+    for _, b in ipairs(f.chatBtns or {}) do hl(b, (S.chatMode or "window") == b.mode) end
   end
 end
 

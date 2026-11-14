@@ -49,8 +49,8 @@ ns.DB.ahLastReq = 0
 played = false
 ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
 check(played, "уведомление со звуком о скачке цены отмеченного")
-local found = false; for _, s in ipairs(printed) do if s:find("Медный слиток") and s:find("media\\up", 1, true) then found = true end end
-check(found, "строка о подорожании меди в чате")
+local found = false; for _, e in ipairs(ns.log) do if e.msg:find("Медный слиток") and e.msg:find("media\\up", 1, true) and e.imp then found = true end end
+check(found, "строка о подорожании меди в журнале (сигнал)")
 -- поиск на аукционе
 ns.SearchAH(2835); check(searched == "Грубый камень", "поиск на аукционе по названию")
 -- покупка товара
@@ -555,4 +555,10 @@ end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
+for _, e in ipairs(ns.log) do if e.msg:find("ошибка в") or e.msg:find("error in") then bad = e.msg end end
+-- сообщения аддона по умолчанию не идут в чат, а только в журнал главного окна
+local leaked; for _, s in ipairs(allPrinted) do if s:find("общий рынок: отправляю", 1, true) then leaked = s end end
+check(not leaked, "сообщения аддона не засоряют чат (только журнал окна)")
+WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
+check(WolfichMarketMainFrame.pages[4]:IsShown() and #ns.log > 0, "вкладка «Журнал» с сообщениями аддона (" .. #ns.log .. ")")
 check(not bad, "нет ошибок при сборке окон" .. (bad and (": " .. bad) or ""))

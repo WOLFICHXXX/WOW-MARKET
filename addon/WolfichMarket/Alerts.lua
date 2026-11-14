@@ -30,7 +30,7 @@ local function onScan(scan, prev)
     table.sort(hits, function(a, b) return math.abs(a.ch) > math.abs(b.ch) end)
     if #hits > 0 then
       for _, h in ipairs(hits) do
-        ns.say(string.format("%s %s - %s %s", h.ch > 0 and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r", ns.itemLinkText(h.id), ns.money(h.p), ns.pct(h.ch)))
+        ns.say(string.format("%s %s - %s %s", h.ch > 0 and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r", ns.itemLinkText(h.id), ns.money(h.p), ns.pct(h.ch)), true)
       end
       local top = hits[1]
       UI.Toast(string.format("%s %s %s", top.ch > 0 and L"|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t Подорожало:" or L"|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t Подешевело:", ns.itemName(top.id), ns.pct(top.ch)),

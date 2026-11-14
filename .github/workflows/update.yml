@@ -50,6 +50,7 @@ jobs:
           V=$(sed -n 's/^## Version: *//p' addon/WolfichMarket/WolfichMarket.toc | tr -d '\r')
           cd addon && zip -r "../site/addon/WolfichMarket-$V.zip" WolfichMarket && cd ..
           cp "site/addon/WolfichMarket-$V.zip" site/addon/WolfichMarket.zip   # старое имя — для программы
+          cp tools/updater/WolfichMarket-Updater.bat site/addon/WolfichMarket-Updater.bat   # обновлялка для Windows
           echo "{\"version\":\"$(sed -n 's/^## Version: *//p' addon/WolfichMarket/WolfichMarket.toc | tr -d '\r')\"}" > site/addon/version.json
           touch site/.nojekyll
           # программа для Windows

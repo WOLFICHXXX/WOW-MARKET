@@ -581,7 +581,25 @@ function refreshBank()
 end
 
 -- ---------- окно ----------
-local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() else refreshBank() end end
+-- ---------- вкладка «Журнал»: сообщения аддона вместо чата ----------
+local logp = {}
+local function buildLog(f)
+  local t = UI.Font(f, 11, UI.DIM); t:SetPoint("TOPLEFT", 4, 0); t:SetPoint("RIGHT", -150, 0); t:SetWordWrap(true)
+  t:SetText(L"Сообщения аддона (снимки, общий рынок, сигналы) - здесь, а не в чате. Сигналы о ценах дополнительно всплывают уведомлением.")
+  logp.clear = UI.Button(f, L"Очистить", 100, 22, function() wipe(ns.log); logp.list:SetData(ns.log) end); logp.clear:SetPoint("TOPRIGHT", 0, 0)
+  logp.list = UI.List(f, 20, function(r)
+    r.time = UI.Font(r, 10, UI.DIM); r.time:SetPoint("LEFT", 4, 0); r.time:SetWidth(44)
+    r.msg = UI.Font(r, 11); r.msg:SetPoint("LEFT", r.time, "RIGHT", 6, 0); r.msg:SetPoint("RIGHT", -4, 0)
+    r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.data.msg, 1, 1, 1, true); GameTooltip:Show() end end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end, function(r, d)
+    r.time:SetText(date("%H:%M", d.t)); r.msg:SetText((d.imp and "|cffffd100" or "") .. d.msg .. (d.imp and "|r" or ""))
+  end)
+  logp.list:SetPoint("TOPLEFT", 0, -34); logp.list:SetPoint("BOTTOMRIGHT")
+  logp.list.empty:SetText(L"Сообщений пока нет.")
+end
+local function refreshLog() if logp.list then logp.list:SetData(ns.log) end end
+local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() elseif view == 3 then refreshBank() else refreshLog() end end
 local function selectView(i)
   view = i
   for k, b in ipairs(win.tabs) do
@@ -610,12 +628,12 @@ local function build()
   nextB:SetPoint("LEFT", win.charName, "RIGHT", 4, 0)
   -- вкладки
   win.tabs = {}
-  for i, n in ipairs({ L"Крафт", L"Сигналы", L"Банк" }) do
-    local b = UI.Button(win, n, 124, 26, function() selectView(i) end)
-    b:SetPoint("TOPRIGHT", -24 - (3 - i) * 130, -63); win.tabs[i] = b
+  for i, n in ipairs({ L"Крафт", L"Сигналы", L"Банк", L"Журнал" }) do
+    local b = UI.Button(win, n, 108, 26, function() selectView(i) end)
+    b:SetPoint("TOPRIGHT", -24 - (4 - i) * 112, -63); win.tabs[i] = b
   end
   win.pages = {}
-  for i, builder in ipairs({ buildCraft, buildSignals, buildBank }) do
+  for i, builder in ipairs({ buildCraft, buildSignals, buildBank, buildLog }) do
     local f = CreateFrame("Frame", nil, win); f:SetPoint("TOPLEFT", 24, -100); f:SetPoint("BOTTOMRIGHT", -24, 22)
     builder(f); f:Hide(); win.pages[i] = f
   end
@@ -637,6 +655,7 @@ ns.Listen("MARKS", refresh)
 ns.Listen("RECIPES", refresh)
 ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
+ns.Listen("LOG", function() if win and win:IsShown() and view == 4 then refreshLog() end end)
 ns.Listen("INVENTORY", function() if view == 3 or ns.DB.settings.useBank then refresh() end end)
 
 -- ---------- кнопка у миникарты ----------
