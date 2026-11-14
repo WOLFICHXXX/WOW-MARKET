@@ -2,7 +2,7 @@
 -- Команды: /wm — окно экспорта, /wm reset — очистить данные этого персонажа.
 local addonName, ns = ...
 
-local VERSION = "1.2.0"
+local VERSION = "1.2.1"
 local PREFIX = "|cffe6b450WolfichMarket|r: "
 local function say(msg) print(PREFIX .. msg) end
 
@@ -373,13 +373,17 @@ local function finishReplicate()
     if i < n then C_Timer.After(0, step) return end
     local count = 0
     for _ in pairs(items) do count = count + 1 end
-    DB.ahScan = {
+    local scan = {
       t = time(), lots = n, char = charKey,
       realm = clean(GetRealmName and GetRealmName() or ""),
       realmN = clean(GetNormalizedRealmName and GetNormalizedRealmName() or ""),
       faction = UnitFactionGroup and UnitFactionGroup("player") or "",
       items = items, classes = classes,
     }
+    -- снимки разных режимов (PvP, Обычный…) и фракций хранятся отдельно и не затирают друг друга
+    DB.ahScans = DB.ahScans or {}
+    DB.ahScans[(scan.realmN ~= "" and scan.realmN or scan.realm) .. "|" .. scan.faction] = scan
+    DB.ahScan = scan
     ahBusy, processing = false, false
     setBtn("Готово ✓", false)
     C_Timer.After(3, refreshBtn)
