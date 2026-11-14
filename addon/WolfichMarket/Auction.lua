@@ -8,6 +8,9 @@ local COOLDOWN = 15 * 60
 -- ---------- полный снимок аукциона ----------
 local busy, processing, wanted = false, false, false
 local panel
+local tabs, pages = nil, {}
+local chartItem, buyItem, sellSel
+local updateQuick
 
 local function setStatus() ns.Fire("SCAN_STATE") end
 
@@ -96,6 +99,47 @@ ns.On("AUCTION_HOUSE_CLOSED", function()
   if autoTicker then autoTicker:Cancel(); autoTicker = nil end
 end)
 
+-- ---------- быстрое обновление цен: отмеченные + план + выбранный к продаже ----------
+-- обычные поиски на аукционе, без 15-минутного ограничения полного снимка
+local quick
+local function quickItems()
+  local ids, seen = {}, {}
+  local function add(id) if id and not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+  for id in pairs(ns.DB.marked) do add(id) end
+  if ns.PlanNeeds then for _, d in ipairs((ns.PlanNeeds())) do add(d.id) end end
+  if sellSel then add(sellSel.id) end
+  return ids
+end
+function ns.QuickRefresh()
+  if not ns.ahOpen then ns.say(L"откройте окно аукциона.") return end
+  if quick then return end
+  local ids = quickItems()
+  if #ids == 0 then ns.say(L"нечего обновлять: отметьте предметы звёздочкой или добавьте рецепт в план.") return end
+  quick = { ids = ids, i = 0 }
+  local function step()
+    if not quick then return end
+    quick.i = quick.i + 1
+    local id = quick.ids[quick.i]
+    if not id or not ns.ahOpen then
+      local done = quick.ids
+      quick = nil
+      ns.After(1.5, function() ns.Fire("QUICK_DONE", done); ns.Fire("PRICES") end)
+      if updateQuick then updateQuick() end
+      return
+    end
+    local key = C_AuctionHouse.MakeItemKey and safe(C_AuctionHouse.MakeItemKey, id)
+    if key then
+      local sorts = {}
+      if Enum and Enum.AuctionHouseSortOrder then sorts = { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } } end
+      pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
+    end
+    if updateQuick then updateQuick() end
+    ns.After(0.6, step) -- сервер не любит частые запросы
+  end
+  step()
+end
+function ns.QuickBusy() return quick ~= nil end
+
 -- цены из обычных поисков на аукционе
 ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
   local first = itemID and safe(C_AuctionHouse.GetCommoditySearchResultInfo, itemID, 1)
@@ -119,18 +163,27 @@ ns.On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
 end)
 
 -- ---------- панель у окна аукциона ----------
-local tabs, pages = nil, {}
-local chartItem, buyItem, sellSel
 
 local function header()
   local S = ns.DB.settings
   panel.scanBtn = UI.Button(panel, L"Сканировать", 120, 22, function() ns.StartScan() end, true)
   panel.scanBtn:SetPoint("TOPRIGHT", -62, -19)
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -62); panel.state:SetPoint("RIGHT", -22, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
+  -- быстрые цены: отмеченные, план, выбранный предмет - когда угодно, без ожидания 15 минут
+  panel.quickBtn = UI.Button(panel, L"Обновить цены", 128, 22, function() ns.QuickRefresh() end, true)
+  panel.quickBtn:SetPoint("TOPRIGHT", -24, -56)
+  panel.quickBtn:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L"Свежие цены отмеченных предметов, материалов из плана и выбранного к продаже - прямо сейчас, без 15-минутного ожидания. Каждое обновление добавляет точку на график и проверяет сигналы.", 1, 1, 1, true); GameTooltip:Show() end)
+  panel.quickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -58); panel.state:SetPoint("RIGHT", panel.quickBtn, "LEFT", -6, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
+function updateQuick()
+  if not panel or not panel.quickBtn then return end
+  if quick then panel.quickBtn:SetLabel(string.format(L"Цены %d/%d", math.min(quick.i, #quick.ids), #quick.ids)); panel.quickBtn:Disable()
+  else panel.quickBtn:SetLabel(L"Обновить цены"); panel.quickBtn:SetEnabled(ns.ahOpen == true) end
+end
 local function updateHeader()
   if not panel then return end
+  updateQuick()
   local scan = ns.CurrentScan()
   local left = (ns.DB.ahLastReq or 0) + COOLDOWN - time()
   if busy then
@@ -142,7 +195,7 @@ local function updateHeader()
   end
   local S = ns.DB.settings
   panel.state:SetText((scan and (L"Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. L" лотов") or L"|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
-    .. (S.autoScan and (L"  /  авто раз в " .. S.autoScanMin .. L" мин") or ""))
+    .. (S.autoScan and (L"  /  авто раз в " .. S.autoScanMin .. L" мин") or L"  /  вручную"))
 end
 
 -- строка списка предметов: звезда, иконка, имя, цена, изменение, кнопки

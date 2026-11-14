@@ -268,6 +268,25 @@ do
     check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown(), "«Продать»: график цены открывается")
   else check(false, "«Продать»: нет строк для проверки") end
 end
+-- ручной снимок по умолчанию и быстрое обновление цен отмеченных
+do
+  check(ns.DB.settings.autoScan == false, "автоснимок выключен - снимок вручную")
+  ns.ahOpen = true
+  local was = ns.IsMarked(2840); if not was then ns.ToggleMark(2840) end
+  local asked = {}
+  local oldQ = C_AuctionHouse.SendSearchQuery
+  C_AuctionHouse.SendSearchQuery = function(k) asked[k.itemID] = true end
+  ns.QuickRefresh()
+  for _ = 1, 120 do advance(1) end
+  C_AuctionHouse.SendSearchQuery = oldQ
+  check(asked[2840] and not ns.QuickBusy(), "«Обновить цены» запрашивает отмеченные без ожидания 15 минут")
+  local h = ns.DB.hist[2840] or {}; ns.DB.hist[2840] = h
+  if h[#h] then h[#h][1] = time() - 1000 end
+  local before = #h
+  ns.SeenPrice(2840, 777, 10)
+  check(#ns.DB.hist[2840] == before + 1 and ns.DB.hist[2840][#ns.DB.hist[2840]][2] == 777, "свежая цена добавляет точку на график")
+  if not was then ns.ToggleMark(2840) end
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

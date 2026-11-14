@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.10.1"
+ns.VERSION = "2.11.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -123,7 +123,7 @@ local DEFAULTS = {
   alerts = true,          -- уведомления включены
   alertSound = true,
   bestCraftAlert = true,
-  autoScan = true,        -- сам снимать аукцион, пока открыт аукционист
+  autoScan = false,       -- сам снимать аукцион, пока открыт аукционист (по умолчанию - вручную)
   autoScanMin = 15,       -- раз в N минут (не чаще 15 - ограничение сервера)
   profitOnly = false,     -- фильтр в окне профессии
   showUnlearned = false,  -- показывать неизученные рецепты
@@ -151,6 +151,8 @@ ns.On("ADDON_LOADED", function(name)
   -- со старых версий: один снимок → по режимам
   if DB.ahScan and not next(DB.ahScans) then DB.ahScans[(DB.ahScan.realmN or "?") .. "|" .. (DB.ahScan.faction or "?")] = DB.ahScan end
   DB._repl = nil
+  -- 2.11: снимок аукциона - вручную (автоснимок можно включить в настройках)
+  if not DB.settings.manualScanV then DB.settings.autoScan = false; DB.settings.manualScanV = 1 end
   ns.Fire("DB_READY")
 end)
 
@@ -217,6 +219,7 @@ end
 function ns.SeenPrice(id, unit, qty)
   if not id or not unit or unit <= 0 then return end
   ns.DB.seen[id] = { p = unit, t = time(), q = qty, r = ns.realmKey }
+  ns.AddHistory(id, unit, qty or 0, time()) -- каждая свежая цена - точка на графике
 end
 
 -- ---------- история и отметки ----------
@@ -225,7 +228,7 @@ function ns.AddHistory(id, p, q, t)
   local h = ns.DB.hist[id]
   if not h then h = {}; ns.DB.hist[id] = h end
   local last = h[#h]
-  if last and t - last[1] < 300 then last[2], last[3] = p, q return end -- не чаще раза в 5 минут
+  if last and t - last[1] < 120 then last[2], last[3] = p, q return end -- не чаще раза в 2 минуты
   h[#h + 1] = { t, p, q }
   while #h > HIST_MAX do table.remove(h, 1) end
 end
