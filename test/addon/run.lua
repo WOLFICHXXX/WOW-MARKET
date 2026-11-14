@@ -6,7 +6,7 @@ fire("ADDON_LOADED", "WolfichMarket"); ns.DB.settings.debug = true; fire("PLAYER
 check(ns.DB and ns.charKey == "Вульфыч-CAMWOWEU4Realm6PvP", "загрузка и ключ персонажа")
 -- окно профессии
 fire("TRADE_SKILL_SHOW"); advance(1)
-check(WolfichMarketProfPanel ~= nil, "панель у окна профессии создана")
+check(WolfichMarketProfPanel == nil, "у окна профессии нет отдельной панели")
 local recs = ns.DB.chars[ns.charKey].profs["Кузнечное дело"].recipes
 check(#recs == 5, "рецепты записаны (с неизученным): " .. #recs)
 local un; for _, r in ipairs(recs) do if r.learned == false then un = r end end

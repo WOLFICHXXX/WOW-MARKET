@@ -229,89 +229,15 @@ local function fillDetail(rec)
 end
 ns.FillRecipeDetail = fillDetail
 
+-- Отдельной панели у окна профессии больше нет: всё — в главном окне WolfichMarket.
+-- На окне профессии остаются суммы прибыли на строках и кнопка-лапа, открывающая главное окно.
+local built = false
 local function build()
   local h = host()
-  if panel or not h then return end
-  panel = CreateFrame("Frame", "WolfichMarketProfPanel", h)
-  panel:SetWidth(330)
-  -- справа у окна профессий вертикальные вкладки профессий: отступаем, чтобы их не закрывать
-  panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 64, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 64, 0)
-  panel:SetFrameStrata(h:GetFrameStrata()); panel:EnableMouse(true)
-  UI.Skin(panel)
-  UI.Title(panel, L"Прибыль крафта")
-  panel.status = UI.Font(panel, 10, UI.DIM); panel.status:SetPoint("TOPLEFT", 14, -44); panel.status:SetPoint("RIGHT", -12, 0)
-  local S = ns.DB.settings
-  local chk = UI.Check(panel, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshList(); ns.DecorateRecipeRows() end)
-  chk:SetPoint("TOPLEFT", 10, -58)
-  local chk2 = UI.Check(panel, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; ns.Fire("RECIPES"); ns.DecorateRecipeRows() end)
-  chk2:SetPoint("TOPLEFT", 10, -80)
-  local bP = UI.Button(panel, L"по прибыли", 84, 20, function() panel.sortKey = "profit"; refreshList() end); bP:SetPoint("TOPRIGHT", -102, -60)
-  local bM = UI.Button(panel, L"по марже", 84, 20, function() panel.sortKey = "margin"; refreshList() end); bM:SetPoint("TOPRIGHT", -14, -60)
-
-  list = UI.List(panel, 22, function(r)
-    r.star = UI.Icon(r, "star-off", 14, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec.out then ns.ToggleMark(d.rec.out) end end)
-    r.star:SetPoint("LEFT", 4, 0)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", -86, 0)
-    r.val = UI.Font(r, 11); r.val:SetPoint("RIGHT", -4, 0); r.val:SetJustifyH("RIGHT")
-    r:SetScript("OnClick", function(self)
-      local d = self.data; if not d then return end
-      if C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then pcall(C_TradeSkillUI.OpenRecipe, d.rec.id) end
-      fillDetail(d.rec)
-    end)
-  end, function(r, d)
-    r.star:SetIcon(d.rec.out and ns.IsMarked(d.rec.out) and "star-on" or "star-off"); r.star:SetShown(d.rec.out ~= nil)
-    r.icon:SetTexture(d.rec.out and ns.itemIcon(d.rec.out) or d.rec.icon or 134400)
-    local learned = ns.IsLearned(d.rec)
-    r.icon:SetDesaturated(not learned)
-    r.name:SetText(learned and ((DIFF[d.rec.diff] or "|cffffffff") .. d.rec.name .. "|r") or ("|cff9d9d9d" .. d.rec.name .. L" |cffff9966(не изучен)|r"))
-    r.val:SetText(profitText(d))
-  end)
-  list:SetPoint("TOPLEFT", 10, -106); list:SetPoint("RIGHT", -10, 0); list:SetPoint("BOTTOM", panel, "BOTTOM", 0, 272)
-
-  -- карточка выбранного рецепта
-  detail = CreateFrame("Frame", nil, panel)
-  detail:SetPoint("BOTTOMLEFT", 10, 10); detail:SetPoint("BOTTOMRIGHT", -10, 10); detail:SetHeight(256)
-  local dbg = detail:CreateTexture(nil, "BACKGROUND"); dbg:SetAllPoints(); dbg:SetColorTexture(0, 0, 0, 0.3)
-  local line = detail:CreateTexture(nil, "BORDER"); line:SetPoint("TOPLEFT"); line:SetPoint("TOPRIGHT"); line:SetHeight(1); line:SetColorTexture(0.85, 0.66, 0.32, 0.6)
-  detail.title = UI.Font(detail, 12, UI.GOLD, "OVERLAY", "OUTLINE"); detail.title:SetPoint("TOPLEFT", 8, -7); detail.title:SetPoint("RIGHT", -8, 0)
-  detail.rows = {}
-  for i = 1, 7 do
-    local r = CreateFrame("Frame", nil, detail); r:SetHeight(18)
-    r:SetPoint("TOPLEFT", 6, -26 - (i - 1) * 19); r:SetPoint("RIGHT", -6, 0)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT")
-    r.search = UI.Icon(r, "search", 15, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT")
-    r.star = UI.Icon(r, "star-off", 15, L"Отметить: уведомления о скачках цены", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.search, "LEFT", -4, 0)
-    r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.star, "LEFT", -6, 0); r.price:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
-    r:EnableMouse(true)
-    r:SetScript("OnEnter", function(self) if self.id then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id); GameTooltip:Show() end end)
-    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    r:Hide()
-    detail.rows[i] = r
-  end
-  detail.total = UI.Font(detail, 11, UI.TEXT); detail.total:SetPoint("BOTTOMLEFT", 8, 8); detail.total:SetPoint("RIGHT", -8, 0); detail.total:SetWordWrap(true); detail.total:SetJustifyV("BOTTOM")
-
-  -- кнопка-лапа на окне профессии: показать/скрыть панель
-  local tg = UI.Icon(h, "paw", 22, L"WolfichMarket: прибыль крафта", function()
-    ns.DB.settings.profPanelHidden = not ns.DB.settings.profPanelHidden
-    panel:SetShown(not ns.DB.settings.profPanelHidden)
-  end)
+  if built or not h then return end
+  built = true
+  local tg = UI.Icon(h, "paw", 22, L"WolfichMarket: прибыль крафта", function() if ns.ToggleMain then ns.ToggleMain() end end)
   tg:SetPoint("TOPRIGHT", h, "TOPRIGHT", -28, -2); tg:SetFrameLevel(h:GetFrameLevel() + 20)
-
-  panel:SetScript("OnShow", function() refreshList(); fillDetail(selected) end)
-  panel:SetShown(not ns.DB.settings.profPanelHidden)
-
-  -- выбор рецепта в окне игры → карточка
-  if EventRegistry and EventRegistry.RegisterCallback then
-    pcall(EventRegistry.RegisterCallback, EventRegistry, "ProfessionsRecipeListMixin.Event.OnRecipeSelected", function(_, recipeInfo)
-      if not recipeInfo or not recipeInfo.recipeID then return end
-      local c = ns.DB.chars[ns.charKey]
-      for _, p in pairs(c and c.profs or {}) do
-        for _, rec in ipairs(p.recipes or {}) do if rec.id == recipeInfo.recipeID then fillDetail(rec) return end end
-      end
-    end, panel)
-  end
 end
 
 -- ---------- прибыль прямо на строках списка рецептов игры ----------
