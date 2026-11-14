@@ -351,4 +351,7 @@ ns.EN = {
   ["  |cff78d98a(изучен)|r"] = "  |cff78d98a(learned)|r",
   ["Где взять"] = "Where to get",
   ["Где взять рецепт: тренер, продавцы, добыча, задания, нужная репутация и карта зоны (данные Wowhead WoW Forever)."] = "Where to get the recipe: trainer, vendors, drops, quests, required reputation and zone map (Wowhead WoW Forever data).",
+  ["Поставить метку"] = "Set waypoint",
+  ["метка поставлена: %s (%.1f, %.1f)"] = "waypoint set: %s (%.1f, %.1f)",
+  ["Координаты продавцов - с Wowhead. Для мобов и заданий показана зона; если вы сами встречали NPC, аддон запомнит место и поставит точку."] = "Vendor coordinates come from Wowhead. For mobs and quests the zone is shown; if you met the NPC yourself, the addon remembers the spot and marks it.",
 }

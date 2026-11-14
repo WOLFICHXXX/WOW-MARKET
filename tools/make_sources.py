@@ -106,7 +106,7 @@ def chunks(arr, n=1500):
 
 out = ['-- Сгенерировано tools/make_sources.py из данных Wowhead WoW Forever + Seemeta (14.11.2026). Не править вручную.',
        '-- Где взять рецепты: продавцы, добыча, задания, тренер, репутация.',
-       'local _, ns = ...', 'local S = { r = {}, names = {}, npc = {}, zone = {}, quest = {}, item = {} }', 'ns.RS = S']
+       'local _, ns = ...', 'local S = { r = {}, names = {}, npc = {}, zone = {}, quest = {}, item = {}, pos = {} }', 'ns.RS = S']
 TBL = 'S.r'
 for ch in chunks(lines):
     out.append(';(function() local t = S.r')
@@ -147,5 +147,13 @@ for k in sorted(items):
 for ch in chunks(il):
     out.append(';(function() local t = S.item'); out += ['t' + x for x in ch]; out.append('end)()')
 out.append('S.factions = {' + ','.join(s(f) for f in factions) + '}')
+# координаты продавцов рецептов (Wowhead WoW Forever, tooltip map): S.pos[npcId] = { зона, x, y } в процентах карты зоны
+pos = []
+for line in open(os.path.join(HERE, 'sources', 'npc_coords.txt'), encoding='utf-8'):
+    if not line[:1].isdigit(): continue
+    n, z, x, y = line.split()[:4]
+    pos.append('[%s]={%s,%s,%s}' % (n, z, x, y))
+    zones.add(int(z))
+out.append(';(function() local t = S.pos'); out += ['t' + x for x in pos]; out.append('end)()')
 open(OUT, 'w', encoding='utf-8').write('\n'.join(out) + '\n')
 print('ok', len(lines), 'recipes', len(nl), 'npc', len(ql), 'quests', os.path.getsize(OUT) // 1024, 'KB')

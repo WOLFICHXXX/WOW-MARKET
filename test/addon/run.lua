@@ -371,6 +371,9 @@ do
   local tr = ns.RecipeSourceLines({ id = 2329, name = "x" })
   check(tr[1] and tr[1].kind == "trainer", "«Где взять»: рецепт у тренера")
   check(ns.RecipeSourceLines({ id = 1, name = "нет такого" })[1].kind == "none", "«Где взять»: нет данных - так и пишет")
+  local hasXY = false
+  for _, l in ipairs(lines) do if l.kind == "vendor" and l.detail:find("%d+%.%d, %d+%.%d") then hasXY = true end end
+  check(hasXY, "«Где взять»: у продавцов координаты с Wowhead")
   ns.ShowSources(rec)
   check(WolfichMarketSourceDialog and WolfichMarketSourceDialog:IsShown() and #WolfichMarketSourceDialog.list.data > 0, "окно «Где взять» открывается")
 end

@@ -56,9 +56,12 @@ function ns.RecipeSourceLines(rec)
     for _, v in ipairs(ri.v or {}) do
       local n = ns.RS.npc[v[1]]
       local tag, hostile = factionTag(n)
-      local z = n and n[3] and n[3][1]
+      -- координаты продавца с Wowhead (если есть) - зона и точка на её карте
+      local pos = ns.RS.pos and ns.RS.pos[v[1]]
+      local z = (pos and pos[1]) or (n and n[3] and n[3][1])
+      local xy = pos and string.format("   |cffffd100%.1f, %.1f|r", pos[2], pos[3]) or ""
       add("vendor", L"Продавец" .. ": " .. npcName(v[1]) .. tag,
-        (zoneName(z) or L"зона неизвестна") .. ((v[2] and v[2] > 0) and ("   " .. ns.money(v[2])) or "") .. ((v[3] and v[3] > 0) and L"   |cffffb060ограниченный запас|r" or ""), z, v[1], hostile)
+        (zoneName(z) or L"зона неизвестна") .. xy .. ((v[2] and v[2] > 0) and ("   " .. ns.money(v[2])) or "") .. ((v[3] and v[3] > 0) and L"   |cffffb060ограниченный запас|r" or ""), z, v[1], hostile)
     end
     for _, dr in ipairs(ri.d or {}) do
       local n = ns.RS.npc[dr[1]]
@@ -144,8 +147,15 @@ local function drawMap(entry)
   local m = dlg.map
   for _, t in ipairs(m.tiles) do t:Hide() end
   m.pin:Hide()
-  local mapID = entry and (entry.npc and ns.DB.npcPos and ns.DB.npcPos[entry.npc] and ns.DB.npcPos[entry.npc][1]) or (entry and findMap(entry.zone))
+  -- точка: координаты Wowhead (зона + x, y в процентах), иначе - где вы сами видели NPC
+  local wpos = entry and entry.npc and ns.RS.pos and ns.RS.pos[entry.npc]
+  local seen = entry and entry.npc and ns.DB.npcPos and ns.DB.npcPos[entry.npc]
+  local mapID = (wpos and findMap(wpos[1])) or (seen and seen[1]) or (entry and findMap(entry.zone))
   dlg.mapID = mapID
+  dlg.point = nil
+  if wpos and mapID and mapID == findMap(wpos[1]) then dlg.point = { mapID, wpos[2] / 100, wpos[3] / 100, entry.title }
+  elseif seen and seen[1] == mapID then dlg.point = { mapID, seen[2], seen[3], entry.title } end
+  dlg.waypoint:SetShown(dlg.point ~= nil)
   dlg.zoneLabel:SetText(entry and (zoneName(entry.zone) or "") or "")
   dlg.openMap:SetShown(mapID ~= nil)
   if not mapID or not C_Map.GetMapArtLayers then m.msg:SetText(entry and entry.zone and L"Карта этой зоны недоступна" or L"Выберите строку с зоной"); m.msg:Show() return end
@@ -166,8 +176,8 @@ local function drawMap(entry)
     t:ClearAllPoints(); t:SetPoint("TOPLEFT", m.canvas, "TOPLEFT", c * Lr.tileWidth * k, -r * Lr.tileHeight * k); t:Show()
   end
   -- если NPC уже встречали - метка там, где вы его видели
-  local p = entry.npc and ns.DB.npcPos and ns.DB.npcPos[entry.npc]
-  if p and p[1] == mapID then
+  local p = dlg.point
+  if p then
     m.pin:ClearAllPoints(); m.pin:SetPoint("CENTER", m.canvas, "TOPLEFT", p[2] * Lr.layerWidth * k, -p[3] * Lr.layerHeight * k); m.pin:Show()
     dlg.zoneLabel:SetText((zoneName(entry.zone) or "") .. string.format("   |cffffd100%.1f, %.1f|r", p[2] * 100, p[3] * 100))
   end
@@ -207,14 +217,28 @@ function ns.ShowSources(rec)
     m.pin = m.canvas:CreateTexture(nil, "OVERLAY"); m.pin:SetTexture(ns.MEDIA .. "paw"); m.pin:SetSize(22, 22); m.pin:Hide()
     dlg.map = m
     dlg.zoneLabel = UI.Font(dlg, 12, UI.GOLD); dlg.zoneLabel:SetPoint("BOTTOMLEFT", m, "TOPLEFT", 0, 6); dlg.zoneLabel:SetPoint("RIGHT", m, "RIGHT", 0, 0)
-    dlg.openMap = UI.Button(dlg, L"Открыть карту зоны", 170, 24, function()
+    dlg.openMap = UI.Button(dlg, L"Открыть карту зоны", 150, 24, function()
       if dlg.mapID then
         if OpenWorldMap then pcall(OpenWorldMap, dlg.mapID) elseif WorldMapFrame then ShowUIPanel(WorldMapFrame); pcall(WorldMapFrame.SetMapID, WorldMapFrame, dlg.mapID) end
       end
     end)
     dlg.openMap:SetPoint("TOPLEFT", m, "BOTTOMLEFT", 0, -10)
+    -- «Поставить метку»: точка на карте мира и стрелка-указатель (или TomTom, если он установлен)
+    dlg.waypoint = UI.Button(dlg, L"Поставить метку", 150, 24, function()
+      local p = dlg.point; if not p then return end
+      if TomTom and TomTom.AddWaypoint then
+        pcall(TomTom.AddWaypoint, TomTom, p[1], p[2], p[3], { title = p[4], persistent = false })
+      end
+      if C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
+        pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(p[1], p[2], p[3]))
+        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
+      end
+      if OpenWorldMap then pcall(OpenWorldMap, p[1]) end
+      ns.say(string.format(L"метка поставлена: %s (%.1f, %.1f)", (p[4] or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), p[2] * 100, p[3] * 100))
+    end, true)
+    dlg.waypoint:SetPoint("LEFT", dlg.openMap, "RIGHT", 8, 0); dlg.waypoint:Hide()
     dlg.hint = UI.Font(dlg, 10, UI.DIM); dlg.hint:SetPoint("TOPLEFT", dlg.openMap, "BOTTOMLEFT", 0, -8); dlg.hint:SetPoint("RIGHT", m, "RIGHT", 0, 0); dlg.hint:SetWordWrap(true)
-    dlg.hint:SetText(L"Лапа на карте - там, где вы сами встречали этого NPC (аддон запоминает, когда вы наводите мышь, берёте в цель или торгуете).")
+    dlg.hint:SetText(L"Координаты продавцов - с Wowhead. Для мобов и заданий показана зона; если вы сами встречали NPC, аддон запомнит место и поставит точку.")
   end
   dlg.recName:SetText(rec.name .. (ns.IsLearned(rec) and L"  |cff78d98a(изучен)|r" or L"  |cffff9966(не изучен)|r"))
   local lines = ns.RecipeSourceLines(rec)
