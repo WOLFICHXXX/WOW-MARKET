@@ -441,7 +441,12 @@ local function pageSell(f)
   f.list.empty:SetText(L"В сумках нет предметов, которые можно выставить.")
   local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(152)
   UI.Skin(box, { theme = "acard" })
-  f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 10, -8); f.sel:SetPoint("RIGHT", -10, 0)
+  -- лупа и график у выбранного предмета: найти на аукционе и посмотреть динамику цены перед продажей
+  f.searchBtn = UI.Icon(box, "search", 18, L"Найти этот предмет на аукционе", function() if sellSel then ns.SearchAH(sellSel.id) end end)
+  f.searchBtn:SetPoint("TOPRIGHT", -12, -6)
+  f.chartBtn = UI.Icon(box, "chart", 18, L"График цены", function() if sellSel and ns.ShowChartDialog then ns.ShowChartDialog(sellSel.id) end end)
+  f.chartBtn:SetPoint("RIGHT", f.searchBtn, "LEFT", -8, 0)
+  f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 10, -8); f.sel:SetPoint("RIGHT", f.chartBtn, "LEFT", -8, 0)
   -- разбор: себестоимость / аукцион / торговец / итог
   f.analysis = UI.Font(box, 10); f.analysis:SetPoint("TOPLEFT", 10, -24); f.analysis:SetPoint("RIGHT", -10, 0); f.analysis:SetWordWrap(true); f.analysis:SetJustifyV("TOP"); f.analysis:SetHeight(38); f.analysis:SetMaxLines(3)
   local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 10, -68); pl:SetText(L"Цена за шт:")
@@ -488,6 +493,7 @@ local function pageSell(f)
   f.calc = function()
     for i, b in ipairs(f.durBtns) do b:SetGold(DURS[i][1] == f.dur) end
     local d = sellSel
+    f.searchBtn:SetShown(d ~= nil); f.chartBtn:SetShown(d ~= nil)
     if not d then f.analysis:SetText(""); f.info:SetText(L"Выберите предмет в списке."); f.post:Disable() return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
     local p = ns.AHPrice(d.id)

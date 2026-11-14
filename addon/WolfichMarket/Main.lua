@@ -318,10 +318,13 @@ end
 local chartDlg
 function ns.ShowChartDialog(id)
   if not id then return end
-  if not win then return end -- окно ещё не построено (вызов только из вкладки «Сигналы»)
   if not chartDlg then
-    chartDlg = CreateFrame("Frame", "WolfichMarketChartDialog", win)
-    chartDlg:SetSize(620, 380); chartDlg:SetPoint("CENTER", win, "CENTER"); chartDlg:SetFrameStrata("DIALOG"); chartDlg:EnableMouse(true); chartDlg:SetToplevel(true)
+    -- отдельное окно (не внутри главного): открывается и из вкладки «Продать» у аукциониста
+    chartDlg = CreateFrame("Frame", "WolfichMarketChartDialog", UIParent)
+    chartDlg:SetSize(620, 380); chartDlg:SetPoint("CENTER"); chartDlg:SetFrameStrata("DIALOG"); chartDlg:EnableMouse(true); chartDlg:SetToplevel(true)
+    chartDlg:SetMovable(true); chartDlg:RegisterForDrag("LeftButton"); chartDlg:SetClampedToScreen(true)
+    chartDlg:SetScript("OnDragStart", chartDlg.StartMoving); chartDlg:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    tinsert(UISpecialFrames, "WolfichMarketChartDialog")
     UI.Skin(chartDlg, { theme = "main", scale = 0.6 })
     UI.Title(chartDlg, L"График цены")
     UI.Close(chartDlg)
@@ -336,7 +339,6 @@ function ns.ShowChartDialog(id)
   chartDlg.name:SetText(ns.itemLinkText(id))
   local p, avg = ns.AHPrice(id), ns.AvgPrice(id, 24)
   chartDlg.info:SetText((p and (L"сейчас" .. " " .. ns.money(p, true)) or L"|cff777777нет цены|r") .. (avg and ("   |cffaaaaaa" .. L"среднее за 24 ч" .. "|r " .. ns.money(avg, true)) or ""))
-  if not win:IsShown() then win:Show() end
   chartDlg:Show()
   local h = ns.DB.hist[id]
   ns.After(0, function() chartDlg.chart:SetPoints(h) end)

@@ -255,6 +255,19 @@ do
     ns.ClearPlans()
   end
 end
+-- «Продать»: лупа и график у выбранного предмета
+do
+  ns.AHSelectTab(4)
+  local f = ns._ahPages[4]
+  local row = f.list.rows[1]
+  if row and row.data then
+    row.scripts.OnClick(row)
+    check(f.searchBtn:IsShown() and f.chartBtn:IsShown(), "«Продать»: у выбранного предмета есть лупа и график")
+    if WolfichMarketChartDialog then WolfichMarketChartDialog:Hide() end
+    f.chartBtn.scripts.OnClick(f.chartBtn)
+    check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown(), "«Продать»: график цены открывается")
+  else check(false, "«Продать»: нет строк для проверки") end
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

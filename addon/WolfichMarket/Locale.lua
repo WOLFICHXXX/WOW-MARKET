@@ -270,4 +270,5 @@ ns.EN = {
   ["Докупить: %d материалов на %s"] = "To buy: %d materials for %s",
   ["План"] = "Plan",
   ["< Назад"] = "< Back",
+  ["Найти этот предмет на аукционе"] = "Find this item at the auction house",
 }
