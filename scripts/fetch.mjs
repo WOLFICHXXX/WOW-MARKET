@@ -139,6 +139,20 @@ async function pickHouses() {
 }
 
 // Разведка: какие миры есть в API (чтобы подписать аукционы названиями миров)
+async function probeRulesets() {
+  const out = {};
+  const idx = await api('/data/wow/ruleset/index', NS_DYN, '&locale=ru_RU');
+  log('Разведка ruleset/index:', JSON.stringify(idx.data).slice(0, 900));
+  for (const e of findListWithIds(idx.data)) {
+    const id = idFromEntry(e);
+    const d = await api(`/data/wow/ruleset/${id}`, NS_DYN, '&locale=ru_RU');
+    const a = await api(`/data/wow/ruleset/${id}/auctions/`, NS_DYN, '&locale=ru_RU');
+    out[id] = { detail: d.data, houses: findListWithIds(a.data).map(h => idFromEntry(h)) };
+    log(`Разведка ruleset/${id}: HTTP ${d.status}`, JSON.stringify(d.data).slice(0, 700), '| аукционы:', out[id].houses.join(','));
+  }
+  return out;
+}
+
 async function probeRealms() {
   const out = {};
   for (const p of ['/data/wow/realm/index', '/data/wow/connected-realm/index']) {
@@ -305,6 +319,7 @@ async function main() {
     const { rulesetId, houses } = await pickHouses();
     if (!houses.length) throw new Error('Не удалось найти ни одного аукциона в API');
     if (!meta.realmProbe || env.PROBE) meta.realmProbe = await probeRealms();
+    if (!meta.rulesetProbe || env.PROBE) meta.rulesetProbe = await probeRulesets();
     const prevHouses = Object.fromEntries((meta.houses || []).map(h => [h.id, h]));
     const done = [];
     let unchanged = 0;
