@@ -44,7 +44,8 @@ local function refreshProfs()
     local p = names[i]
     if p then
       local d = c.profs[p]
-      b.prof = p; b:SetLabel(p .. " |cffaaaaaa" .. (d.skill or 0) .. "/" .. (d.max or 0) .. "|r")
+      b.prof = p
+      if d.virtual then b:SetLabel("|cffaaaaaa" .. p .. L" (не изучена)|r") else b:SetLabel(p .. " |cffaaaaaa" .. (d.skill or 0) .. "/" .. (d.max or 0) .. "|r") end
       local w = b:FitWidth(120, 260)
       if x > 0 and x + w > W then x = 0; row = row + 1 end
       b:ClearAllPoints(); b:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -16 - row * 30)
@@ -52,6 +53,9 @@ local function refreshProfs()
       b:Show(); b:SetGold(p == prof)
     else b:Hide() end
   end
+  -- «+»: добавить профессию, которой у персонажа нет (для отслеживания цен)
+  if x > 0 and x + 34 > W then x = 0; row = row + 1 end
+  craft.addBtn:ClearAllPoints(); craft.addBtn:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -16 - row * 30)
   craft.setTop(row * 30)
   craft.noProf:SetShown(#names == 0)
 end
@@ -144,7 +148,12 @@ function craft.openAlarms(rec)
       for _, r in ipairs(dlg.rows) do
         if r:IsShown() and r.id then
           local want = r.chk:GetChecked() and true or false
-          if want ~= ns.IsMarked(r.id) then ns.ToggleMark(r.id) end
+          if want ~= ns.IsMarked(r.id) then
+            ns.ToggleMark(r.id)
+            -- результат рецепта - в «Продажу» (жду роста), материалы - в «Покупку» (жду снижения)
+            ns.DB.alarmDir = ns.DB.alarmDir or {}
+            ns.DB.alarmDir[r.id] = want and (r.out and "sell" or "buy") or nil
+          end
           local v = tonumber(r.thr:GetText())
           ns.DB.alarm[r.id] = (want and v and v > 0) and v or nil
         end
@@ -161,7 +170,7 @@ function craft.openAlarms(rec)
   for i, r in ipairs(dlg.rows) do
     local it = items[i]
     if it then
-      r.id = it.id
+      r.id, r.out = it.id, it.out
       r.chk:SetChecked(ns.IsMarked(it.id))
       r.icon:SetTexture(ns.itemIcon(it.id))
       r.name:SetText((it.out and "|cffe6b450> |r" or "") .. ns.itemLinkText(it.id) .. (it.n and it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or ""))
@@ -181,7 +190,21 @@ local function refreshCraft()
   for _, pr in ipairs(rows) do if not S.profitOnly or (pr.profit and pr.profit > 0) then data[#data + 1] = pr end end
   local key = craft.sortKey or "profit"
   table.sort(data, function(a, b) local x, y = a[key] or -1e12, b[key] or -1e12; if x == y then return a.rec.name < b.rec.name end return x > y end)
-  craft.list:SetData(data)
+  -- группы по требуемому навыку: Ученик 1-74, Подмастерье 75-149, Умелец 150-224, Искусник 225-299, 300+
+  local groups, order = {}, {}
+  for _, pr in ipairs(data) do
+    local lv = ns.RecipeLevel and ns.RecipeLevel(pr.rec)
+    local t = ns.SkillTier(lv)
+    if not groups[t] then groups[t] = {}; order[#order + 1] = t end
+    table.insert(groups[t], pr)
+  end
+  table.sort(order)
+  local out = {}
+  for _, t in ipairs(order) do
+    out[#out + 1] = { header = ns.SkillTierName(t), tier = t, count = #groups[t] }
+    if not (craft.collapsed and craft.collapsed[t]) then for _, pr in ipairs(groups[t]) do out[#out + 1] = pr end end
+  end
+  craft.list:SetData(out)
   craft.list.empty:SetText(L"Откройте окна профессий этим персонажем - здесь появятся его рецепты с прибылью.")
   local c = ns.DB.chars[charKey] or {}
   local scan = ns.priceRealm == nil and ns.DB.ahScans[c.realmKey or ""] or nil
@@ -214,7 +237,34 @@ local function buildCraft(f)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetPoint("TOPLEFT", 0, -16); craft.profBtns[i] = b
   end
-  craft.noProf = UI.Font(f, 11, UI.DIM); craft.noProf:SetPoint("TOPLEFT", 4, -24); craft.noProf:SetText(L"Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий.")
+  craft.addBtn = UI.Button(f, "+", 30, 26, function(self) craft.openAddMenu(self) end)
+  craft.addBtn:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L"Добавить профессию, которой нет у персонажа: все её рецепты будут видны серым, а цены - отслеживаться.", 1, 1, 1, true); GameTooltip:Show() end)
+  craft.addBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- меню профессий для «+»
+  function craft.openAddMenu(anchor)
+    local m = craft.addMenu
+    if not m then
+      m = CreateFrame("Frame", "WolfichMarketAddProfMenu", win); m:SetFrameStrata("DIALOG"); m:EnableMouse(true)
+      UI.Skin(m, { theme = "acard", scale = 0.25 })
+      m.btns = {}
+      craft.addMenu = m
+    end
+    if m:IsShown() then m:Hide() return end
+    local list = ns.AllProfessions()
+    local have = (ns.DB.chars[charKey] or {}).profs or {}
+    for i, p in ipairs(list) do
+      local b = m.btns[i] or UI.Button(m, "", 200, 22); m.btns[i] = b
+      b:SetPoint("TOPLEFT", 12, -12 - (i - 1) * 24)
+      local owned = have[p.name] ~= nil
+      b:SetLabel(owned and ("|cff777777" .. p.name .. "|r") or p.name)
+      b:SetScript("OnClick", function() m:Hide(); if not owned then local n = ns.AddVirtualProfession(charKey, p.slug); if n then prof = n; sel = nil end; refreshCraft() end end)
+      b:Show()
+    end
+    for i = #list + 1, #m.btns do m.btns[i]:Hide() end
+    m:SetSize(224, 24 + #list * 24)
+    m:ClearAllPoints(); m:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4); m:Show()
+  end
+  craft.noProf = UI.Font(f, 11, UI.DIM); craft.noProf:SetPoint("TOPLEFT", 40, -24); craft.noProf:SetText(L"Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий.")
   local S = ns.DB.settings
   local c1 = UI.Check(f, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshCraft(); ns.Fire("RECIPES") end); c1:SetPoint("TOPLEFT", 0, -48)
   local c2 = UI.Check(f, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshCraft(); ns.Fire("RECIPES"); if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end end); c2:SetPoint("TOPLEFT", 170, -48)
@@ -224,12 +274,27 @@ local function buildCraft(f)
   local bM = UI.Button(f, L"по марже", 96, 22, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("TOPRIGHT", 0, -48)
   local bP = UI.Button(f, L"по прибыли", 104, 22, function() craft.sortKey = "profit"; refreshCraft() end); bP:SetPoint("RIGHT", bM, "LEFT", -6, 0)
   craft.list = UI.List(f, 22, function(r)
-    r.star = UI.Icon(r, "star-off", 14, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec.out then ns.ToggleMark(d.rec.out) end end); r.star:SetPoint("LEFT", 4, 0)
+    -- заголовок группы по требуемому навыку (клик - свернуть/развернуть)
+    r.hdr = UI.Font(r, 12, UI.GOLD); r.hdr:SetPoint("LEFT", 6, 0); r.hdr:SetPoint("RIGHT", -6, 0)
+    r.hdrBg = r:CreateTexture(nil, "BACKGROUND", nil, 1); r.hdrBg:SetAllPoints(); r.hdrBg:SetColorTexture(0.85, 0.62, 0.25, 0.14)
+    r.star = UI.Icon(r, "star-off", 14, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec and d.rec.out then ns.ToggleMark(d.rec.out) end end); r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
     r.val = UI.Font(r, 11); r.val:SetPoint("RIGHT", -4, 0); r.val:SetJustifyH("RIGHT")
     r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", -90, 0)
-    r:SetScript("OnClick", function(self) if self.data then fillCard(self.data.rec) end end)
+    r:SetScript("OnClick", function(self)
+      local d = self.data
+      if not d then return end
+      if d.header then craft.collapsed = craft.collapsed or {}; craft.collapsed[d.tier] = not craft.collapsed[d.tier]; refreshCraft() return end
+      fillCard(d.rec)
+    end)
   end, function(r, d)
+    local h = d.header ~= nil
+    r.hdr:SetShown(h); r.hdrBg:SetShown(h); r.icon:SetShown(not h); r.name:SetShown(not h); r.val:SetShown(not h)
+    if h then
+      r.star:Hide()
+      r.hdr:SetText((craft.collapsed and craft.collapsed[d.tier] and "+ " or "- ") .. d.header .. "  |cffaaaaaa(" .. d.count .. ")|r")
+      return
+    end
     r.star:SetShown(d.rec.out ~= nil); r.star:SetIcon(d.rec.out and ns.IsMarked(d.rec.out) and "star-on" or "star-off")
     local learned = ns.IsLearned(d.rec)
     r.icon:SetTexture(d.rec.out and ns.itemIcon(d.rec.out) or d.rec.icon or 134400); r.icon:SetDesaturated(not learned)
@@ -325,12 +390,19 @@ end
 
 -- ---------- вкладка «Сигналы» ----------
 local sig = {}
+-- направление сигнала: "buy" - жду снижения (покупка), "sell" - жду роста (продажа), nil - оба (старые отметки)
+local function sigDir(id) return ns.DB.alarmDir and ns.DB.alarmDir[id] end
 local function refreshSignals()
-  if not sig.list then return end
-  local d = {}
-  for id in pairs(ns.DB.marked) do d[#d + 1] = { id = id } end
-  table.sort(d, function(a, b) return ns.itemName(a.id) < ns.itemName(b.id) end)
-  sig.list:SetData(d)
+  if not sig.buy then return end
+  local b, s2 = {}, {}
+  for id in pairs(ns.DB.marked) do
+    local d = sigDir(id)
+    if d ~= "sell" then b[#b + 1] = { id = id, side = "buy" } end
+    if d ~= "buy" then s2[#s2 + 1] = { id = id, side = "sell" } end
+  end
+  local byName = function(x, y) return ns.itemName(x.id) < ns.itemName(y.id) end
+  table.sort(b, byName); table.sort(s2, byName)
+  sig.buy:SetData(b); sig.sell:SetData(s2)
   sig.global:SetText(ns.DB.settings.alertPct)
 end
 -- окно графика цены (из вкладки «Сигналы»): работает и без открытого аукциона
@@ -363,44 +435,83 @@ function ns.ShowChartDialog(id)
   ns.After(0, function() chartDlg.chart:SetPoints(h) end)
 end
 
+-- добавить предмет в список покупки или продажи (если он уже в другом - станет «оба»)
+function ns.AddSignal(id, side)
+  if not id then return end
+  ns.DB.alarmDir = ns.DB.alarmDir or {}
+  if ns.IsMarked(id) then
+    local d = ns.DB.alarmDir[id]
+    if d and d ~= side then ns.DB.alarmDir[id] = nil end -- был в другом списке - теперь в обоих
+  else
+    ns.ToggleMark(id); ns.DB.alarmDir[id] = side
+  end
+  ns.Fire("MARKS")
+end
+-- убрать из одного списка (если был в обоих - останется в другом)
+function ns.RemoveSignal(id, side)
+  ns.DB.alarmDir = ns.DB.alarmDir or {}
+  local d = ns.DB.alarmDir[id]
+  if d == nil then ns.DB.alarmDir[id] = side == "buy" and "sell" or "buy"
+  else ns.DB.alarmDir[id] = nil; if ns.IsMarked(id) then ns.ToggleMark(id) end end
+  ns.Fire("MARKS")
+end
 local function buildSignals(f)
   local info = UI.Font(f, 11, UI.TEXT); info:SetPoint("TOPLEFT", 4, 0); info:SetPoint("RIGHT", -4, 0); info:SetWordWrap(true)
-  info:SetText(L"Уведомления о скачках цены приходят только по отмеченным предметам - после каждого снимка аукциона. Порог можно задать для каждого предмета, пустое поле - общий порог.")
+  info:SetText(L"Слева - что хотите купить: сигнал, когда цена упадёт. Справа - что хотите продать: сигнал, когда цена вырастет. Порог можно задать каждому предмету, пустое поле - общий порог. Проверка - после каждого снимка аукциона.")
   local gl = UI.Font(f, 11); gl:SetPoint("TOPLEFT", 4, -40); gl:SetText(L"Общий порог, %:")
   sig.global = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); sig.global:SetSize(44, 20); sig.global:SetPoint("LEFT", gl, "RIGHT", 10, 0); sig.global:SetAutoFocus(false); sig.global:SetNumeric(true)
   sig.global:SetScript("OnTextChanged", function(self, user) if user then local v = tonumber(self:GetText()); if v and v > 0 then ns.DB.settings.alertPct = v end end end)
-  local al = UI.Font(f, 11); al:SetPoint("LEFT", sig.global, "RIGHT", 24, 0); al:SetText(L"Добавить предмет:")
-  sig.add = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); sig.add:SetSize(220, 20); sig.add:SetPoint("LEFT", al, "RIGHT", 10, 0); sig.add:SetAutoFocus(false)
-  local ah = UI.Font(f, 10, UI.DIM); ah:SetPoint("LEFT", sig.add, "RIGHT", 8, 0); ah:SetText(L"Shift+клик по предмету или Alt+клик в сумке")
-  sig.add:SetScript("OnEnterPressed", function(self) local id = ns.idFromLink(self:GetText()) or tonumber(self:GetText()); if id and not ns.IsMarked(id) then ns.ToggleMark(id) end; self:SetText(""); self:ClearFocus() end)
-  sig.add:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-  -- Shift+клик по предмету, пока поле в фокусе, — вставить и отметить
+  local ah = UI.Font(f, 10, UI.DIM); ah:SetPoint("LEFT", sig.global, "RIGHT", 16, 0); ah:SetText(L"Добавить: впишите название или Shift+клик по предмету, пока поле в фокусе")
+  sig.adds = {}
+  local function panel(side, x1, x2, title, color)
+    local p = CreateFrame("Frame", nil, f)
+    p:SetPoint("TOPLEFT", f, x1 == 0 and "TOPLEFT" or "TOP", x1 == 0 and 0 or 6, -66); p:SetPoint("BOTTOMRIGHT", f, x1 == 0 and "BOTTOM" or "BOTTOMRIGHT", x1 == 0 and -6 or 0, 0)
+    UI.Skin(p, { theme = "acard", scale = 0.25 })
+    local t = UI.Font(p, 13, color); t:SetPoint("TOPLEFT", 12, -10); t:SetText(title)
+    local add = CreateFrame("EditBox", nil, p, "InputBoxTemplate"); add:SetHeight(20); add:SetPoint("TOPLEFT", 16, -32); add:SetPoint("RIGHT", -12, 0); add:SetAutoFocus(false)
+    add:SetScript("OnEnterPressed", function(self)
+      local txt = self:GetText()
+      local id = ns.idFromLink(txt) or tonumber(txt)
+      if not id and txt ~= "" then for k, n in pairs(ns.DB.names) do if n:lower() == txt:lower() then id = k; break end end end
+      if id then ns.AddSignal(id, side) else ns.say(L"предмет не найден - вставьте ссылку (Shift+клик) или точное название.") end
+      self:SetText(""); self:ClearFocus()
+    end)
+    add:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    sig.adds[side] = add
+    local hdr = CreateFrame("Frame", nil, p); hdr:SetPoint("TOPLEFT", 10, -58); hdr:SetPoint("TOPRIGHT", -10, -58); hdr:SetHeight(14)
+    local function col(txt, x) local c = UI.Font(hdr, 10, UI.DIM); c:SetPoint("RIGHT", hdr, "RIGHT", x, 0); c:SetText(txt) end
+    local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 26, 0); h1:SetText(L"Предмет")
+    col(L"Порог, %", -46); col(L"24 ч", -104); col(L"Цена", -150)
+    local list = UI.List(p, 24, function(r)
+      r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", 2, 0)
+      r.x = UI.Icon(r, "skin\\ai-x", 14, L"Убрать из списка", function(self) local d = self:GetParent().data; if d then ns.RemoveSignal(d.id, side) end end); r.x:SetPoint("RIGHT", -2, 0)
+      r.chart = UI.Icon(r, "chart", 14, L"График цены", function(self) local d = self:GetParent().data; if d then ns.ShowChartDialog(d.id) end end); r.chart:SetPoint("RIGHT", r.x, "LEFT", -4, 0)
+      r.thr = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.thr:SetSize(32, 18); r.thr:SetPoint("RIGHT", r.chart, "LEFT", -8, 0); r.thr:SetAutoFocus(false); r.thr:SetNumeric(true)
+      r.thr:SetScript("OnTextChanged", function(self, user) if user and r.data then local v = tonumber(self:GetText()); ns.DB.alarm[r.data.id] = (v and v > 0) and v or nil end end)
+      r.thr:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+      r.chg = UI.Font(r, 11); r.chg:SetPoint("RIGHT", r.thr, "LEFT", -8, 0); r.chg:SetWidth(46); r.chg:SetJustifyH("RIGHT")
+      r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.chg, "LEFT", -4, 0); r.price:SetWidth(64); r.price:SetJustifyH("RIGHT")
+      r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -4, 0)
+      r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
+      r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end, function(r, d)
+      r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
+      local pr = ns.AHPrice(d.id); r.price:SetText(pr and ns.money(pr, true) or L"|cff777777нет|r")
+      local avg = ns.AvgPrice(d.id, 24); r.chg:SetText(pr and avg and ns.pct((pr - avg) / avg * 100) or "")
+      if not r.thr:HasFocus() then r.thr:SetText(ns.DB.alarm[d.id] or "") end
+    end)
+    list:SetPoint("TOPLEFT", 10, -74); list:SetPoint("BOTTOMRIGHT", -10, 10)
+    list.empty:SetText(side == "buy" and L"Пусто. Добавьте то, что хотите купить дешевле." or L"Пусто. Добавьте то, что хотите продать дороже.")
+    return list
+  end
+  sig.buy = panel("buy", 0, nil, L"Покупка: жду снижения цены", { 0.47, 0.85, 0.54 })
+  sig.sell = panel("sell", 1, nil, L"Продажа: жду роста цены", { 1, 0.75, 0.35 })
+  -- Shift+клик по предмету, пока поле в фокусе, - добавить в этот список
   if hooksecurefunc then pcall(hooksecurefunc, "ChatEdit_InsertLink", function(link)
-    if sig.add and sig.add:HasFocus() then local id = ns.idFromLink(link); if id and not ns.IsMarked(id) then ns.ToggleMark(id) end; sig.add:SetText(""); sig.add:ClearFocus() end
+    for side, e in pairs(sig.adds) do
+      if e:HasFocus() then local id = ns.idFromLink(link); if id then ns.AddSignal(id, side) end; e:SetText(""); e:ClearFocus() end
+    end
   end) end
-  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -66); hdr:SetPoint("TOPRIGHT", 0, -66); hdr:SetHeight(14)
-  local function col(t, x) local s = UI.Font(hdr, 10, UI.DIM); s:SetPoint("RIGHT", hdr, "RIGHT", x, 0); s:SetText(t) end
-  local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 46, 0); h1:SetText(L"Предмет")
-  col(L"Порог, %", -60); col(L"24 ч", -140); col(L"Цена", -210)
-  sig.list = UI.List(f, 24, function(r)
-    r.star = UI.Icon(r, "star-on", 16, L"Снять отметку", function(self) local d = self:GetParent().data; if d then ns.ToggleMark(d.id) end end); r.star:SetPoint("LEFT", 4, 0)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", r.star, "RIGHT", 6, 0)
-    r.search = UI.Icon(r, "search", 16, L"Найти в окне аукциона", function(self) local d = self:GetParent().data; if d then ns.SearchAH(d.id) end end); r.search:SetPoint("RIGHT", -4, 0)
-    r.chart = UI.Icon(r, "chart", 16, L"График цены", function(self) local d = self:GetParent().data; if d then ns.ShowChartDialog(d.id) end end); r.chart:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
-    r.thr = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.thr:SetSize(40, 18); r.thr:SetPoint("RIGHT", r.chart, "LEFT", -14, 0); r.thr:SetAutoFocus(false); r.thr:SetNumeric(true)
-    r.thr:SetScript("OnTextChanged", function(self, user) if user and r.data then local v = tonumber(self:GetText()); ns.DB.alarm[r.data.id] = (v and v > 0) and v or nil end end)
-    r.thr:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    r.chg = UI.Font(r, 11); r.chg:SetPoint("RIGHT", r.thr, "LEFT", -18, 0); r.chg:SetWidth(56); r.chg:SetJustifyH("RIGHT")
-    r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.chg, "LEFT", -6, 0); r.price:SetWidth(80); r.price:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
-  end, function(r, d)
-    r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
-    local p = ns.AHPrice(d.id); r.price:SetText(p and ns.money(p, true) or L"|cff777777нет|r")
-    local avg = ns.AvgPrice(d.id, 24); r.chg:SetText(p and avg and ns.pct((p - avg) / avg * 100) or "")
-    if not r.thr:HasFocus() then r.thr:SetText(ns.DB.alarm[d.id] or "") end
-  end)
-  sig.list:SetPoint("TOPLEFT", 0, -82); sig.list:SetPoint("BOTTOMRIGHT")
-  sig.list.empty:SetText(L"Отмеченных предметов нет.\nОтметьте звёздочкой в окне крафта, Alt+клик в сумке или впишите выше.")
 end
 
 -- ---------- вкладка «Банк» ----------

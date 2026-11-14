@@ -75,6 +75,7 @@ def recipe_item(ri):
 
 lines = []
 names = []
+profIds = {}
 for slug, p in D['professions'].items():
     for r in p['recipes']:
         l = r['learn']
@@ -94,6 +95,13 @@ for slug, p in D['professions'].items():
         if sd: f.append('sd=' + sd)
         ris = [recipe_item(ri) for ri in (l.get('recipeItems') or [])]
         if ris: f.append('i={' + ','.join(ris) + '}')
+        # для «чужих» профессий (добавленных вручную): название, результат и материалы
+        f.append('n={%s,%s}' % (s(r.get('name_ru') or r.get('name_en') or ''), s(r.get('name_en') or '')))
+        cr = r.get('creates')
+        if cr and cr.get('itemId'): f.append('cr={%d,%s,%s}' % (cr['itemId'], num(cr.get('min') or 1), num(cr.get('max') or 1)))
+        rg = [x for x in (r.get('reagents') or []) if x.get('itemId')]
+        if rg: f.append('rg={' + ','.join('{%d,%s}' % (x['itemId'], num(x.get('count') or 1)) for x in rg) + '}')
+        profIds.setdefault(slug, []).append(r['spellId'])
         lines.append('[%d]={%s}' % (r['spellId'], ','.join(f)))
         if r.get('name_ru'): names.append('[%s]=%d' % (s(r['name_ru']), r['spellId']))
         if r.get('name_en'): names.append('[%s]=%d' % (s(r['name_en']), r['spellId']))
@@ -106,7 +114,7 @@ def chunks(arr, n=1500):
 
 out = ['-- Сгенерировано tools/make_sources.py из данных Wowhead WoW Forever + Seemeta (14.11.2026). Не править вручную.',
        '-- Где взять рецепты: продавцы, добыча, задания, тренер, репутация.',
-       'local _, ns = ...', 'local S = { r = {}, names = {}, npc = {}, zone = {}, quest = {}, item = {}, pos = {} }', 'ns.RS = S']
+       'local _, ns = ...', 'local S = { r = {}, names = {}, npc = {}, zone = {}, quest = {}, item = {}, pos = {}, prof = {} }', 'ns.RS = S']
 TBL = 'S.r'
 for ch in chunks(lines):
     out.append(';(function() local t = S.r')
@@ -146,6 +154,8 @@ for k in sorted(items):
     if allitems.get(k): il.append('[%d]=%s' % (k, s(allitems[k])))
 for ch in chunks(il):
     out.append(';(function() local t = S.item'); out += ['t' + x for x in ch]; out.append('end)()')
+for slug, p in D['professions'].items():
+    out.append('S.prof[%s]={ru=%s,en=%s,line=%s,ids={%s}}' % (s(slug), s(p.get('name_ru') or ''), s(p.get('name_en') or ''), num(p.get('skillLineId')), ','.join(str(i) for i in profIds.get(slug, []))))
 out.append('S.factions = {' + ','.join(s(f) for f in factions) + '}')
 # координаты продавцов рецептов (Wowhead WoW Forever, tooltip map): S.pos[npcId] = { зона, x, y } в процентах карты зоны
 pos = []

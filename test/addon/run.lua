@@ -125,7 +125,8 @@ local okS, errS = pcall(W.tabs[2].scripts.OnClick, W.tabs[2]); check(okS, "вк�
 local okC, errC = pcall(W.tabs[1].scripts.OnClick, W.tabs[1]); check(okC, "вкладка «Крафт»" .. (okC and "" or (": " .. tostring(errC))))
 -- карточка: выбор рецепта, график, окно сигналов для рецепта
 local cr = ns._mainCraft
-local row = cr.list.rows[1]
+local function recRow(list) for _, r in ipairs(list.rows) do if r.data and r.data.rec then return r end end end
+local row = recRow(cr.list)
 local okF, errF = pcall(row.scripts.OnClick, row); check(okF, "карточка рецепта в главном окне" .. (okF and "" or (": " .. tostring(errF))))
 advance(1)
 check(cr.card.craft.shown and cr.card.alarm.shown and cr.card.chart.shown, "в карточке «Крафт», «Поставить сигнал» и график")
@@ -220,7 +221,7 @@ do
   WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
   check(WolfichMarketMainFrame.pages[3]:IsShown(), "вкладка «Банк» открывается")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
-  local row = ns._mainCraft.list.rows[1]
+  local row = recRow(ns._mainCraft.list)
   if row and row.data then row.scripts.OnClick(row) end
   check(ns._mainCraft.card.total.text ~= "", "карточка рецепта с учётом банка строится")
   ns.DB.settings.useBank = nil
@@ -245,7 +246,7 @@ do
   check(ns._ahPages[3].qty:GetText() == 5, "«Купить» из плана подставляет количество")
   ns.ClearPlans()
   check(#ns.Plans() == 0, "план очищается")
-  local row = ns._mainCraft.list.rows[1]
+  local row = recRow(ns._mainCraft.list)
   if row and row.data then
     row.scripts.OnClick(row)
     local card = ns._mainCraft.card
@@ -376,6 +377,29 @@ do
   check(hasXY, "«Где взять»: у продавцов координаты с Wowhead")
   ns.ShowSources(rec)
   check(WolfichMarketSourceDialog and WolfichMarketSourceDialog:IsShown() and #WolfichMarketSourceDialog.list.data > 0, "окно «Где взять» открывается")
+end
+-- группы по навыку, «чужая» профессия, сигналы покупки/продажи
+do
+  check(ns.SkillTier(10) == 1 and ns.SkillTier(75) == 2 and ns.SkillTier(230) == 4 and ns.SkillTier(305) == 5 and ns.SkillTier(nil) == 9, "группы рецептов по требуемому навыку")
+  local hasHdr = false
+  for _, d in ipairs(ns._mainCraft.list.data) do if d.header then hasHdr = true end end
+  check(hasHdr, "в списке рецептов есть заголовки групп по навыку")
+  local name = ns.AddVirtualProfession(ns.charKey, "tailoring")
+  local p = ns.DB.chars[ns.charKey].profs[name]
+  check(p and p.virtual and #p.recipes > 100, "добавлена профессия, которой нет: " .. tostring(name) .. " (" .. (p and #p.recipes or 0) .. ")")
+  local rows = ns.AllRecipeProfits(name, false)
+  check(#rows > 100 and not ns.IsLearned(rows[1].rec), "её рецепты видны (серым) без галочки неизученных")
+  ns.CleanStrangers()
+  check(ns.DB.chars[ns.charKey].profs[name] ~= nil, "чистка чужих профессий не трогает добавленную вручную")
+  ns.RemoveProfession(ns.charKey, name)
+  ns.AddSignal(3470, "buy")
+  check(ns.DB.alarmDir[3470] == "buy", "сигнал покупки")
+  ns.AddSignal(3470, "sell")
+  check(ns.DB.alarmDir[3470] == nil and ns.IsMarked(3470), "предмет в обоих списках")
+  ns.RemoveSignal(3470, "buy")
+  check(ns.DB.alarmDir[3470] == "sell", "убран из покупки - остался в продаже")
+  ns.RemoveSignal(3470, "sell")
+  check(not ns.IsMarked(3470), "убран из обоих - отметка снята")
 end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad

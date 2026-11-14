@@ -104,10 +104,13 @@ function ns.CleanStrangers()
   if not haveLines then return end
   local removed = {}
   for name, p in pairs(c.profs) do
+    if p.virtual then -- добавлена вручную для отслеживания - не трогаем
+    else
     local own
     if p.base then own = lines[p.base] or names[name]
     else own = names[name] or (p.line and lines[p.line]) or levels[(p.skill or 0) .. "/" .. (p.max or 0)] end -- старые записи: по имени или уровню
     if not own then c.profs[name] = nil; removed[#removed + 1] = name end
+    end
   end
   if #removed > 0 then ns.say(L"убраны чужие профессии у этого персонажа: " .. table.concat(removed, ", ")); ns.Fire("RECIPES") end
 end
@@ -176,13 +179,25 @@ function ns.OpenRecipeInGame(rec, profName)
   end
 end
 function ns.IsLearned(rec) return rec.learned ~= false end
+-- требуемый навык рецепта (из данных Wowhead) и группа: 1 Ученик, 2 Подмастерье, 3 Умелец, 4 Искусник, 5 - 300+, 9 - неизвестно
+function ns.RecipeLevel(rec)
+  local d = ns.RecipeSourceData and ns.RecipeSourceData(rec)
+  return (d and d.s) or rec.lvl
+end
+local TIERS = { { 75, "Ученик: навык 1-74" }, { 150, "Подмастерье: навык 75-149" }, { 225, "Умелец: навык 150-224" }, { 300, "Искусник: навык 225-299" }, { 1e9, "Мастер: навык 300+" } }
+function ns.SkillTier(lv)
+  if not lv then return 9 end
+  for i, t in ipairs(TIERS) do if lv < t[1] then return i end end
+  return 5
+end
+function ns.SkillTierName(i) return i == 9 and L"Навык неизвестен" or L(TIERS[i][2]) end
 -- все рецепты всех профессий текущего персонажа с прибылью (неизученные — только если попросили)
 local function collect(c, profFilter, withUnlearned, stock)
   local out = {}
   for prof, p in pairs(c.profs or {}) do
     if not profFilter or prof == profFilter then
       for _, rec in ipairs(p.recipes or {}) do
-        if withUnlearned or ns.IsLearned(rec) then
+        if withUnlearned or p.virtual or ns.IsLearned(rec) then -- добавленная вручную профессия - все рецепты (серым)
           local pr = ns.Profit(rec, stock)
           pr.rec, pr.prof = rec, prof
           out[#out + 1] = pr
@@ -229,7 +244,7 @@ function ns.RecipeItems()
   local c = ns.DB.chars[ns.charKey]
   for _, p in pairs(c and c.profs or {}) do
     for _, rec in ipairs(p.recipes or {}) do
-      if ns.IsLearned(rec) then -- для истории цен берём только изученные рецепты
+      if p.virtual or ns.IsLearned(rec) then -- история цен: изученные рецепты и профессии, добавленные для отслеживания
         if rec.out then s[rec.out] = true end
         for _, r in ipairs(rec.reag or {}) do s[r[1]] = true end
       end
@@ -374,7 +389,7 @@ local function recipesStale()
   local prof = professionInfo()
   if not prof or not ns.charKey then return false end
   local p = ns.DB.chars[ns.charKey].profs[prof]
-  if not p or not p.recipes or #p.recipes == 0 or not p.line then return true end -- line: номер профессии для кнопки «Крафт»
+  if not p or p.virtual or not p.recipes or #p.recipes == 0 or not p.line then return true end -- профессию выучили - заменить «отслеживаемую» настоящей -- line: номер профессии для кнопки «Крафт»
   local scan = ns.CurrentScan()
   return scan and (p.t or 0) < scan.t or false
 end
@@ -408,3 +423,33 @@ ns.Listen("MARKS", function() if panel and panel:IsShown() then list:Refresh(); 
 ns.Listen("RECIPES", function() indexDirty = true; if panel and panel:IsShown() then refreshList() end end)
 ns.Listen("AH_STATE", function() if panel and panel:IsShown() then fillDetail(selected) end end)
 ns.Listen("NAMES", function() if panel and panel:IsShown() then list:Refresh() end end)
+
+-- ---------- профессии, которых у персонажа нет: добавить для отслеживания (все рецепты - неизученные, серым) ----------
+function ns.AllProfessions()
+  local out = {}
+  for slug, p in pairs(ns.RS and ns.RS.prof or {}) do out[#out + 1] = { slug = slug, name = (ns.Lang() == "ru" and p.ru ~= "" and p.ru) or p.en } end
+  table.sort(out, function(a, b) return a.name < b.name end)
+  return out
+end
+function ns.AddVirtualProfession(charKey, slug)
+  local P = ns.RS and ns.RS.prof[slug]
+  local c = ns.DB.chars[charKey]
+  if not P or not c then return end
+  c.profs = c.profs or {}
+  local name = (ns.Lang() == "ru" and P.ru ~= "" and P.ru) or P.en
+  if c.profs[name] and not c.profs[name].virtual then ns.say(L"эта профессия у персонажа уже есть: " .. name) return name end
+  local recipes = {}
+  for _, id in ipairs(P.ids) do
+    local d = ns.RS.r[id]
+    if d and not d.na then
+      local rec = { id = id, name = (ns.Lang() == "ru" and d.n and d.n[1] ~= "" and d.n[1]) or (d.n and d.n[2]) or ("#" .. id), learned = false, lvl = d.s, reag = {} }
+      if d.cr then rec.out, rec.qmin, rec.qmax = d.cr[1], d.cr[2], d.cr[3]; ns.itemName(d.cr[1]) end
+      for _, r in ipairs(d.rg or {}) do rec.reag[#rec.reag + 1] = { r[1], r[2] } end
+      recipes[#recipes + 1] = rec
+    end
+  end
+  c.profs[name] = { virtual = true, skill = 0, max = 0, t = time(), recipes = recipes, line = P.line }
+  ns.say(string.format(L"профессия добавлена для отслеживания: %s (%d рецептов)", name, #recipes))
+  ns.Fire("RECIPES")
+  return name
+end
