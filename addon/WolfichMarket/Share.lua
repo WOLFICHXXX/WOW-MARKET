@@ -86,12 +86,12 @@ end
 -- разослать свой снимок (только свой, не пересланный чужой)
 function ns.ShareScan(scan)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
-  -- порядок: сначала предметы с сигналами, потом рецепты моих профессий, потом остальные рецепты игры
+  -- порядок: сначала предметы, на которые игроки поставили сигналы (из общего снимка аукциона), потом все рецепты игры
   local order, seen = {}, {}
   local function add(id) if id and not seen[id] then local r = scan.items[id]; if r and r[1] and r[1] > 0 then seen[id] = true; order[#order + 1] = id end end end
+  for id in pairs(ns.NetWanted()) do add(id) end -- сначала то, на что другие игроки поставили сигналы
   for id in pairs(ns.DB.marked) do add(id) end
-  for id in pairs(ns.RecipeItems and ns.RecipeItems() or {}) do add(id) end
-  for id in pairs(sharedIDs()) do add(id) end
+  for id in pairs(sharedIDs()) do add(id) end -- затем материалы и результаты всех рецептов игры - от профессий сканирующего не зависит
   local parts, n = {}, 0
   local head = "P^" .. RK() .. "^" .. enc(scan.t) .. "^"
   local cur = head
@@ -107,6 +107,57 @@ function ns.ShareScan(scan)
   for _, p in ipairs(parts) do send(p) end
   send("E^" .. RK() .. "^" .. enc(scan.t))
   ns.dbg(string.format("общий рынок: отправлено %d цен (%d сообщений)", n, #parts))
+end
+
+-- ---------- «что нужно»: каждый сообщает в канал свои предметы с сигналами ----------
+-- тот, кто сканирует, рассылает их первыми, а цены, найденные обычным поиском, пересылает сразу
+local wants = {}        -- [игрок] = { t, ids = { [id] = true } }
+function ns.NetWanted()
+  local out, now = {}, time()
+  for who, w in pairs(wants) do
+    if now - w.t > 3 * 3600 then wants[who] = nil else for id in pairs(w.ids) do out[id] = true end end
+  end
+  return out
+end
+local function sendWants()
+  if S().netRecv == false or not ns.realmKey then return end
+  local ids = {}
+  for id in pairs(ns.DB.marked) do ids[#ids + 1] = enc(id) end
+  for _, d in ipairs(ns.PlanNeeds and (ns.PlanNeeds()) or {}) do if d.buy and d.buy > 0 then ids[#ids + 1] = enc(d.id) end end
+  if #ids == 0 then return end
+  local head = "W^" .. RK() .. "^"
+  local cur = head
+  for _, e in ipairs(ids) do
+    if #cur + #e + 1 > MAXLEN then send(cur); cur = head end
+    cur = cur .. e .. ","
+  end
+  if cur ~= head then send(cur) end
+end
+ns._netSendWants = sendWants
+local wantsQueued
+ns.Listen("MARKS", function() if wantsQueued then return end; wantsQueued = true; ns.After(30, function() wantsQueued = false; sendWants() end) end)
+-- цены, увиденные обычным поиском на аукционе: если их кто-то ждёт - переслать (пачкой раз в 10 секунд)
+local seenOut, seenQueued = {}, false
+local origSeen = ns.SeenPrice
+ns.SeenPrice = function(id, unit, qty)
+  origSeen(id, unit, qty)
+  if S().netSend == false or not id or not unit or unit <= 0 then return end
+  if not ns.NetWanted()[id] then return end
+  seenOut[id] = { unit, qty or 0 }
+  if seenQueued then return end
+  seenQueued = true
+  ns.After(10, function()
+    seenQueued = false
+    local head = "S^" .. RK() .. "^" .. enc(time()) .. "^"
+    local cur = head
+    for k, r in pairs(seenOut) do
+      local item = enc(k) .. "," .. enc(r[1]) .. "," .. enc(r[2]) .. ";"
+      if #cur + #item > MAXLEN then send(cur); cur = head end
+      cur = cur .. item
+    end
+    if cur ~= head then send(cur) end
+    wipe(seenOut)
+  end)
 end
 
 -- ---------- приём ----------
@@ -150,7 +201,32 @@ local function onMessage(prefix, msg, _, sender)
   if sender and me and (sender == me or sender:match("^[^-]+") == me) then return end
   local kind, rk, rest = msg:match("^(%a)%^([^%^]+)%^(.*)$")
   if not kind or rk ~= RK() then return end -- чужой аукцион (другой режим или фракция)
-  if kind == "Q" then
+  if kind == "W" then
+    local w = wants[sender] or { ids = {} }
+    if not wants[sender] or time() - w.t > 60 then w.ids = {} end -- новый список - заменяет старый
+    w.t = time()
+    for e in rest:gmatch("(%w+),") do local id = dec(e); if id then w.ids[id] = true end end
+    wants[sender] = w
+    return
+  elseif kind == "S" then
+    -- отдельные цены из поиска на аукционе: принимаем каждую, если свежее нашей
+    local tstr, body = rest:match("^([^%^]+)%^(.*)$")
+    local t = tstr and dec(tstr)
+    if not t or (lastFrom["S" .. sender] and time() - lastFrom["S" .. sender] < 5) then return end
+    lastFrom["S" .. sender] = time()
+    local net = netTable(ns.realmKey)
+    local scan, cnt = { t = t, items = {}, net = true, from = sender }, 0
+    for a, b, c in body:gmatch("(%w+),(%w+),(%w+);") do
+      local id, p, q = dec(a), dec(b), dec(c)
+      local _, myT = ns.AHPrice(id)
+      if id and p and p > 0 and (not myT or myT < t) and plausible(id, p) then
+        net.items[id] = { p, q or 0, t }; scan.items[id] = { p, q or 0, 1 }; cnt = cnt + 1
+        if ns.IsMarked(id) then ns.AddHistory(id, p, q or 0, t) end
+      end
+    end
+    if cnt > 0 then net.t, net.from = math.max(net.t or 0, t), sender; ns.Fire("PRICES"); ns.Fire("NET_DONE", scan, nil) end
+    return
+  elseif kind == "Q" then
     -- кто-то спрашивает свежие цены: отвечаем, если наш снимок новее на 10+ минут (со случайной задержкой, чтобы не отвечали все)
     local t = dec(rest) or 0
     local scan = ns.DB.ahScans[ns.realmKey]
@@ -194,6 +270,7 @@ ns.Listen("LOGIN", function()
       local mine = ns.DB.ahScans[ns.realmKey]
       local net = ns.DB.net and ns.DB.net[ns.realmKey]
       local t = math.max(mine and mine.t or 0, net and net.t or 0)
+      sendWants() -- сообщить, какие предметы нам нужны
       if time() - t > 900 then send("Q^" .. RK() .. "^" .. enc(t)) end
     end)
   end)
