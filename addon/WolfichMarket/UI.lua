@@ -395,20 +395,28 @@ function UI.Chart(parent)
       self.peakLbl = self.peakLbl or {}; self.dots = self.dots or {}
       for _, s in ipairs(self.peakLbl) do s:Hide() end
       for _, d in ipairs(self.dots) do d:Hide() end
-      local cand, maxI, minI = {}, 1, 1
+      -- все пики и провалы (локальные максимумы и минимумы), начиная с самых заметных; подписи не налезают друг на друга
+      local cand, maxI, minI, sum = {}, 1, 1, 0
       for i, p in ipairs(pts) do
+        sum = sum + p[2]
         if p[2] > pts[maxI][2] then maxI = i end
         if p[2] < pts[minI][2] then minI = i end
         local a, b = pts[i - 1], pts[i + 1]
-        if a and b and p[2] > a[2] and p[2] >= b[2] then cand[#cand + 1] = i end
+        if a and b then
+          if p[2] > a[2] and p[2] >= b[2] then cand[#cand + 1] = { i, true }
+          elseif p[2] < a[2] and p[2] <= b[2] then cand[#cand + 1] = { i, false } end
+        end
       end
-      table.sort(cand, function(a, b) return pts[a][2] > pts[b][2] end)
+      local mean = sum / #pts
+      table.sort(cand, function(a, b) return math.abs(pts[a[1]][2] - mean) > math.abs(pts[b[1]][2] - mean) end)
       local pick, used = { { maxI, true }, { minI, false } }, { [maxI] = true, [minI] = true }
-      for _, i in ipairs(cand) do
-        if #pick >= 5 then break end
-        local far = true
-        for _, q in ipairs(pick) do if math.abs(X(pts[q[1]][1]) - X(pts[i][1])) < 46 then far = false end end
-        if far and not used[i] then pick[#pick + 1] = { i, true }; used[i] = true end
+      for _, c in ipairs(cand) do
+        if #pick >= 10 then break end
+        local i, far = c[1], true
+        for _, q in ipairs(pick) do
+          if q[2] == c[2] and math.abs(X(pts[q[1]][1]) - X(pts[i][1])) < 40 then far = false end
+        end
+        if far and not used[i] then pick[#pick + 1] = c; used[i] = true end
       end
       for k, q in ipairs(pick) do
         local p, up = pts[q[1]], q[2]

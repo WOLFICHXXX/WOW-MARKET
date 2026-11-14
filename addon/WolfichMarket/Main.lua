@@ -60,10 +60,10 @@ local function fillCard(rec)
   local card = craft.card
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
-    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.prices:Hide(); card.craft:Hide(); card.alarm:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
+    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.prices:Hide(); card.craft:Hide(); card.alarm:Hide(); card.where:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
     return
   end
-  card.craft:Show(); card.alarm:Show(); card.chart:Show(); card.portRow:Show(); card.prices:Show()
+  card.craft:Show(); card.alarm:Show(); card.where:Show(); card.chart:Show(); card.portRow:Show(); card.prices:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
   if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
@@ -303,12 +303,17 @@ local function buildCraft(f)
   card.plan:SetPoint("RIGHT", 0, 0)
   card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
   card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.craft = UI.Button(card, L"Крафт", 120, 26, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
+  card.craft = UI.Button(card, L"Крафт", 100, 26, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.alarm = UI.Button(card, L"Поставить сигнал", 150, 26, function() if sel then craft.openAlarms(sel) end end)
-  card.alarm:SetPoint("LEFT", card.craft, "RIGHT", 8, 0)
+  card.alarm = UI.Button(card, L"Поставить сигнал", 140, 26, function() if sel then craft.openAlarms(sel) end end)
+  card.alarm:SetPoint("LEFT", card.craft, "RIGHT", 6, 0)
+  -- «Где взять»: тренер, продавцы, добыча, задания, репутация и карта зоны
+  card.where = UI.Button(card, L"Где взять", 110, 26, function() if sel and ns.ShowSources then ns.ShowSources(sel) end end)
+  card.where:SetPoint("LEFT", card.alarm, "RIGHT", 6, 0)
+  card.where:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Где взять рецепт: тренер, продавцы, добыча, задания, нужная репутация и карта зоны (данные Wowhead WoW Forever).", 1, 1, 1, true); GameTooltip:Show() end)
+  card.where:SetScript("OnLeave", function() GameTooltip:Hide() end)
   card.alarm:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Выбрать галочками предмет и ингредиенты для сигналов о скачках цены", 1, 1, 1, true); GameTooltip:Show() end)
   card.alarm:SetScript("OnLeave", function() GameTooltip:Hide() end)
   card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", card.craft, "BOTTOMLEFT", 2, -6); card.total:SetPoint("RIGHT", -10, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")

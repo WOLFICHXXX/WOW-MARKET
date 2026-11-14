@@ -361,6 +361,19 @@ do
   C_AuctionHouse.GetNumReplicateItems = oldN
   check(ns.CurrentScan().lots == full and not ns.ScanBusy(), "снимок ждёт все части аукциона")
 end
+-- «Где взять»: источники рецепта из данных Wowhead WoW Forever
+do
+  local rec = { id = 6617, name = "Зелье ярости", learned = false }
+  local lines = ns.RecipeSourceLines(rec)
+  local vend, item = 0, false
+  for _, l in ipairs(lines) do if l.kind == "vendor" then vend = vend + 1 end; if l.kind == "item" then item = true end end
+  check(item and vend >= 1, "«Где взять»: предмет-рецепт и продавцы (" .. vend .. ")")
+  local tr = ns.RecipeSourceLines({ id = 2329, name = "x" })
+  check(tr[1] and tr[1].kind == "trainer", "«Где взять»: рецепт у тренера")
+  check(ns.RecipeSourceLines({ id = 1, name = "нет такого" })[1].kind == "none", "«Где взять»: нет данных - так и пишет")
+  ns.ShowSources(rec)
+  check(WolfichMarketSourceDialog and WolfichMarketSourceDialog:IsShown() and #WolfichMarketSourceDialog.list.data > 0, "окно «Где взять» открывается")
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
