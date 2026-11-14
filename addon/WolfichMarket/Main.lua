@@ -599,7 +599,65 @@ local function buildLog(f)
   logp.list.empty:SetText(L"Сообщений пока нет.")
 end
 local function refreshLog() if logp.list then logp.list:SetData(ns.log) end end
-local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() elseif view == 3 then refreshBank() else refreshLog() end end
+
+-- ---------- вкладка «Настройки» (те же, что у аукциониста) ----------
+local setp = {}
+local function buildSettings(f)
+  local S = ns.DB.settings
+  local function hl(b, on) b:SetGold(on) end
+  local function column(x, title)
+    local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x, 0); t:SetText(title)
+    return { x = x, y = -24 }
+  end
+  local function chk(col, text, key, after, inverted)
+    local c = UI.Check(f, text, function() if inverted then return S[key] ~= false end return S[key] end, function(v) S[key] = v; if after then after(v) end end)
+    c:SetPoint("TOPLEFT", col.x, col.y); col.y = col.y - 26
+    return c
+  end
+  local function buttons(col, label, list, get, set)
+    local l = UI.Font(f, 11); l:SetPoint("TOPLEFT", col.x + 4, col.y - 4); l:SetText(label)
+    local bs, x = {}, col.x + 130
+    for _, o in ipairs(list) do
+      local b = UI.Button(f, o[2], o[3] or 84, 20, function() set(o[1]); setp.refresh() end)
+      b:SetPoint("TOPLEFT", x, col.y); b.val = o[1]; x = x + (o[3] or 84) + 4
+      bs[#bs + 1] = b
+    end
+    col.y = col.y - 30
+    return function() local v = get(); for _, b in ipairs(bs) do hl(b, b.val == v) end end
+  end
+  local a = column(0, L"Цены и сигналы")
+  chk(a, L"Уведомления о скачках цен (только отмеченные)", "alerts")
+  chk(a, L"Звук уведомлений", "alertSound")
+  chk(a, L"Уведомление о лучшем крафте после снимка", "bestCraftAlert")
+  chk(a, L"Цена и прибыль в подсказке предмета", "tooltip")
+  local tl = UI.Font(f, 11); tl:SetPoint("TOPLEFT", a.x + 4, a.y - 4); tl:SetText(L"Порог скачка цены, %:")
+  local e = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); e:SetSize(50, 20); e:SetPoint("TOPLEFT", a.x + 170, a.y); e:SetAutoFocus(false); e:SetNumeric(true)
+  e:SetScript("OnShow", function(self) self:SetText(S.alertPct) end)
+  e:SetScript("OnTextChanged", function(self, user) if user then local v = tonumber(self:GetText()); if v and v > 0 then S.alertPct = v end end end)
+  a.y = a.y - 32
+  chk(a, L"Снимать аукцион автоматически, пока он открыт", "autoScan")
+  local rAuto = buttons(a, L"Автоснимок раз в:", { { 15, "15 " .. L"мин", 64 }, { 30, "30 " .. L"мин", 64 }, { 60, "60 " .. L"мин", 64 } }, function() return S.autoScanMin end, function(v) S.autoScanMin = v end)
+  local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 8); t2:SetText(L"Общий рынок"); a.y = a.y - 32
+  chk(a, L"Делиться своими снимками с игроками", "netSend", nil, true)
+  chk(a, L"Принимать цены от игроков", "netRecv", nil, true)
+  local net = UI.Button(f, L"Проверить связь (/wmnet)", 200, 22, function() if SlashCmdList.WOLFICHMARKET then SlashCmdList.WOLFICHMARKET("net") end end)
+  net:SetPoint("TOPLEFT", a.x, a.y - 2)
+
+  local b = column(410, L"Интерфейс")
+  chk(b, L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() S.minimapHidden = not S.minimapShown end)
+  chk(b, L"Подсветка в сумках: жёлтая - торговцу, зелёная - на аукцион", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
+  chk(b, L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end, true)
+  local rChat = buttons(b, L"Сообщения:", { { "window", L"в журнал", 80 }, { "main", L"в чат", 64 }, { "off", L"никуда", 70 } }, function() return S.chatMode or "window" end, function(v) S.chatMode = v end)
+  local rLang = buttons(b, L"Язык:", { { "auto", L"Авто", 64 }, { "ru", "Русский", 74 }, { "en", "English", 74 } }, function() return S.lang or "auto" end, function(v) S.lang = v; setp.reload:Show(); setp.note:Show() end)
+  setp.note = UI.Font(f, 10, UI.GOLD); setp.note:SetPoint("TOPLEFT", b.x + 4, b.y - 2); setp.note:SetText(L"Язык меняется после перезагрузки интерфейса."); setp.note:Hide()
+  setp.reload = UI.Button(f, L"Перезагрузить интерфейс", 190, 22, function() if ReloadUI then ReloadUI() end end, true)
+  setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
+  local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 4, 4); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
+  about:SetText("WolfichMarket " .. (ns.VERSION or "") .. L"  -  обновление: WolfichMarket-Updater.bat с сайта или CurseForge.  Команды: /wm help")
+  setp.refresh = function() rAuto(); rChat(); rLang() end
+end
+local function refreshSettings() if setp.refresh then setp.refresh() end end
+local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() elseif view == 3 then refreshBank() elseif view == 4 then refreshLog() else refreshSettings() end end
 local function selectView(i)
   view = i
   for k, b in ipairs(win.tabs) do
@@ -628,12 +686,12 @@ local function build()
   nextB:SetPoint("LEFT", win.charName, "RIGHT", 4, 0)
   -- вкладки
   win.tabs = {}
-  for i, n in ipairs({ L"Крафт", L"Сигналы", L"Банк", L"Журнал" }) do
-    local b = UI.Button(win, n, 108, 26, function() selectView(i) end)
-    b:SetPoint("TOPRIGHT", -24 - (4 - i) * 112, -63); win.tabs[i] = b
+  for i, n in ipairs({ L"Крафт", L"Сигналы", L"Банк", L"Журнал", L"Настройки" }) do
+    local b = UI.Button(win, n, 96, 26, function() selectView(i) end)
+    b:SetPoint("TOPRIGHT", -24 - (5 - i) * 100, -63); win.tabs[i] = b
   end
   win.pages = {}
-  for i, builder in ipairs({ buildCraft, buildSignals, buildBank, buildLog }) do
+  for i, builder in ipairs({ buildCraft, buildSignals, buildBank, buildLog, buildSettings }) do
     local f = CreateFrame("Frame", nil, win); f:SetPoint("TOPLEFT", 24, -100); f:SetPoint("BOTTOMRIGHT", -24, 22)
     builder(f); f:Hide(); win.pages[i] = f
   end

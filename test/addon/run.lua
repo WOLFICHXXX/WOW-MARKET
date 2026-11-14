@@ -552,6 +552,10 @@ do
   check(hasE and (ns.netStats.throttled or 0) > 0, "общий рынок: при «слишком часто» сообщения повторяются, а не теряются")
   C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
 end
+-- вкладка «Настройки» в главном окне
+WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
+check(WolfichMarketMainFrame.pages[5]:IsShown(), "вкладка «Настройки» в главном окне")
+WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
