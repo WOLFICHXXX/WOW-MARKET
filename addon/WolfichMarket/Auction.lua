@@ -249,7 +249,7 @@ local function pageBuy(f)
   end
   f.setCommodity(false)
   -- список материалов для всех рецептов персонажа, по профессиям
-  f.back = UI.Button(f, L"< К материалам", 130, 20, function() buyItem = nil; f.refresh() end)
+  f.back = UI.Button(f, L"< Назад", 110, 20, function() buyItem = nil; if f.fromPlan then f.fromPlan = nil; tabs.select(7) else f.refresh() end end)
   f.back:SetPoint("TOPRIGHT", 0, 0)
   f.mats = UI.List(f, 22, itemRow, fillItemRow)
   f.mats:SetPoint("TOPLEFT", 0, -42); f.mats:SetPoint("BOTTOMRIGHT")
@@ -307,12 +307,14 @@ local function searchItem(id)
   pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
 end
 
-function ns.OpenBuy(id)
+function ns.OpenBuy(id, qty, fromPlan)
   if not panel then return end
   if not ns.ahOpen then ns.say(L"покупка доступна у аукциониста.") return end
   buyItem = id
   tabs.select(3)
   local f = pages[3]
+  f.fromPlan = fromPlan
+  if qty and qty > 0 then f.qty:SetText(qty) end
   f.icon:SetTexture(ns.itemIcon(id)); f.title:SetText(ns.itemLinkText(id)); f.sub:SetText(L"ищу на аукционе...")
   f.list:SetData({}); f.total:SetText(""); f.confirm:Disable(); f.setCommodity(false)
   searchItem(id)
@@ -638,8 +640,59 @@ local function pageSettings(f)
   end
 end
 
-local BUILDERS = { pageMarked, pageCraft, pageBuy, pageSell, pageChart, pageSettings }
-local NAMES = { "Отмеченные", "Крафт", "Купить", "Продать", "График", "Настройки" }
+-- «План»: рецепты, запланированные в главном окне, и всё, что для них нужно докупить
+local function pagePlan(f)
+  f.title = UI.Font(f, 13, UI.GOLD, "OVERLAY", "OUTLINE"); f.title:SetPoint("TOPLEFT", 2, -2); f.title:SetText(L"План закупки")
+  f.clear = UI.Button(f, L"Очистить", 90, 20, function() ns.ClearPlans() end); f.clear:SetPoint("TOPRIGHT", 0, 0)
+  f.recs = UI.List(f, 20, function(r)
+    r.x = UI.Icon(r, "skin\\ai-x", 14, L"Убрать из плана", function(self) local d = self:GetParent().data; if d then ns.RemovePlan(d.i) end end); r.x:SetPoint("RIGHT", -2, 0)
+    r.n = UI.Font(r, 11, UI.GOLD); r.n:SetPoint("RIGHT", r.x, "LEFT", -8, 0); r.n:SetJustifyH("RIGHT")
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 2, 0)
+    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.n, "LEFT", -6, 0)
+  end, function(r, d)
+    r.icon:SetTexture(d.p.out and ns.itemIcon(d.p.out) or 134400)
+    local who = d.p.ck and d.p.ck ~= ns.charKey and (" |cffaaaaaa(" .. (d.p.ck:match("^(.-)%-") or d.p.ck) .. ")|r") or ""
+    r.name:SetText(d.p.name .. who); r.n:SetText("×" .. d.p.n)
+  end)
+  f.recs:SetPoint("TOPLEFT", 0, -24); f.recs:SetPoint("RIGHT"); f.recs:SetHeight(84)
+  f.recs.empty:SetText(L"План пуст. В главном окне (/wm) выберите рецепт, задайте порции и нажмите «Запланировать».")
+  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -114); hdr:SetPoint("TOPRIGHT", 0, -114); hdr:SetHeight(14)
+  local function col(t, x) local s = UI.Font(hdr, 10, UI.DIM); s:SetPoint("RIGHT", hdr, "RIGHT", x, 0); s:SetText(t) end
+  local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 24, 0); h1:SetText(L"Материал")
+  col(L"Докупить", -70); col(L"Нужно / есть", -160)
+  f.items = UI.List(f, 22, function(r)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 2, 0)
+    r.buyBtn = UI.Button(r, L"Купить", 62, 20, function(self) local d = self:GetParent().data; if d then ns.OpenBuy(d.id, d.buy, true) end end); r.buyBtn:SetPoint("RIGHT", -2, 0)
+    r.buy = UI.Font(r, 11); r.buy:SetPoint("RIGHT", r.buyBtn, "LEFT", -6, 0); r.buy:SetWidth(96); r.buy:SetJustifyH("RIGHT")
+    r.cnt = UI.Font(r, 11, UI.DIM); r.cnt:SetPoint("RIGHT", r.buy, "LEFT", -4, 0); r.cnt:SetWidth(70); r.cnt:SetJustifyH("RIGHT")
+    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.cnt, "LEFT", -4, 0)
+    r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end, function(r, d)
+    r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
+    r.cnt:SetText(d.need .. " / " .. (d.have >= d.need and "|cff78d98a" or "|cffffb060") .. d.have .. "|r")
+    if d.buy > 0 then
+      r.buy:SetText(d.buy .. (d.unit and (" |cffaaaaaa" .. ns.money(d.unit * d.buy, true) .. "|r") or L" |cffaa8866нет цены|r"))
+      r.buyBtn:Show()
+    else r.buy:SetText(L"|cff78d98aготово|r"); r.buyBtn:Hide() end
+  end)
+  f.items:SetPoint("TOPLEFT", 0, -130); f.items:SetPoint("RIGHT"); f.items:SetPoint("BOTTOM", 0, 26)
+  f.items.empty:SetText(L"Нечего докупать.")
+  f.total = UI.Font(f, 12, UI.TEXT); f.total:SetPoint("BOTTOMLEFT", 2, 6); f.total:SetPoint("RIGHT", -2, 0)
+  f.refresh = function()
+    local plans = ns.Plans()
+    local rd = {}
+    for i, p in ipairs(plans) do rd[#rd + 1] = { i = i, p = p } end
+    f.recs:SetData(rd); f.clear:SetShown(#plans > 0)
+    local needs, total = ns.PlanNeeds()
+    f.items:SetData(needs)
+    local left = 0; for _, d in ipairs(needs) do if d.buy > 0 then left = left + 1 end end
+    f.total:SetText(#plans == 0 and "" or (left == 0 and L"|cff78d98aВсё есть - можно крафтить!|r" or string.format(L"Докупить: %d материалов на %s", left, ns.money(total))))
+  end
+end
+
+local BUILDERS = { pageMarked, pageCraft, pageBuy, pageSell, pageChart, pageSettings, pagePlan }
+local NAMES = { "Отмеченные", "Крафт", "Купить", "Продать", "График", "Настройки", "План" }
 
 function ns.BuildAHPanel()
   local h = AuctionHouseFrame or AuctionFrame
@@ -655,8 +708,10 @@ function ns.BuildAHPanel()
   -- вкладки в два ряда по три
   tabs = {}
   for i, n in ipairs(NAMES) do
-    local b = UI.Button(panel, L(n), 128, 24, function() tabs.select(i) end)
-    b:SetPoint("TOPLEFT", 20 + ((i - 1) % 3) * 132, i <= 3 and -88 or -114)
+    -- 7 вкладок: 4 в первом ряду, 3 во втором
+    local w = i <= 4 and 96 or 130
+    local b = UI.Button(panel, L(n), w, 24, function() tabs.select(i) end)
+    b:SetPoint("TOPLEFT", 20 + (i <= 4 and (i - 1) * 100 or (i - 5) * 134), i <= 4 and -88 or -114)
     tabs[i] = b
   end
   for i, build in ipairs(BUILDERS) do
@@ -692,3 +747,5 @@ ns.Listen("PRICES", refreshCurrent)
 ns.Listen("MARKS", refreshCurrent)
 ns.Listen("RECIPES", refreshCurrent)
 ns.Listen("NAMES", refreshCurrent)
+ns.Listen("PLAN", refreshCurrent)
+ns.Listen("INVENTORY", refreshCurrent)

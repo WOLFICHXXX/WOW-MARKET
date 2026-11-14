@@ -130,23 +130,25 @@ end
 -- { cost, missing, sell, revenue, profit, margin, parts = { {id, n, unit, src} } }
 -- stock (необязательно): { [itemID] = сколько есть в банке и сумках } — свои материалы не покупаются,
 -- в себестоимость идёт только то, чего не хватает на один крафт; crafts — сколько раз хватит запаса целиком
-function ns.Profit(rec, stock)
+function ns.Profit(rec, stock, mult)
+  mult = math.max(1, math.floor(mult or 1)) -- порций (крафтов) сразу
   local cost, missing, parts, crafts = 0, 0, {}, nil
   for _, r in ipairs(rec.reag or {}) do
-    local id, n = r[1], r[2]
+    local id, one = r[1], r[2]
+    local n = one * mult
     local unit, src = ns.CostPrice(id)
     local have = stock and stock[id] or 0
     local buy = stock and math.max(0, n - have) or n
     if buy > 0 then
       if unit then cost = cost + unit * buy else missing = missing + 1 end
     end
-    if stock then local k = math.floor(have / math.max(1, n)); crafts = crafts and math.min(crafts, k) or k end
+    if stock then local k = math.floor(have / math.max(1, one)); crafts = crafts and math.min(crafts, k) or k end
     parts[#parts + 1] = { id = id, n = n, unit = unit, src = src, have = stock and have or nil, buy = buy }
   end
-  local res = { cost = cost, missing = missing, parts = parts, crafts = crafts, stock = stock and true or nil }
+  local res = { cost = cost, missing = missing, parts = parts, crafts = crafts, stock = stock and true or nil, mult = mult }
   if rec.out then
     local sell = ns.AHPrice(rec.out)
-    local q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2
+    local q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2 * mult
     res.sell, res.qty = sell, q
     if sell then
       res.revenue = sell * q * (1 - ns.AH_CUT)

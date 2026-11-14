@@ -225,6 +225,36 @@ do
   check(ns._mainCraft.card.total.text ~= "", "карточка рецепта с учётом банка строится")
   ns.DB.settings.useBank = nil
 end
+-- порции и план закупки
+do
+  local rec = { id = 9001, name = "Тест-рецепт", out = 2841, reag = { { 2840, 3 }, { 3470, 2 } } }
+  local one, five = ns.Profit(rec), ns.Profit(rec, nil, 5)
+  check(five.parts[1].n == 15 and math.abs(five.cost - one.cost * 5) < 1, "порции умножают материалы и себестоимость")
+  ns.ClearPlans()
+  ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 5)
+  ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 4) -- тот же рецепт - обновляет порции
+  check(#ns.Plans() == 1 and ns.Plans()[1].n == 4, "план: рецепт с порциями сохранён, повтор обновляет")
+  local needs = ns.PlanNeeds()
+  local byId = {}; for _, d in ipairs(needs) do byId[d.id] = d end
+  check(byId[2840] and byId[2840].need == 12 and byId[3470].need == 8, "план: сколько нужно материалов")
+  check(byId[3470].buy == math.max(0, 8 - byId[3470].have), "план: докупить = нужно - есть")
+  ns.ahOpen = true
+  ns.AHSelectTab(7)
+  check(ns._ahPages[7]:IsShown() and #ns._ahPages[7].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
+  ns.OpenBuy(3470, 5, true)
+  check(ns._ahPages[3].qty:GetText() == 5, "«Купить» из плана подставляет количество")
+  ns.ClearPlans()
+  check(#ns.Plans() == 0, "план очищается")
+  local row = ns._mainCraft.list.rows[1]
+  if row and row.data then
+    row.scripts.OnClick(row)
+    local card = ns._mainCraft.card
+    card.portion:SetText("3"); card.portion.scripts.OnEnterPressed(card.portion)
+    card.plan.scripts.OnClick(card.plan)
+    check(#ns.Plans() == 1 and ns.Plans()[1].n == 3, "«Запланировать» в карточке сохраняет порции")
+    ns.ClearPlans()
+  end
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

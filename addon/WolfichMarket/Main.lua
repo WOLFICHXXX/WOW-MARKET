@@ -60,10 +60,10 @@ local function fillCard(rec)
   local card = craft.card
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
-    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.craft:Hide(); card.alarm:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
+    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.craft:Hide(); card.alarm:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
     return
   end
-  card.craft:Show(); card.alarm:Show(); card.chart:Show()
+  card.craft:Show(); card.alarm:Show(); card.chart:Show(); card.portRow:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
   if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
@@ -71,7 +71,10 @@ local function fillCard(rec)
   else card.craft:Enable(); card.craft.tip = nil end
   local c = ns.DB.chars[charKey] or {}
   local stock = ns.DB.settings.useBank and ns.Stock(charKey) or nil
-  local pr = ns.WithRealm(c.realmKey, ns.Profit, rec, stock)
+  craft.portions = craft.portions or {}
+  local N = craft.portions[rec.id] or 1
+  if not card.portion:HasFocus() then card.portion:SetText(N) end
+  local pr = ns.WithRealm(c.realmKey, ns.Profit, rec, stock, N)
   pr.rec = rec
   local learned = ns.IsLearned(rec)
   card.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or L"  |cffff9966(не изучен)|r"))
@@ -94,14 +97,14 @@ local function fillCard(rec)
     r.search:SetAlpha(ns.AHIsOpen() and 1 or 0.35)
     r:Show()
   end
-  local lines = { (pr.stock and L"Докупить на 1 крафт: " or L"Себестоимость: ") .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost))
+  local lines = { (pr.stock and (N > 1 and string.format(L"Докупить на %d крафтов: ", N) or L"Докупить на 1 крафт: ") or (N > 1 and string.format(L"Себестоимость %d крафтов: ", N) or L"Себестоимость: ")) .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost))
     .. (pr.crafts and ("   |cffaaaaaa" .. L"из запаса хватит на " .. pr.crafts .. "|r") or "") }
   if pr.revenue then lines[#lines + 1] = L"Доход (-5%): " .. ns.money(pr.revenue) end
   if pr.profit then lines[#lines + 1] = L"Прибыль: " .. profitStr(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
   card.total:SetText(table.concat(lines, "\n"))
   -- «Крафт» и «Поставить сигнал» — сразу под последней строкой рецепта
   local n = math.min(#items, #card.rows)
-  card.craft:ClearAllPoints(); card.craft:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -52 - n * 22 - 6)
+  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -52 - n * 22 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -14, 0)
   craft.drawChart()
 end
 -- график цены выбранного предмета (по умолчанию — результат рецепта)
@@ -265,7 +268,29 @@ local function buildCraft(f)
     local hl = r:CreateTexture(nil, "BACKGROUND"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.8, 0.4, 0.12); hl:Hide(); r.hl = hl
     r:Hide(); card.rows[i] = r
   end
-  card.craft = UI.Button(card, L"Крафт", 130, 26, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
+  -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
+  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(26); card.portRow = prow
+  local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 0, 0); pl:SetText(L"Порций:")
+  local function setN(v)
+    if not sel then return end
+    v = math.max(1, math.min(999, math.floor(tonumber(v) or 1)))
+    craft.portions = craft.portions or {}; craft.portions[sel.id] = v
+    fillCard(sel)
+  end
+  local function cur() return sel and craft.portions and craft.portions[sel.id] or 1 end
+  local minus = UI.Button(prow, "-", 26, 24, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
+  card.portion = CreateFrame("EditBox", nil, prow, "InputBoxTemplate"); card.portion:SetSize(40, 20); card.portion:SetPoint("LEFT", minus, "RIGHT", 8, 0)
+  card.portion:SetAutoFocus(false); card.portion:SetNumeric(true); card.portion:SetMaxLetters(3); card.portion:SetJustifyH("CENTER")
+  card.portion:SetScript("OnEnterPressed", function(self) self:ClearFocus(); setN(self:GetText()) end)
+  card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
+  local plus = UI.Button(prow, "+", 26, 24, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
+  local p5 = UI.Button(prow, "+5", 34, 24, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
+  card.plan = UI.Button(prow, L"Запланировать", 140, 24, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
+  card.plan:SetPoint("RIGHT", 0, 0)
+  card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
+  card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  card.craft = UI.Button(card, L"Крафт", 120, 26, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
+  card.craft:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   card.alarm = UI.Button(card, L"Поставить сигнал", 150, 26, function() if sel then craft.openAlarms(sel) end end)

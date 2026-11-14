@@ -78,3 +78,52 @@ ns.On("PLAYERREAGENTBANKSLOTS_CHANGED", function() later(ns.ScanBank) end)
 ns.On("BAG_UPDATE_DELAYED", function() later(function() ns.ScanBags(); if bankOpen then ns.ScanBank() end end) end)
 ns.Listen("LOGIN", function() ns.After(3, ns.ScanBags) end)
 ns._bankOpen = function(v) bankOpen = v end -- для автотестов
+
+-- ---------- план закупки: рецепты × порции → что докупить ----------
+function ns.Plans() ns.DB.plans = ns.DB.plans or {}; return ns.DB.plans end
+function ns.AddPlan(rec, charKey, prof, n)
+  if not rec then return end
+  n = math.max(1, math.floor(n or 1))
+  local plans = ns.Plans()
+  local reag = {}
+  for _, r in ipairs(rec.reag or {}) do reag[#reag + 1] = { r[1], r[2] } end
+  for _, p in ipairs(plans) do
+    if p.id == rec.id and p.ck == charKey then p.n = n; p.reag = reag; p.t = time(); ns.say(string.format(L"план обновлён: %s ×%d", rec.name, n)); ns.Fire("PLAN") return end
+  end
+  plans[#plans + 1] = { id = rec.id, name = rec.name, out = rec.out, n = n, ck = charKey, prof = prof, reag = reag, t = time() }
+  ns.say(string.format(L"добавлено в план: %s ×%d - список покупок во вкладке «План» у аукциониста.", rec.name, n))
+  ns.Fire("PLAN")
+end
+function ns.RemovePlan(i) local plans = ns.Plans(); if plans[i] then table.remove(plans, i); ns.Fire("PLAN") end end
+function ns.ClearPlans() wipe(ns.Plans()); ns.Fire("PLAN") end
+-- сколько предмета есть у текущего персонажа: сумки + банк (живые данные игры или последняя запись банка)
+function ns.HaveCount(id)
+  local live = (C_Item and C_Item.GetItemCount and safe(C_Item.GetItemCount, id, true)) or (GetItemCount and safe(GetItemCount, id, true)) or 0
+  local rec = ns.Stock(ns.charKey)[id] or 0
+  return math.max(live, rec)
+end
+-- итог плана: { {id, need, have, buy, unit}, ... } — сначала то, что нужно докупить (по сумме)
+function ns.PlanNeeds()
+  local need, order = {}, {}
+  for _, p in ipairs(ns.Plans()) do
+    for _, r in ipairs(p.reag or {}) do
+      if not need[r[1]] then need[r[1]] = 0; order[#order + 1] = r[1] end
+      need[r[1]] = need[r[1]] + r[2] * (p.n or 1)
+    end
+  end
+  local out, total = {}, 0
+  for _, id in ipairs(order) do
+    local have = ns.HaveCount(id)
+    local buy = math.max(0, need[id] - have)
+    local unit = ns.AHPrice(id) or ns.DB.vendor[id]
+    if unit and buy > 0 then total = total + unit * buy end
+    out[#out + 1] = { id = id, need = need[id], have = have, buy = buy, unit = unit }
+  end
+  table.sort(out, function(a, b)
+    if (a.buy > 0) ~= (b.buy > 0) then return a.buy > 0 end
+    local x, y = (a.unit or 0) * a.buy, (b.unit or 0) * b.buy
+    if x == y then return ns.itemName(a.id) < ns.itemName(b.id) end
+    return x > y
+  end)
+  return out, total
+end
