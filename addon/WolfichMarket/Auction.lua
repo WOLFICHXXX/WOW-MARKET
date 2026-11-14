@@ -430,6 +430,12 @@ local function pageSell(f)
   f.analysis = UI.Font(box, 11); f.analysis:SetPoint("TOPLEFT", 8, -24); f.analysis:SetPoint("RIGHT", -8, 0); f.analysis:SetWordWrap(true); f.analysis:SetJustifyV("TOP"); f.analysis:SetHeight(64)
   local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 8, -94); pl:SetText("Цена за шт:")
   f.money = UI.MoneyInput(box, function() f.calc() end); f.money:SetPoint("LEFT", pl, "RIGHT", 4, 0)
+  -- быстрые наценки к начальной цене (минимальная на аукционе − 1м)
+  local function setMul(k) if f.basePrice and f.basePrice > 0 then f.money:Set(math.floor(f.basePrice * k + 0.5)); f.calc() end end
+  local bMin = UI.Button(box, "мин", 40, 20, function() setMul(1) end); bMin:SetPoint("LEFT", f.money, "RIGHT", 0, 0)
+  local b5 = UI.Button(box, "+5%", 40, 20, function() setMul(1.05) end); b5:SetPoint("LEFT", bMin, "RIGHT", 3, 0)
+  local b10 = UI.Button(box, "+10%", 44, 20, function() setMul(1.10) end); b10:SetPoint("LEFT", b5, "RIGHT", 3, 0)
+  f.mulBtns = { bMin, b5, b10 }
   local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 8, -120); ql:SetText("Количество:")
   f.qty = CreateFrame("EditBox", nil, box, "InputBoxTemplate"); f.qty:SetSize(54, 20); f.qty:SetPoint("LEFT", ql, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true)
   f.qty:SetScript("OnTextChanged", function() f.calc() end)
@@ -445,7 +451,8 @@ local function pageSell(f)
     sellSel = d
     f.sel:SetText(ns.itemLinkText(d.id) .. " |cffaaaaaa(в сумках " .. d.count .. ")|r")
     local p = ns.AHPrice(d.id)
-    f.money:Set(p and math.max(1, p - 1) or 0)
+    f.basePrice = p and math.max(1, p - 1) or nil
+    f.money:Set(f.basePrice or 0)
     d.commodity = d.loc and C_AuctionHouse.GetItemCommodityStatus and Enum and Enum.ItemCommodityStatus
       and safe(C_AuctionHouse.GetItemCommodityStatus, d.loc) == Enum.ItemCommodityStatus.Commodity
     f.qty:SetText(d.commodity and d.count or 1)

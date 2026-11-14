@@ -61,6 +61,10 @@ sell.calc(); check(sell.post.enabled, "кнопка «Выставить» ак�
 check(sell.analysis:GetText():find("Себестоимость крафта", 1, true) and sell.analysis:GetText():find("Выгодно продавать", 1, true), "продажа: себестоимость и вывод «выгодно»")
 io.write("     ", (sell.analysis:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("\n", " // ")), "\n")
 sell.doPost(); check(postedLot and postedLot[2] == sell.list.data[1].count, "лот выставлен")
+local base = sell.money:Get()
+sell.mulBtns[3].scripts.OnClick(sell.mulBtns[3]); check(sell.money:Get() == math.floor(base * 1.1 + 0.5), "кнопка +10%")
+sell.mulBtns[2].scripts.OnClick(sell.mulBtns[2]); check(sell.money:Get() == math.floor(base * 1.05 + 0.5), "кнопка +5%")
+sell.mulBtns[1].scripts.OnClick(sell.mulBtns[1]); check(sell.money:Get() == base, "кнопка «мин»")
 -- массовое выставление
 sell.allBtn.scripts.OnClick(sell.allBtn)
 local n = 0; for _ in pairs(sell.checked) do n = n + 1 end
