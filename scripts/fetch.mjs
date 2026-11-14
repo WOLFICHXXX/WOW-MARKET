@@ -370,7 +370,7 @@ async function main() {
     // аукционы, которые в этот раз не ответили, оставляем со старыми данными
     for (const h of meta.houses || []) if (!done.some(d => d.id === h.id) && houses.some(x => x.id === h.id) && await preserveHouse(h.id)) done.push(h);
     done.sort((a, b) => a.id - b.id);
-    if (allIds.size) await lookupItems(items, [...allIds]);
+    await lookupItems(items, [...new Set([...allIds, ...Object.keys(items).map(Number)])]);
     const primary = done.reduce((a, b) => (b.lots > a.lots ? b : a));
     const fresh = done.length - unchanged > 0;
     Object.assign(meta, {
