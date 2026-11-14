@@ -48,6 +48,14 @@ jobs:
           mkdir -p site/addon
           cd addon && zip -r ../site/addon/WolfichMarket.zip WolfichMarket && cd ..
           touch site/.nojekyll
+          # программа для Windows
+          P=build/WOLFICH-Market
+          mkdir -p $P/program site/app
+          cp app/SETUP.bat app/README.txt $P/
+          cp app/main.js app/preload.js app/savedvars.js app/package.json app/icon.png app/icon.ico index.html scripts/fetch.mjs $P/program/
+          cp -r addon $P/program/addon
+          (cd build && zip -qr ../site/app/WolfichMarket-App.zip WOLFICH-Market)
+          cp app/icon.png site/app/icon.png
 
       - uses: actions/configure-pages@v5
 

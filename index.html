@@ -181,6 +181,9 @@ ol.steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;
 ol.steps b{color:var(--fg)}
 code{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--gold2);word-break:break-all}
 textarea{width:100%;min-height:170px;font-family:"JetBrains Mono",monospace;font-size:12px;resize:vertical}
+body:not(.is-app) .app-only{display:none!important}
+body.is-app .web-only{display:none!important}
+input[type=radio]{accent-color:var(--gold);margin:0 8px 0 0;vertical-align:-1px}
 .empty{padding:36px 20px;text-align:center;color:var(--mute)}
 .empty svg{display:block;margin:0 auto 10px;width:44px;height:44px;opacity:.5}
 .more{color:var(--mute);font-size:12.5px;margin:10px 4px 0}
@@ -238,6 +241,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
     <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 7l10 10M17 9v8H9"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5v-9zM3 7.5L12 12l9-4.5M12 12v9"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></g></symbol>
     <symbol id="i-dl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m-5-5l5 5 5-5M5 20h14"/></symbol>
   </defs>
 </svg>
@@ -276,6 +280,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
   <button data-t="signals"><svg><use href="#i-signal"/></svg><span>Сигналы</span></button>
   <button data-t="shop"><svg><use href="#i-bag"/></svg><span>Покупки</span><span class="badge" id="shopBadge" hidden></span></button>
   <button data-t="scan"><svg><use href="#i-scan"/></svg><span>Скан</span></button>
+  <button data-t="app" id="appTabBtn" hidden><svg><use href="#i-gear"/></svg><span>Программа</span></button>
 </nav>
 
 <main class="main">
@@ -354,7 +359,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
     <div class="frame card">
       <h3><svg><use href="#i-dl"/></svg>Аддон WolfichMarket</h3>
       <ol class="steps">
-        <li><span><a class="btn sm" href="addon/WolfichMarket.zip" id="addonLink"><svg width="14" height="14"><use href="#i-dl"/></svg>Скачать WolfichMarket.zip</a></span></li>
+        <li><span><a class="btn sm web-only" href="addon/WolfichMarket.zip" id="addonLink"><svg width="14" height="14"><use href="#i-dl"/></svg>Скачать WolfichMarket.zip</a><button class="btn sm app-only" data-act="install"><svg width="14" height="14"><use href="#i-dl"/></svg>Установить аддон в игру</button></span></li>
         <li><span><b>Через CurseForge</b> (когда проект пройдёт проверку): найдите <b>WolfichMarket</b> во вкладке Forever и нажмите «Установить». <b>Вручную:</b> распакуйте архив в <code>World of Warcraft\_forever_\Interface\AddOns\</code> — должна получиться папка <code>WolfichMarket</code>.</span></li>
         <li><span>На экране выбора персонажа → «Модификации» → включите WolfichMarket (и «Загружать устаревшие», если просит).</span></li>
       </ol>
@@ -369,6 +374,13 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
       </ol>
     </div>
   </div>
+  <div class="frame card web-only" style="margin-top:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    <img src="app/icon.png" alt="" width="56" height="56" style="flex:none">
+    <div style="flex:1 1 260px;min-width:0"><h3 style="margin:0 0 4px">Программа WOLFICH Market для Windows</h3>
+      <div class="dim" style="font-size:13px">Сканирует аукцион по вашему расписанию, сама подхватывает скан профессий из игры, ставит аддон и присылает уведомления. Работает из трея.</div></div>
+    <a class="btn" href="app/WolfichMarket-App.zip"><svg width="16" height="16"><use href="#i-dl"/></svg>Скачать для Windows</a>
+  </div>
+  <div class="note app-only" style="margin-top:14px"><svg><use href="#i-info"/></svg><div><b>В программе вставлять ничего не нужно:</b> скан подхватывается из папки игры сам, когда игра сохраняет данные — после <code>/reload</code> или выхода из игры. <button class="btn ghost sm" data-act="import">Подхватить сейчас</button></div></div>
   <div class="h3">Вставьте текст из игры</div>
   <textarea id="scanIn" placeholder="WM1^Имя-Мир^..."></textarea>
   <div class="bar" style="margin-top:10px">
@@ -376,6 +388,64 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
     <span id="scanMsg" class="dim"></span>
   </div>
   <div id="scanList" class="cards"></div>
+</section>
+<!-- ПРОГРАММА (только в приложении) -->
+<section id="t-app" hidden>
+  <div class="sec-head"><div><h2>Программа</h2><p>Расписание сканирования, источник данных, игра и уведомления.</p></div></div>
+  <div class="cards">
+    <div class="frame card">
+      <h3><svg><use href="#i-clock"/></svg>Сканирование</h3>
+      <div class="list">
+        <div class="row"><span>Следующее</span><span id="aNext" class="dim">—</span></div>
+        <div class="row"><span>Последнее</span><span id="aLast" class="dim">—</span></div>
+      </div>
+      <div class="bar" style="margin-top:12px"><button class="btn" data-act="scan" id="aScanBtn"><svg width="16" height="16"><use href="#i-signal"/></svg>Сканировать сейчас</button></div>
+      <div class="h3" style="font-size:15px;margin:14px 0 8px">Интервал</div>
+      <div class="chips" id="aPresets">
+        <span class="chip" data-min="5">5 мин</span><span class="chip" data-min="15">15 мин</span><span class="chip" data-min="30">30 мин</span>
+        <span class="chip" data-min="60">1 ч</span><span class="chip" data-min="120">2 ч</span><span class="chip" data-min="360">6 ч</span>
+      </div>
+      <div class="bar"><label class="inl">каждые <input type="number" id="aH" min="0" max="48" style="width:70px"> ч <input type="number" id="aM" min="0" max="59" style="width:70px"> мин</label></div>
+      <p class="more" style="margin:0">Минимум 5 минут. Blizzard обновляет снимок аукциона примерно раз в час: если он не изменился, программа не качает его заново.</p>
+    </div>
+    <div class="frame card">
+      <h3><svg><use href="#i-box"/></svg>Источник данных</h3>
+      <div class="list">
+        <label class="row" style="cursor:pointer"><span><input type="radio" name="aSrc" value="site"> Сайт WOW-MARKET</span><span class="dim">раз в час, без ключа</span></label>
+        <label class="row" style="cursor:pointer"><span><input type="radio" name="aSrc" value="blizzard"> Свой ключ Blizzard</span><span class="dim">по вашему интервалу</span></label>
+      </div>
+      <div id="aKey" style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+        <input type="text" id="aCid" placeholder="Client ID" autocomplete="off" spellcheck="false">
+        <input type="password" id="aSec" placeholder="Client Secret" autocomplete="off">
+        <label class="opt"><input type="checkbox" id="aOneHouse"> сканировать только выбранный аукцион (быстрее)</label>
+        <div class="bar" style="margin:0"><button class="btn sm" data-act="savekey">Сохранить ключ</button>
+          <a href="https://develop.battle.net/access/clients" target="_blank" rel="noopener" class="dim" style="font-size:12.5px">Где взять ключ →</a></div>
+        <p class="more" style="margin:0">Секрет хранится только на этом компьютере, в зашифрованном виде.</p>
+      </div>
+    </div>
+    <div class="frame card">
+      <h3><svg><use href="#i-paw"/></svg>Игра и аддон</h3>
+      <div class="list"><div class="row"><span>Папка игры</span><span id="aWow" class="dim" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ищу…</span></div></div>
+      <div class="bar" style="margin-top:10px">
+        <button class="btn ghost sm" data-act="pickwow">Выбрать папку</button>
+        <button class="btn sm" data-act="install">Установить / обновить аддон</button>
+      </div>
+      <label class="opt"><input type="checkbox" id="aAuto"> подхватывать скан профессий из игры автоматически</label>
+      <div class="bar" style="margin-top:10px"><button class="btn ghost sm" data-act="import">Подхватить скан сейчас</button><span id="aImp" class="dim" style="font-size:12.5px"></span></div>
+    </div>
+    <div class="frame card">
+      <h3><svg><use href="#i-info"/></svg>Уведомления и запуск</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="opt"><input type="checkbox" id="aNShop"> цена из «Покупок» опустилась до цели</label>
+        <label class="opt"><input type="checkbox" id="aNSig"> скачки цен на мои материалы и крафты</label>
+        <label class="opt"><input type="checkbox" id="aTray"> при закрытии сворачивать в трей</label>
+        <label class="opt"><input type="checkbox" id="aStart"> запускать вместе с Windows</label>
+      </div>
+      <div class="bar" style="margin-top:12px"><button class="btn ghost sm" data-act="opendata">Папка с данными</button><span class="mute" id="aVer" style="font-size:12px"></span></div>
+    </div>
+  </div>
+  <div class="h3">Журнал</div>
+  <pre class="frame" id="aLog" style="margin:0;padding:12px 16px;max-height:260px;overflow:auto;font:12px/1.6 'JetBrains Mono',monospace;color:var(--dim);white-space:pre-wrap"></pre>
 </section>
 </main>
 <footer><svg><use href="#i-paw"/></svg> WOW-MARKET · данные Blizzard API обновляются каждый час · настройки хранятся только в вашем браузере</footer>
@@ -560,6 +630,7 @@ async function load(){
     LATEST = LATEST || {items:{}};
   }
   renderStatus(); refreshScanCaches(); buildCats(); renderAll();
+  if (typeof checkAlerts === 'function') checkAlerts();
 }
 $('#houseSel').addEventListener('change', async (e) => {
   HOUSE = +e.target.value; LS.set('house', HOUSE);
@@ -575,7 +646,7 @@ function renderStatus(){
   const hs = houseList(), cur = hs.find(h => h.id === HOUSE);
   $('#kLots').textContent = ((cur ? cur.lots : META.lots) || 0).toLocaleString('ru-RU');
   $('#kItems').textContent = `предметов ${Object.keys(LATEST.items || {}).length.toLocaleString('ru-RU')}`;
-  $('#houseSel').innerHTML = hs.length ? hs.map((h, i) => `<option value="${h.id}" ${h.id === HOUSE ? 'selected' : ''}>${houseLabel(h, i)} · ${(h.lots/1000).toFixed(0)}k лотов</option>`).join('')
+  $('#houseSel').innerHTML = hs.length ? hs.map((h, i) => `<option value="${h.id}" ${h.id === HOUSE ? 'selected' : ''}>${houseLabel(h, i)} · ${h.lots >= 1000 ? Math.round(h.lots/1000) + 'k' : h.lots} лотов</option>`).join('')
     : `<option>${esc(META.house?.name || '—')}</option>`;
   $('#houseSel').disabled = hs.length < 2;
   $('#kHouseS').textContent = `№ ${HOUSE ?? META.house?.id ?? '—'} · комиссия 5%`;
@@ -860,7 +931,7 @@ function setTab(t){
   renderAll();
 }
 function renderAll(){
-  ({market:renderMarket, craft:renderCraft, signals:renderSignals, shop:renderShop, scan:renderScan}[S.tab] || renderMarket)();
+  ({market:renderMarket, craft:renderCraft, signals:renderSignals, shop:renderShop, scan:renderScan, app:renderApp}[S.tab] || renderMarket)();
   if (S.tab !== 'shop') renderShop();
   renderKpis();
 }
@@ -904,6 +975,103 @@ $('#scanBtn').onclick = () => {
     $('#scanIn').value = ''; renderScan(); }
   catch (err) { $('#scanMsg').innerHTML = `<span class="down">${esc(err.message)}</span>`; }
 };
+// ---------- режим программы (Electron) ----------
+const APP = window.wolfMarket || null;
+let APPSET = null, APPST = null;
+const fmtDur = (ms) => { if (ms <= 0) return 'сейчас'; const m = Math.round(ms / 60000); return m < 60 ? `через ${m} мин` : `через ${Math.floor(m/60)} ч ${m%60} мин`; };
+function renderApp(){
+  if (!APP || !APPSET) return;
+  const st = APPST || {};
+  $('#aNext').textContent = st.running ? 'идёт сейчас…' : st.nextAt ? `${new Date(st.nextAt).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})} (${fmtDur(st.nextAt - Date.now())})` : '—';
+  $('#aLast').innerHTML = st.lastRun ? `${new Date(st.lastRun.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})} · ${st.lastRun.ok ? '<span class="up">успешно</span>' : '<span class="down">' + esc(st.lastRun.err) + '</span>'}` : '—';
+  $('#aScanBtn').disabled = !!st.running;
+  const iv = APPSET.intervalMin || 60;
+  if (document.activeElement !== $('#aH') && document.activeElement !== $('#aM')) { $('#aH').value = Math.floor(iv / 60); $('#aM').value = iv % 60; }
+  document.querySelectorAll('#aPresets .chip').forEach(c => c.classList.toggle('on', +c.dataset.min === iv));
+  document.querySelectorAll('input[name=aSrc]').forEach(r => r.checked = r.value === APPSET.source);
+  $('#aKey').style.opacity = APPSET.source === 'blizzard' ? 1 : .55;
+  if (document.activeElement !== $('#aCid')) $('#aCid').value = APPSET.clientId || '';
+  if (document.activeElement !== $('#aSec')) $('#aSec').value = APPSET.hasSecret ? '••••••••' : '';
+  $('#aOneHouse').checked = !!APPSET.houses;
+  $('#aWow').textContent = APPSET.wowDir || 'не найдена';
+  $('#aWow').title = APPSET.wowDir || '';
+  $('#aAuto').checked = !!APPSET.autoImport; $('#aNShop').checked = !!APPSET.notifyShop; $('#aNSig').checked = !!APPSET.notifySignals;
+  $('#aTray').checked = !!APPSET.tray; $('#aStart').checked = !!APPSET.autostart;
+}
+async function setApp(patch){ APPSET = await APP.setSettings(patch); renderApp(); }
+async function reloadData(){
+  try {
+    [META, ITEMS] = await Promise.all([getJson('data/meta.json'), getJson('data/items.json')]);
+    if (!houseList().some(h => h.id === HOUSE)) HOUSE = META.house?.id ?? null;
+    await loadLatest();
+  } catch {}
+  renderStatus(); buildCats(); renderAll(); checkAlerts();
+}
+function checkAlerts(){
+  if (!APP || !APPSET || !META.updatedAt) return;
+  const key = META.updatedAt + '|' + HOUSE;
+  const seen = LS.get('alerted', {});
+  if (seen.key === key) return;
+  if (APPSET.notifyShop) {
+    const hits = S.shop.filter(p => { const m = ah(p.id, 'min'); return m != null && p.target > 0 && m <= p.target; });
+    if (hits.length) APP.notify(`🐺 Можно брать: ${hits.length}`, hits.slice(0, 4).map(p => `${nameOf(p.id)} — ${fmtPlain(ah(p.id,'min'))}`).join('\n'));
+  }
+  if (APPSET.notifySignals && Object.keys(S.scans).length) {
+    const mine = myItemIds(), k = S.opts.sBase === '7' ? 8 : 7, thr = +S.opts.sThr || 25, minQty = +S.opts.sMinQty || 0;
+    const sig = [...mine].map(id => [id, L(id)]).filter(([, r]) => r && r[3] >= minQty && r[k] != null && Math.abs(r[k]) >= thr).sort((a, b) => Math.abs(b[1][k]) - Math.abs(a[1][k]));
+    if (sig.length) APP.notify(`📈 Скачки цен: ${sig.length}`, sig.slice(0, 4).map(([id, r]) => `${nameOf(id)} ${r[k] > 0 ? '+' : ''}${r[k]}%`).join('\n'));
+  }
+  LS.set('alerted', { key });
+}
+const fmtPlain = (c) => { c = Math.round(c || 0); const g = Math.floor(c/10000), s = Math.floor(c%10000/100), m = c%100; return (g ? g + 'з ' : '') + (g || s ? s + 'с ' : '') + (g ? '' : m + 'м'); };
+async function importScans(silent){
+  const r = await APP.readScans();
+  if (!r.ok) { if (!silent) $('#aImp').innerHTML = `<span class="down">${esc(r.err)}</span>`; return; }
+  let n = 0;
+  for (const t of r.texts) { try { const sc = parseScan(t); if (sc.recipes.length || Object.keys(sc.profs).length || sc.skills.length) { S.scans[sc.char] = sc; n++; } } catch {} }
+  save(); refreshScanCaches(); renderAll();
+  $('#aImp').innerHTML = `<span class="up">персонажей: ${n}</span>`;
+  if (!silent && $('#scanMsg')) $('#scanMsg').innerHTML = `<span class="up">Из игры подхвачено персонажей: ${n}</span>`;
+}
+if (APP) {
+  document.body.classList.add('is-app');
+  $('#appTabBtn').hidden = false;
+  (async () => {
+    APPSET = await APP.getSettings(); APPST = await APP.status();
+    $('#aLog').textContent = (await APP.log()).join('\n');
+    $('#aVer').textContent = 'версия ' + await APP.version();
+    renderApp();
+    if (APPSET.autoImport) importScans(true);
+    if (!APPSET.wowDir) { await APP.findWow(); APPSET = await APP.getSettings(); renderApp(); }
+  })();
+  APP.on('log', (l) => { const el = $('#aLog'); el.textContent += (el.textContent ? '\n' : '') + l; el.scrollTop = el.scrollHeight; });
+  APP.on('status', (st) => { APPST = st; if (S.tab === 'app') renderApp(); });
+  APP.on('data-updated', () => reloadData());
+  APP.on('scans-changed', () => { if (APPSET?.autoImport) importScans(true); });
+  setInterval(() => { if (S.tab === 'app') renderApp(); }, 30000);
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const act = b.dataset.act;
+    if (act === 'scan') { APPST = { ...APPST, running: true }; renderApp(); APP.scanNow(); }
+    if (act === 'install') { const r = await APP.installAddon(); const msg = r.ok ? `<span class="up">Аддон установлен. Перезапустите игру или наберите /reload.</span>` : `<span class="down">${esc(r.err)}</span>`; $('#aImp').innerHTML = msg; if ($('#scanMsg')) $('#scanMsg').innerHTML = msg; }
+    if (act === 'import') importScans(false);
+    if (act === 'pickwow') { const r = await APP.pickWow(); if (r.err) $('#aImp').innerHTML = `<span class="down">${esc(r.err)}</span>`; APPSET = await APP.getSettings(); renderApp(); }
+    if (act === 'opendata') APP.openData();
+    if (act === 'savekey') { await setApp({ clientId: $('#aCid').value.trim(), secret: $('#aSec').value.trim(), source: 'blizzard' }); }
+  });
+  document.addEventListener('click', (e) => { const c = e.target.closest('#aPresets [data-min]'); if (c) setApp({ intervalMin: +c.dataset.min }); });
+  const ivChange = () => { const m = (+$('#aH').value || 0) * 60 + (+$('#aM').value || 0); if (m >= 5) setApp({ intervalMin: m }); else $('#aM').value = Math.max(5, +$('#aM').value || 0); };
+  $('#aH').addEventListener('change', ivChange); $('#aM').addEventListener('change', ivChange);
+  document.querySelectorAll('input[name=aSrc]').forEach(r => r.addEventListener('change', () => {
+    if (r.value === 'blizzard' && !APPSET.hasSecret && !$('#aSec').value.trim()) { $('#aCid').focus(); APPSET.source = 'blizzard'; renderApp(); return; }
+    setApp({ source: r.value });
+  }));
+  $('#aOneHouse').addEventListener('change', (e) => setApp({ houses: e.target.checked && HOUSE ? String(HOUSE) : '' }));
+  $('#houseSel').addEventListener('change', () => { if (APPSET?.houses) setApp({ houses: String(HOUSE) }); });
+  for (const [id, key] of [['aAuto','autoImport'],['aNShop','notifyShop'],['aNSig','notifySignals'],['aTray','tray'],['aStart','autostart']])
+    $('#' + id).addEventListener('change', (e) => setApp({ [key]: e.target.checked }));
+} else if (S.tab === 'app') S.tab = 'market';
+
 setTab(S.tab);
 load();
 </script>

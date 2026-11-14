@@ -77,7 +77,7 @@ async function getToken() {
   return (await r.json()).access_token;
 }
 
-async function api(pathname, namespace, extra = '') {
+async function api(pathname, namespace, extra = '', headers = {}) {
   if (env.MOCK_DIR) {
     const name = pathname.replace(/^\/data\/wow\//, '').replace(/[\/]+/g, '_').replace(/_$/, '') + '.json';
     const p = path.join(env.MOCK_DIR, name);
@@ -86,13 +86,14 @@ async function api(pathname, namespace, extra = '') {
   }
   const url = `${API}${pathname}?namespace=${namespace}${extra}`;
   for (let attempt = 1; attempt <= 4; attempt++) {
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}`, ...headers } });
+    if (r.status === 304) return { status: 304, data: null, lastModified: headers['If-Modified-Since'] };
     if (r.status === 429 || r.status >= 500) {
       await new Promise(res => setTimeout(res, 1000 * attempt * attempt));
       continue;
     }
     if (!r.ok) return { status: r.status, data: null };
-    return { status: 200, data: await r.json() };
+    return { status: 200, data: await r.json(), lastModified: r.headers.get('last-modified') };
   }
   return { status: 429, data: null };
 }
@@ -156,15 +157,20 @@ function unitPriceOf(a) {
   return null; // только ставка — пропускаем
 }
 
-async function fetchAuctions(rulesetId, houseId) {
+// Возвращает { lots, lm } или { unchanged: true }, если снимок не обновлялся с прошлого раза
+async function fetchAuctions(rulesetId, houseId, prevLm) {
   const lots = [];
+  let lm = null;
   for (const suffix of ['', '/commodities']) {
-    const r = await api(`/data/wow/ruleset/${rulesetId}/auctions/${houseId}${suffix}`, NS_DYN);
+    const hdr = (!suffix && prevLm && !env.FORCE) ? { 'If-Modified-Since': prevLm } : {};
+    const r = await api(`/data/wow/ruleset/${rulesetId}/auctions/${houseId}${suffix}`, NS_DYN, '', hdr);
+    if (r.status === 304) { log(`Аукцион ${houseId}: снимок не изменился (${prevLm})`); return { unchanged: true }; }
+    if (!suffix) lm = r.lastModified || null;
     const arr = r.data?.auctions;
     if (Array.isArray(arr)) { lots.push(...arr); log(`Лотов в ${houseId}${suffix || ''}: ${arr.length}`); }
     else log(`Лотов в ${houseId}${suffix || ''}: 0 (HTTP ${r.status})`);
   }
-  return lots;
+  return { lots, lm };
 }
 
 function aggregate(lots) {
@@ -301,9 +307,17 @@ async function main() {
     if (!meta.realmProbe || env.PROBE) meta.realmProbe = await probeRealms();
     const prevHouses = Object.fromEntries((meta.houses || []).map(h => [h.id, h]));
     const done = [];
+    let unchanged = 0;
     const allIds = new Set();
     for (const house of houses) {
-      const lots = await fetchAuctions(rulesetId, house.id);
+      const prev = prevHouses[house.id];
+      const res = await fetchAuctions(rulesetId, house.id, prev?.lm);
+      if (res.unchanged) {
+        if (await preserveHouse(house.id)) { done.push({ ...prev, checkedAt: now.toISOString() }); unchanged++; continue; }
+        const again = await fetchAuctions(rulesetId, house.id, null); // старых файлов нет — качаем заново
+        Object.assign(res, again, { unchanged: false });
+      }
+      const lots = res.lots;
       if (!lots.length) { log(`Аукцион ${house.id}: пусто, пропускаю`); continue; }
       const agg = aggregate(lots);
       const shards = [];
@@ -313,19 +327,20 @@ async function main() {
       await writeJson(`latest-${house.id}.json`, latest);
       for (let i = 0; i < SHARDS; i++) await writeJson(`hist/${house.id}/h${i}.json`, shards[i]);
       Object.keys(agg).forEach(id => allIds.add(Number(id)));
-      done.push({ ...prevHouses[house.id], id: house.id, name: house.name, lots: lots.length, itemCount: Object.keys(agg).length, updatedAt: now.toISOString() });
+      done.push({ ...prev, id: house.id, name: house.name, lots: lots.length, itemCount: Object.keys(agg).length, updatedAt: now.toISOString(), checkedAt: now.toISOString(), lm: res.lm });
       log(`Аукцион ${house.id}: ${lots.length} лотов, ${Object.keys(agg).length} предметов`);
     }
     if (!done.length) throw new Error('Все аукционы пустые — старые данные не трогаю');
     // аукционы, которые в этот раз не ответили, оставляем со старыми данными
     for (const h of meta.houses || []) if (!done.some(d => d.id === h.id) && houses.some(x => x.id === h.id) && await preserveHouse(h.id)) done.push(h);
     done.sort((a, b) => a.id - b.id);
-    await lookupItems(items, [...allIds]);
+    if (allIds.size) await lookupItems(items, [...allIds]);
     const primary = done.reduce((a, b) => (b.lots > a.lots ? b : a));
+    const fresh = done.length - unchanged > 0;
     Object.assign(meta, {
-      v: 2, updatedAt: now.toISOString(), hourTs: nowTs, region: REGION, faction: FACTION, ruleset: rulesetId,
+      v: 2, checkedAt: now.toISOString(), ...(fresh ? { updatedAt: now.toISOString(), hourTs: nowTs } : {}), region: REGION, faction: FACTION, ruleset: rulesetId,
       houses: done, house: { id: primary.id, name: primary.name },
-      lots: done.reduce((s, h) => s + (h.lots || 0), 0), itemCount: allIds.size, lastError: null,
+      lots: done.reduce((s, h) => s + (h.lots || 0), 0), itemCount: allIds.size || meta.itemCount, lastError: null,
     });
     ok = true;
   } catch (e) {

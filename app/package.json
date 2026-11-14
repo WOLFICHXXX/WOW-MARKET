@@ -1,0 +1,8 @@
+{
+  "name": "wolfich-market",
+  "productName": "WOLFICH Market",
+  "version": "1.0.0",
+  "description": "WOLFICH Market · мониторинг аукциона WoW Forever",
+  "main": "main.js",
+  "author": "WOLFICH"
+}
