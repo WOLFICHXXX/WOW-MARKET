@@ -299,4 +299,7 @@ ns.EN = {
   ["Снова показывать полную стоимость сумок."] = "Show the full value of your bags again.",
   ["Оценка: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу."] = "Estimate: each item at its best price - auction (minus 5%) or vendor; soulbound items - vendor only.",
   ["Стоимость сумок над окном сумок"] = "Bag value above the bag window",
+  ["нечего обновлять: откройте окна своих профессий или положите предметы в сумки."] = "nothing to update: open your profession windows or put items in your bags.",
+  ["Стоп %d/%d"] = "Stop %d/%d",
+  ["Свежие цены без 15-минутного ожидания: всё, что лежит в сумках, результаты и материалы рецептов ваших профессий, отмеченные и план. Предметы проверяются по очереди, примерно 2 в секунду; повторное нажатие - стоп."] = "Fresh prices without the 15-minute wait: everything in your bags, results and materials of your profession recipes, marked items and the plan. Items are checked one by one, about 2 per second; click again to stop.",
 }

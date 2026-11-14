@@ -121,29 +121,34 @@ local function recipeIDs(rec, ids, seen)
   for _, r in ipairs(rec.reag or {}) do addAll(ids, seen, r[1]) end
 end
 function ns.RecipePriceIDs(rec) local ids, seen = {}, {}; if rec then recipeIDs(rec, ids, seen) end; return ids end
-local function contextIDs()
+-- всё «моё»: предметы в сумках (кроме персональных), результаты и материалы рецептов моих профессий, отмеченные и план
+local function myIDs()
   local ids, seen = {}, {}
-  local tab = tabs and tabs.current
-  local p = tab and pages[tab]
-  if tab == 1 then for id in pairs(ns.DB.marked) do addAll(ids, seen, id) end
-  elseif tab == 2 and p and p.list then for k, d in ipairs(p.list.data or {}) do if k > 40 then break end; recipeIDs(d.pr.rec, ids, seen) end
-  elseif tab == 3 then if buyItem then addAll(ids, seen, buyItem) elseif p and p.mats then for _, d in ipairs(p.mats.data or {}) do addAll(ids, seen, d.id) end end
-  elseif tab == 4 and p then
-    for id in pairs(p.checked or {}) do addAll(ids, seen, id) end
-    if #ids == 0 and sellSel then addAll(ids, seen, sellSel.id) end
-  elseif tab == 5 then addAll(ids, seen, chartItem)
-  elseif tab == 7 then for _, pl in ipairs(ns.Plans and ns.Plans() or {}) do recipeIDs(pl, ids, seen) end end
-  if #ids == 0 then
-    for id in pairs(ns.DB.marked) do addAll(ids, seen, id) end
-    for _, pl in ipairs(ns.Plans and ns.Plans() or {}) do recipeIDs(pl, ids, seen) end
+  local C = C_Container
+  for b = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4) do
+    for sl = 1, (C and C.GetContainerNumSlots and safe(C.GetContainerNumSlots, b)) or 0 do
+      local info = C.GetContainerItemInfo and safe(C.GetContainerItemInfo, b, sl)
+      if info and info.itemID and not info.isBound then addAll(ids, seen, info.itemID) end
+    end
   end
+  local c = ns.DB.chars[ns.charKey]
+  for _, p in pairs(c and c.profs or {}) do
+    for _, rec in ipairs(p.recipes or {}) do
+      if ns.DB.settings.showUnlearned or ns.IsLearned(rec) then recipeIDs(rec, ids, seen) end
+    end
+  end
+  for id in pairs(ns.DB.marked) do addAll(ids, seen, id) end
+  for _, pl in ipairs(ns.Plans and ns.Plans() or {}) do recipeIDs(pl, ids, seen) end
   return ids
 end
 function ns.QuickRefresh(ids)
   if not ns.ahOpen then ns.say(L"откройте окно аукциона.") return end
-  if quick then return end
-  ids = ids or contextIDs()
-  if #ids == 0 then ns.say(L"нечего обновлять: выделите предметы, выберите рецепт или добавьте его в план.") return end
+  if quick then
+    if ids then return end -- уже идёт обновление
+    quick = nil; if updateQuick then updateQuick() end; ns.Fire("PRICES") return -- повторное нажатие кнопки - стоп
+  end
+  ids = ids or myIDs()
+  if #ids == 0 then ns.say(L"нечего обновлять: откройте окна своих профессий или положите предметы в сумки.") return end
   quick = { ids = ids, i = 0 }
   local function step()
     if not quick then return end
@@ -162,14 +167,14 @@ function ns.QuickRefresh(ids)
       pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
     end
     if updateQuick then updateQuick() end
-    ns.After(0.6, step) -- сервер не любит частые запросы
+    ns.After(0.5, step) -- сервер не любит частые запросы
   end
   step()
 end
 function ns.QuickBusy() return quick ~= nil end
 function updateQuick()
   if not panel or not panel.quickBtn then return end
-  if quick then panel.quickBtn:SetLabel(string.format(L"Цены %d/%d", math.min(quick.i, #quick.ids), #quick.ids)); panel.quickBtn:Disable()
+  if quick then panel.quickBtn:SetLabel(string.format(L"Стоп %d/%d", math.min(quick.i, #quick.ids), #quick.ids)); panel.quickBtn:Enable()
   else panel.quickBtn:SetLabel(L"Обновить цены"); panel.quickBtn:SetEnabled(ns.ahOpen == true) end
 end
 
@@ -205,7 +210,7 @@ local function header()
   panel.quickBtn:SetPoint("TOPRIGHT", -24, -56)
   panel.quickBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-    GameTooltip:AddLine(L"Свежие цены прямо сейчас, без 15-минутного ожидания. Что обновляется - зависит от вкладки: «Продать» - отмеченные галочками (или выбранный), «План» - все рецепты плана целиком, «Крафт» - рецепты из списка, «Отмеченные» - отмеченные, «Купить» и «График» - открытый предмет.", 1, 1, 1, true)
+    GameTooltip:AddLine(L"Свежие цены без 15-минутного ожидания: всё, что лежит в сумках, результаты и материалы рецептов ваших профессий, отмеченные и план. Предметы проверяются по очереди, примерно 2 в секунду; повторное нажатие - стоп.", 1, 1, 1, true)
     GameTooltip:Show()
   end)
   panel.quickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)

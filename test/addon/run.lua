@@ -300,9 +300,13 @@ do
   local oldQ = C_AuctionHouse.SendSearchQuery
   C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
   ns.QuickRefresh()
-  for _ = 1, 20 do advance(1) end
-  check(#asked == 3 and not ns.QuickBusy(), "«Обновить цены» на «Плане» - весь рецепт (результат и материалы)")
-  asked = {}
+  for _ = 1, 200 do advance(1) end
+  local got = {}; for _, id in ipairs(asked) do got[id] = true end
+  local recs = 0; for _, p in pairs(ns.DB.chars[ns.charKey].profs) do for _, r in ipairs(p.recipes or {}) do if r.out and got[r.out] then recs = recs + 1 end end end
+  check(got[2840] and got[3470] and got[2841] and recs > 0 and not ns.QuickBusy(), "«Обновить цены»: сумки, рецепты моих профессий и план")
+  ns.QuickRefresh(); ns.QuickRefresh()
+  check(not ns.QuickBusy(), "повторное нажатие останавливает обновление")
+  asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
   ns.QuickRefresh(ns.RecipePriceIDs(rec))
   for _ = 1, 20 do advance(1) end
   C_AuctionHouse.SendSearchQuery = oldQ
