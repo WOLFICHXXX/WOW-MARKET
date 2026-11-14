@@ -205,4 +205,8 @@ ns.EN = {
   ["  |cffe6b450/wm|r - окно крафта и сигналов (или кнопка-лапа у миникарты)"] = "  |cffe6b450/wm|r - crafting and alerts window (or the paw button at the minimap)",
   ["  |cffe6b450/wm help|r - эта справка"] = "  |cffe6b450/wm help|r - this help",
   ["Окно WolfichMarket (крафт и сигналы)"] = "WolfichMarket window (crafting and alerts)",
+  ["откройте окно профессии один раз - дальше кнопка «Крафт» будет открывать его сама."] = "open the profession window once - after that the \"Craft\" button will open it by itself.",
+  ["Открыть этот рецепт в окне профессии"] = "Open this recipe in the profession window",
+  ["Рецепт другого персонажа - зайдите им, чтобы крафтить"] = "Another character's recipe - log in with it to craft",
+  ["Рецепт ещё не изучен"] = "Recipe not learned yet",
 }

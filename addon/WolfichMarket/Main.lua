@@ -51,7 +51,12 @@ local function fillCard(rec)
   sel = rec
   local card = craft.card
   for _, r in ipairs(card.rows) do r:Hide() end
-  if not rec then card.title:SetText(L"Выберите рецепт"); card.total:SetText("") return end
+  if not rec then card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.craft:Hide() return end
+  card.craft:Show()
+  local mine = charKey == ns.charKey
+  if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
+  elseif not ns.IsLearned(rec) then card.craft:Disable(); card.craft.tip = L"Рецепт ещё не изучен"
+  else card.craft:Enable(); card.craft.tip = nil end
   local c = ns.DB.chars[charKey] or {}
   local pr = ns.WithRealm(c.realmKey, ns.Profit, rec)
   pr.rec = rec
@@ -138,7 +143,14 @@ local function buildCraft(f)
     r:SetScript("OnLeave", function() GameTooltip:Hide() end)
     r:Hide(); card.rows[i] = r
   end
-  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("BOTTOMLEFT", 10, 10); card.total:SetPoint("RIGHT", -10, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("BOTTOM")
+  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("BOTTOMLEFT", 10, 10); card.total:SetPoint("RIGHT", -140, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("BOTTOM")
+  card.craft = UI.Button(card, L"Крафт", 120, 26, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
+  card.craft:SetPoint("BOTTOMRIGHT", -10, 10)
+  card.craft:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show()
+  end)
+  card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   craft.card = card
 end
 

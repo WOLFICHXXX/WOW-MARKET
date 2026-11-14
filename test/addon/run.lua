@@ -122,6 +122,12 @@ local okC, errC = pcall(W.tabs[1].scripts.OnClick, W.tabs[1]); check(okC, "вк�
 SlashCmdList.WOLFICHMARKET("")
 check(not WolfichMarketMainFrame.shown, "/wm закрывает окно")
 ns.DB.alarm[2840] = 5
+-- кнопка «Крафт»: окно профессии открыто — сразу рецепт; закрыто — сначала профессия
+openedRecipe = nil; ns.OpenRecipeInGame(recs[1], "Кузнечное дело"); check(openedRecipe == recs[1].id, "«Крафт» открывает рецепт")
+ProfessionsFrame.shown = false; openedRecipe, openedLine = nil, nil
+ns.OpenRecipeInGame(recs[2], "Кузнечное дело"); advance(2)
+check(openedLine == 164 and openedRecipe == recs[2].id, "«Крафт» открывает профессию, затем рецепт")
+ProfessionsFrame.shown = true
 -- английский язык
 ns.DB.settings.lang = "en"
 check(ns.money(15000):find("g", 1, true) and ns.L("Купить") == "Buy" and ns.ago(time()) == "just now", "английский: деньги, кнопки, время")

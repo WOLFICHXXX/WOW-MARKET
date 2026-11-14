@@ -9,7 +9,7 @@ local function professionInfo()
   if not C_TradeSkillUI then return nil end
   local info = safe(C_TradeSkillUI.GetChildProfessionInfo)
   if not info or not info.professionName or info.professionName == "" then info = safe(C_TradeSkillUI.GetBaseProfessionInfo) end
-  if info and info.professionName and info.professionName ~= "" then return info.professionName, info.skillLevel or 0, info.maxSkillLevel or 0 end
+  if info and info.professionName and info.professionName ~= "" then return info.professionName, info.skillLevel or 0, info.maxSkillLevel or 0, info.professionID end
 end
 local function isForeign()
   if not C_TradeSkillUI then return true end
@@ -19,7 +19,7 @@ end
 ns.curProf = nil
 function ns.ScanProfession()
   if not ns.DB or not ns.charKey or not C_TradeSkillUI or isForeign() then return end
-  local prof, skill, maxSkill = professionInfo()
+  local prof, skill, maxSkill, line = professionInfo()
   if not prof then return end
   local ids = safe(C_TradeSkillUI.GetAllRecipeIDs)
   if not ids or #ids == 0 then return end
@@ -42,7 +42,7 @@ function ns.ScanProfession()
     end
   end
   local c = ns.DB.chars[ns.charKey]
-  c.profs[prof] = { skill = skill, max = maxSkill, t = time(), recipes = recipes }
+  c.profs[prof] = { skill = skill, max = maxSkill, t = time(), recipes = recipes, line = line }
   ns.curProf = prof
   ns.Fire("RECIPES")
 end
@@ -98,6 +98,20 @@ function ns.Profit(rec)
   return res
 end
 
+function ns.OpenRecipeInGame(rec, profName)
+  if not rec or not C_TradeSkillUI then return end
+  local function open() if C_TradeSkillUI.OpenRecipe then pcall(C_TradeSkillUI.OpenRecipe, rec.id) end end
+  local shown = (ProfessionsFrame and ProfessionsFrame:IsShown()) or (TradeSkillFrame and TradeSkillFrame:IsShown())
+  if shown and ns.curProf == profName then open() return end
+  local p = profName and ns.DB.chars[ns.charKey].profs[profName]
+  if p and p.line and C_TradeSkillUI.OpenTradeSkill then
+    pcall(C_TradeSkillUI.OpenTradeSkill, p.line)
+    ns.After(0.4, open); ns.After(1.2, open) -- окно открывается не мгновенно
+  else
+    open()
+    if not shown then ns.say(L"откройте окно профессии один раз - дальше кнопка «Крафт» будет открывать его сама.") end
+  end
+end
 function ns.IsLearned(rec) return rec.learned ~= false end
 -- все рецепты всех профессий текущего персонажа с прибылью (неизученные — только если попросили)
 local function collect(c, profFilter, withUnlearned)
@@ -295,7 +309,7 @@ local function recipesStale()
   local prof = professionInfo()
   if not prof or not ns.charKey then return false end
   local p = ns.DB.chars[ns.charKey].profs[prof]
-  if not p or not p.recipes or #p.recipes == 0 then return true end
+  if not p or not p.recipes or #p.recipes == 0 or not p.line then return true end -- line: номер профессии для кнопки «Крафт»
   local scan = ns.CurrentScan()
   return scan and (p.t or 0) < scan.t or false
 end

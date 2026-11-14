@@ -82,14 +82,14 @@ local RECIPES = {
   [7071] = { name = "Медные наручи", out = 2853, d = 0, r = { { 2840, 2 } }, unlearned = true },
 }
 C_TradeSkillUI = {
-  GetBaseProfessionInfo = function() return { professionName = "Кузнечное дело", skillLevel = 150, maxSkillLevel = 150 } end,
+  GetBaseProfessionInfo = function() return { professionName = "Кузнечное дело", skillLevel = 150, maxSkillLevel = 150, professionID = 164 } end,
   GetAllRecipeIDs = function() local t = {} for k in pairs(RECIPES) do t[#t + 1] = k end return t end,
   GetRecipeInfo = function(id) local r = RECIPES[id]; return { name = r.name, learned = not r.unlearned, relativeDifficulty = r.d, icon = 1 } end,
   GetRecipeSourceText = function(id) return "|cffffd200Тренер:|r Тед Хаммер|n|cffffd200Место:|r Штормград" end,
   GetRecipeSchematic = function(id) local r = RECIPES[id]; local slots = {}
     for _, x in ipairs(r.r) do slots[#slots + 1] = { quantityRequired = x[2], reagents = { { itemID = x[1] } } } end
     return { outputItemID = r.out, quantityMin = r.q or 1, quantityMax = r.q or 1, reagentSlotSchematics = slots } end,
-  OpenRecipe = function(id) openedRecipe = id end,
+  OpenRecipe = function(id) openedRecipe = id end, OpenTradeSkill = function(line) openedLine = line end,
 }
 function GetProfessions() return 1, 2 end
 function GetProfessionInfo(i) return ({ "Кузнечное дело", "Наложение чар" })[i], nil, 150, 150 end
