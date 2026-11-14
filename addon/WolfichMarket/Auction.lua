@@ -367,31 +367,75 @@ local function bagItems()
   table.sort(out, function(a, b) return ns.itemName(a.id) < ns.itemName(b.id) end)
   return out
 end
-local DURS = { { 1, "12 ч" }, { 2, "24 ч" }, { 3, "48 ч" } }
+local DURS = { { 1, "2 ч" }, { 2, "8 ч" }, { 3, "24 ч" } } -- сроки аукциона в Forever
+-- выгодно ли продавать: unit — цена за шт, которую вы ставите
+local function sellVerdict(id, unit)
+  local cost = ns.CraftCost(id)
+  local vendor = ns.VendorSell(id)
+  local net = unit and unit > 0 and unit * (1 - ns.AH_CUT) or nil
+  local r = { cost = cost, vendor = vendor, net = net }
+  if net and cost then r.profit = net - cost end
+  if net and vendor and vendor >= net then r.text, r.color = "Торговцу выгоднее, чем на аукцион", "|cffffd060"
+  elseif r.profit and r.profit > 0 then r.text, r.color = "Выгодно продавать сейчас", "|cff78d98a"
+  elseif r.profit then r.text, r.color = "Невыгодно: дешевле, чем материалы", "|cffff7a66"
+  elseif net then r.text, r.color = "Не крафтится вами - сравните с ценой аукциона", "|cffaaaaaa"
+  else r.text, r.color = "Нет цены на аукционе - сделайте снимок", "|cffaaaaaa" end
+  return r
+end
+
 local function pageSell(f)
+  -- шапка колонок
+  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT"); hdr:SetPoint("TOPRIGHT"); hdr:SetHeight(16)
+  local function col(text, x) local t = UI.Font(hdr, 10, UI.DIM); t:SetPoint("RIGHT", hdr, "RIGHT", x, 0); t:SetJustifyH("RIGHT"); t:SetText(text) end
+  local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 46, 0); h1:SetText("Предмет")
+  col("Прибыль", -12); col("Аукцион", -84); col("Себест.", -156)
   f.list = UI.List(f, 22, function(r)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 4, 0)
-    r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", -4, 0); r.price:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
+    r.chk = CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate"); r.chk:SetSize(20, 20); r.chk:SetPoint("LEFT", 0, 0)
+    r.chk:SetScript("OnClick", function(self) local d = self:GetParent().data; if d then f.checked[d.id] = self:GetChecked() and true or nil; f.updateBulk() end end)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.chk, "RIGHT", 2, 0)
+    r.prof = UI.Font(r, 11); r.prof:SetPoint("RIGHT", -4, 0); r.prof:SetWidth(68); r.prof:SetJustifyH("RIGHT")
+    r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.prof, "LEFT", -4, 0); r.price:SetWidth(68); r.price:SetJustifyH("RIGHT")
+    r.cost = UI.Font(r, 11, UI.DIM); r.cost:SetPoint("RIGHT", r.price, "LEFT", -4, 0); r.cost:SetWidth(68); r.cost:SetJustifyH("RIGHT")
+    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.cost, "LEFT", -6, 0)
     r:SetScript("OnClick", function(self) if self.data then f.select(self.data) end end)
+    r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end, function(r, d)
+    r.chk:SetChecked(f.checked[d.id] == true)
     r.icon:SetTexture(ns.itemIcon(d.id))
     r.name:SetText(ns.itemLinkText(d.id) .. " |cffaaaaaa×" .. d.count .. "|r" .. (sellSel and sellSel.id == d.id and " |cffe6b450<|r" or ""))
-    local p = ns.AHPrice(d.id); r.price:SetText(p and ns.money(p, true) or "|cff777777нет|r")
+    local p = ns.AHPrice(d.id)
+    local v = sellVerdict(d.id, p)
+    r.cost:SetText(v.cost and ns.money(v.cost, true) or "|cff555555-|r")
+    r.price:SetText(p and ns.money(p, true) or "|cff777777нет|r")
+    if v.profit then r.prof:SetText((v.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v.profit, true) .. "|r")
+    elseif v.vendor and v.net and v.vendor >= v.net then r.prof:SetText("|cffffd060торговцу|r")
+    else r.prof:SetText("|cff555555-|r") end
   end)
-  f.list:SetPoint("TOPLEFT"); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 118)
+  f.list:SetPoint("TOPLEFT", 0, -18); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 214)
+  f.checked = {}
+  f.allBtn = UI.Button(f, "Отметить все", 110, 22, function()
+    local any = next(f.checked) ~= nil
+    wipe(f.checked)
+    if not any then for _, d in ipairs(f.list.data) do if ns.AHPrice(d.id) then f.checked[d.id] = true end end end
+    f.list:Refresh(); f.updateBulk()
+  end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 188)
+  f.bulk = UI.Button(f, "Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 188)
+  f.bulkInfo = UI.Font(f, 10, UI.DIM); f.bulkInfo:SetPoint("LEFT", f.allBtn, "RIGHT", 8, 0); f.bulkInfo:SetPoint("RIGHT", f.bulk, "LEFT", -6, 0); f.bulkInfo:SetWordWrap(true)
   f.list.empty:SetText("В сумках нет предметов, которые можно выставить.")
-  local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(112)
+  local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(180)
   local bg = box:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.3)
   f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 8, -6); f.sel:SetPoint("RIGHT", -8, 0)
-  local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 8, -30); pl:SetText("Цена за шт:")
+  -- разбор: себестоимость / аукцион / торговец / итог
+  f.analysis = UI.Font(box, 11); f.analysis:SetPoint("TOPLEFT", 8, -24); f.analysis:SetPoint("RIGHT", -8, 0); f.analysis:SetWordWrap(true); f.analysis:SetJustifyV("TOP"); f.analysis:SetHeight(64)
+  local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 8, -94); pl:SetText("Цена за шт:")
   f.money = UI.MoneyInput(box, function() f.calc() end); f.money:SetPoint("LEFT", pl, "RIGHT", 4, 0)
-  local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 8, -56); ql:SetText("Количество:")
+  local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 8, -120); ql:SetText("Количество:")
   f.qty = CreateFrame("EditBox", nil, box, "InputBoxTemplate"); f.qty:SetSize(54, 20); f.qty:SetPoint("LEFT", ql, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true)
   f.qty:SetScript("OnTextChanged", function() f.calc() end)
   f.durBtns = {}
   for i, d in ipairs(DURS) do
-    local b = UI.Button(box, d[2], 46, 20, function() f.dur = d[1]; f.calc() end)
+    local b = UI.Button(box, d[2], 46, 20, function() f.dur = d[1]; f.calc(); f.updateBulk() end)
     b:SetPoint("LEFT", f.qty, "RIGHT", 12 + (i - 1) * 50, 0); f.durBtns[i] = b
   end
   f.dur = 2
@@ -410,14 +454,22 @@ local function pageSell(f)
   f.calc = function()
     for i, b in ipairs(f.durBtns) do b:SetNormalTexture(M .. (DURS[i][1] == f.dur and "btn-gold" or "btn")); local c = DURS[i][1] == f.dur and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3]) end
     local d = sellSel
-    if not d then f.info:SetText("Выберите предмет в списке."); f.post:Disable() return end
+    if not d then f.analysis:SetText(""); f.info:SetText("Выберите предмет в списке."); f.post:Disable() return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
+    local p = ns.AHPrice(d.id)
+    local v = sellVerdict(d.id, unit)
+    local L = {}
+    local _, rec = ns.CraftCost(d.id)
+    L[#L + 1] = "Себестоимость крафта: " .. (v.cost and (ns.money(v.cost) .. (rec and ("  |cffaaaaaa(" .. rec.name .. ")|r") or "")) or "|cffaaaaaaвы не крафтите этот предмет|r")
+    L[#L + 1] = "На аукционе: " .. (p and ("мин " .. ns.money(p)) or "|cffaaaaaaнет цены|r") .. (v.vendor and ("   |cffaaaaaaторговцу: " .. ns.money(v.vendor) .. "|r") or "")
+    if v.net then L[#L + 1] = "Вам за шт после 5%: " .. ns.money(v.net) .. (v.profit and ("   прибыль: " .. (v.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v.profit) .. "|r за шт") or "") end
+    L[#L + 1] = v.color .. v.text .. "|r"
+    f.analysis:SetText(table.concat(L, "\n"))
     local dep
     if d.commodity then dep = safe(C_AuctionHouse.CalculateCommodityDeposit, d.id, f.dur, q)
     else dep = d.loc and safe(C_AuctionHouse.CalculateItemDeposit, d.loc, f.dur, q) end
-    local p = ns.AHPrice(d.id)
-    f.info:SetText(string.format("Выручка: %s / залог: %s%s", ns.money(unit * q * (1 - ns.AH_CUT)), dep and ns.money(dep) or "?",
-      p and ("\nМин. на аукционе: " .. ns.money(p)) or ""))
+    f.info:SetText(string.format("Выручка за %d шт: %s / залог: %s%s", q, ns.money(unit * q * (1 - ns.AH_CUT)), dep and ns.money(dep) or "?",
+      v.profit and ("\nПрибыль всего: " .. (v.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v.profit * q) .. "|r") or ""))
     if q > 0 and q <= d.count and unit > 0 then f.post:Enable() else f.post:Disable() end
   end
   f.doPost = function()
@@ -429,7 +481,47 @@ local function pageSell(f)
     if not ok then ns.say("не удалось выставить: " .. tostring(err)) end
     f.post:Disable()
   end
-  f.refresh = function() f.list:SetData(bagItems()); f.calc() end
+  -- очередь «выставить всё»: игра разрешает одно выставление на одно нажатие, поэтому кнопка выставляет по лоту за клик
+  f.queue = function()
+    local q = {}
+    for _, d in ipairs(bagItems()) do
+      if f.checked[d.id] then
+        local p = ns.AHPrice(d.id)
+        if p then q[#q + 1] = { d = d, unit = math.max(1, p - 1) } end
+      end
+    end
+    return q
+  end
+  f.updateBulk = function()
+    local q = f.queue()
+    local n = 0; for _ in pairs(f.checked) do n = n + 1 end
+    f.allBtn:SetLabel(n > 0 and "Снять все" or "Отметить все")
+    if #q == 0 then
+      f.bulk:SetLabel("Выставить отмеченные"); f.bulk:Disable()
+      f.bulkInfo:SetText(n > 0 and "У отмеченных нет цены - сделайте снимок." or "Отметьте предметы галочками.")
+    else
+      f.bulk:SetLabel("Выставить: " .. ns.itemName(q[1].d.id) .. (#q > 1 and (" (+" .. (#q - 1) .. ")") or "")); f.bulk:Enable()
+      f.bulkInfo:SetText("Каждый клик - один лот, по цене на 1м ниже минимальной, всё количество, срок " .. DURS[f.dur][2] .. ".")
+    end
+  end
+  f.postNext = function()
+    local q = f.queue()
+    local it = q[1]; if not it then f.updateBulk() return end
+    local d = it.d
+    d.commodity = d.loc and C_AuctionHouse.GetItemCommodityStatus and Enum and Enum.ItemCommodityStatus
+      and safe(C_AuctionHouse.GetItemCommodityStatus, d.loc) == Enum.ItemCommodityStatus.Commodity
+    local qty = d.commodity and d.count or 1
+    local ok, err
+    if d.commodity then ok, err = pcall(C_AuctionHouse.PostCommodity, d.loc, f.dur, qty, it.unit)
+    else ok, err = pcall(C_AuctionHouse.PostItem, d.loc, f.dur, qty, nil, it.unit) end
+    if ok then
+      if d.commodity or d.count <= 1 then f.checked[d.id] = nil end
+      ns.say(string.format("выставлено: %s ×%d по %s", ns.itemLinkText(d.id), qty, ns.money(it.unit)))
+    else ns.say("не удалось выставить: " .. tostring(err)) end
+    f.bulk:Disable()
+    ns.After(1, function() f.list:SetData(bagItems()); f.updateBulk() end)
+  end
+  f.refresh = function() f.list:SetData(bagItems()); f.calc(); f.updateBulk() end
 end
 local function posted() ns.say("|cff78d98aлот выставлен.|r"); sellSel = nil; if pages[4] and pages[4]:IsShown() then pages[4].sel:SetText(""); pages[4].refresh() end end
 ns.On("AUCTION_HOUSE_AUCTION_CREATED", posted)

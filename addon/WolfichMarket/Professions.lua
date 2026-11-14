@@ -113,6 +113,23 @@ function ns.AllRecipeProfits(profFilter)
   end
   return out
 end
+function ns.CraftCost(id)
+  local best, bestRec, bestPr
+  for _, c in pairs(ns.DB.chars) do
+    for _, p in pairs(c.profs or {}) do
+      for _, rec in ipairs(p.recipes or {}) do
+        if rec.out == id then
+          local pr = ns.Profit(rec)
+          if pr.missing == 0 then
+            local unit = pr.cost / math.max(1, ((rec.qmin or 1) + (rec.qmax or 1)) / 2)
+            if not best or unit < best then best, bestRec, bestPr = unit, rec, pr end
+          end
+        end
+      end
+    end
+  end
+  return best, bestRec, bestPr
+end
 function ns.BestCraft()
   local best
   for _, pr in ipairs(ns.AllRecipeProfits()) do if pr.profit and (not best or pr.profit > best.profit) then best = pr end end
@@ -198,7 +215,7 @@ local function build()
   panel = CreateFrame("Frame", "WolfichMarketProfPanel", h)
   panel:SetWidth(330)
   -- справа у окна профессий вертикальные вкладки профессий: отступаем, чтобы их не закрывать
-  panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 44, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 44, 0)
+  panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 64, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 64, 0)
   panel:SetFrameStrata(h:GetFrameStrata()); panel:EnableMouse(true)
   UI.Skin(panel)
   UI.Title(panel, "Прибыль крафта")

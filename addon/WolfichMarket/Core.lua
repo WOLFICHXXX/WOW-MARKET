@@ -1,6 +1,6 @@
 -- WolfichMarket: ядро — база данных, события, цены, история, отметки.
 local addonName, ns = ...
-ns.VERSION = "2.0.1"
+ns.VERSION = "2.0.2"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -73,6 +73,11 @@ function ns.itemQualityColor(id)
   if C_Item and C_Item.GetItemQualityByID then q = safe(C_Item.GetItemQualityByID, id) end
   if q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q] then return ITEM_QUALITY_COLORS[q].hex or "|cffffffff" end
   return "|cffffffff"
+end
+function ns.VendorSell(id)
+  local get = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  local v = get and select(11, safe(get, id))
+  return (v and v > 0) and v or nil
 end
 function ns.itemLinkText(id) return ns.itemQualityColor(id) .. ns.itemName(id) .. "|r" end
 function ns.idFromLink(link)

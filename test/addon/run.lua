@@ -58,7 +58,16 @@ sell.select(sell.list.data[1])
 check(tonumber(sell.qty:GetText()) == sell.list.data[1].count, "продажа: количество по умолчанию = всё в сумках")
 check(sell.money:Get() == ns.AHPrice(sell.list.data[1].id) - 1, "продажа: цена = мин − 1м")
 sell.calc(); check(sell.post.enabled, "кнопка «Выставить» активна")
+check(sell.analysis:GetText():find("Себестоимость крафта", 1, true) and sell.analysis:GetText():find("Выгодно продавать", 1, true), "продажа: себестоимость и вывод «выгодно»")
+io.write("     ", (sell.analysis:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("\n", " // ")), "\n")
 sell.doPost(); check(postedLot and postedLot[2] == sell.list.data[1].count, "лот выставлен")
+-- массовое выставление
+sell.allBtn.scripts.OnClick(sell.allBtn)
+local n = 0; for _ in pairs(sell.checked) do n = n + 1 end
+check(n == 2 and sell.bulk.enabled, "продажа: отмечены все с ценой (" .. n .. ")")
+postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+check(postedLot ~= nil, "продажа: «Выставить отмеченные» выставил первый лот")
+check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
 local buy = P[3]
 ns.OpenBuy(2840); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
 check(#buy.list.data == 2, "покупка: строк результатов " .. #buy.list.data)
