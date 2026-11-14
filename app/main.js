@@ -223,14 +223,71 @@ function copyDir(src, dst) {
     if (e.isDirectory()) copyDir(s, d); else fs.copyFileSync(s, d);
   }
 }
+/* --- аддон: версии и обновление с сайта --- */
+const tocVersion = (file) => { try { return (/^## Version:\s*(\S+)/m.exec(fs.readFileSync(file, "utf8")) || [])[1] || ""; } catch (e) { return ""; } };
+const cmpVer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
+const addonDir = (wow) => path.join(wow, "_forever_", "Interface", "AddOns", "WolfichMarket");
+
+async function addonInfo() {
+  const wow = await findWow();
+  const installed = wow ? tocVersion(path.join(addonDir(wow), "WolfichMarket.toc")) : "";
+  const bundled = tocVersion(path.join(__dirname, "addon", "WolfichMarket", "WolfichMarket.toc"));
+  let latest = "";
+  const v = await getUrl(`${SITE}/addon/version.json`, 15000);
+  try { if (v) latest = JSON.parse(v.toString()).version || ""; } catch (e) {}
+  const best = latest && (!bundled || cmpVer(latest, bundled) >= 0) ? latest : bundled;
+  return { wow: wow || "", installed, latest: best, fromSite: !!latest, update: !!wow && (!installed || cmpVer(best, installed) > 0) };
+}
+
+/* Распаковка zip без сторонних библиотек (store / deflate) */
+function unzip(buf) {
+  const zlib = require("zlib");
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("архив повреждён");
+  const count = buf.readUInt16LE(eocd + 10);
+  let p = buf.readUInt32LE(eocd + 16);
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error("архив повреждён");
+    const method = buf.readUInt16LE(p + 10), csize = buf.readUInt32LE(p + 20);
+    const nlen = buf.readUInt16LE(p + 28), elen = buf.readUInt16LE(p + 30), clen = buf.readUInt16LE(p + 32), loc = buf.readUInt32LE(p + 42);
+    const name = buf.slice(p + 46, p + 46 + nlen).toString("utf8").replace(/\\/g, "/");
+    p += 46 + nlen + elen + clen;
+    if (name.endsWith("/")) continue;
+    const start = loc + 30 + buf.readUInt16LE(loc + 26) + buf.readUInt16LE(loc + 28);
+    const raw = buf.slice(start, start + csize);
+    out.push({ name, data: method === 8 ? zlib.inflateRawSync(raw) : raw });
+  }
+  return out;
+}
+
 async function installAddon() {
   const wow = await findWow();
   if (!wow) return { ok: false, err: "папка игры не найдена — укажите её в настройках" };
-  const dst = path.join(wow, "_forever_", "Interface", "AddOns", "WolfichMarket");
-  try { copyDir(path.join(__dirname, "addon", "WolfichMarket"), dst); }
-  catch (e) { return { ok: false, err: "не удалось скопировать: " + e.message + " (закройте игру или запустите программу от администратора)" }; }
-  log(`Аддон установлен: ${dst}`);
-  return { ok: true, dir: dst };
+  const dst = addonDir(wow);
+  let files = null, from = "сайта";
+  const zip = await getUrl(`${SITE}/addon/WolfichMarket.zip`, 60000);
+  if (zip) {
+    try { files = unzip(zip).filter((f) => f.name.startsWith("WolfichMarket/") && !f.name.includes("..")); if (!files.some((f) => /WolfichMarket\.toc$/.test(f.name))) files = null; }
+    catch (e) { log("Архив аддона с сайта не распаковался: " + e.message); files = null; }
+  }
+  try {
+    const tmp = dst + ".new";
+    fs.rmSync(tmp, { recursive: true, force: true });
+    if (files) {
+      for (const f of files) { const out = path.join(tmp, f.name.slice("WolfichMarket/".length)); fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, f.data); }
+    } else {
+      from = "программы";
+      copyDir(path.join(__dirname, "addon", "WolfichMarket"), tmp);
+    }
+    // меняем папку целиком: старые файлы не остаются
+    fs.rmSync(dst, { recursive: true, force: true });
+    fs.renameSync(tmp, dst);
+  } catch (e) { return { ok: false, err: "не удалось записать: " + e.message + " (запустите программу от имени администратора)" }; }
+  const v = tocVersion(path.join(dst, "WolfichMarket.toc"));
+  log(`Аддон ${v} установлен из ${from}: ${dst}`);
+  return { ok: true, dir: dst, version: v, from };
 }
 
 /* ---------- окно и трей ---------- */
@@ -280,6 +337,7 @@ ipcMain.handle("log", () => logLines.slice());
 ipcMain.handle("scan-now", () => scan("вручную"));
 ipcMain.handle("read-scans", () => readScans());
 ipcMain.handle("install-addon", () => installAddon());
+ipcMain.handle("addon-info", () => addonInfo());
 ipcMain.handle("find-wow", () => findWow());
 ipcMain.handle("pick-wow", async () => {
   const r = await dialog.showOpenDialog(win, { title: "Папка World of Warcraft (в ней есть _forever_)", properties: ["openDirectory"] });

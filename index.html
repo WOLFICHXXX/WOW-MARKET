@@ -426,10 +426,10 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
     </div>
     <div class="frame card">
       <h3><svg><use href="#i-paw"/></svg>Игра и аддон</h3>
-      <div class="list"><div class="row"><span>Папка игры</span><span id="aWow" class="dim" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ищу…</span></div></div>
+      <div class="list"><div class="row"><span>Аддон</span><span id="aAddon" class="dim">проверяю…</span></div><div class="row"><span>Папка игры</span><span id="aWow" class="dim" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ищу…</span></div></div>
       <div class="bar" style="margin-top:10px">
         <button class="btn ghost sm" data-act="pickwow">Выбрать папку</button>
-        <button class="btn sm" data-act="install">Установить / обновить аддон</button>
+        <button class="btn sm" data-act="install" id="aAddonBtn">Обновить аддон</button>
       </div>
       <label class="opt"><input type="checkbox" id="aAuto"> подхватывать скан профессий из игры автоматически</label>
       <div class="bar" style="margin-top:10px"><button class="btn ghost sm" data-act="import">Подхватить скан сейчас</button><span id="aImp" class="dim" style="font-size:12.5px"></span></div>
@@ -1001,6 +1001,18 @@ function renderApp(){
   $('#aAuto').checked = !!APPSET.autoImport; $('#aNShop').checked = !!APPSET.notifyShop; $('#aNSig').checked = !!APPSET.notifySignals;
   $('#aTray').checked = !!APPSET.tray; $('#aStart').checked = !!APPSET.autostart;
 }
+async function checkAddon(){
+  const i = await APP.addonInfo();
+  const el = $('#aAddon'), btn = $('#aAddonBtn');
+  if (!i.wow) { el.innerHTML = '<span class="down">папка игры не найдена</span>'; btn.textContent = 'Установить аддон'; return; }
+  if (!i.installed) { el.innerHTML = `<span class="down">не установлен</span> · доступен ${esc(i.latest)}`; btn.textContent = 'Установить аддон'; }
+  else if (i.update) { el.innerHTML = `${esc(i.installed)} → <span class="up">доступен ${esc(i.latest)}</span>`; btn.textContent = 'Обновить аддон'; }
+  else { el.innerHTML = `<span class="up">${esc(i.installed)} · актуальный</span>`; btn.textContent = 'Переустановить аддон'; }
+  const tab = $('#appTabBtn');
+  let b = tab.querySelector('.badge');
+  if (i.update && !b) { b = document.createElement('span'); b.className = 'badge'; b.textContent = '1'; tab.appendChild(b); }
+  if (!i.update && b) b.remove();
+}
 async function setApp(patch){ APPSET = await APP.setSettings(patch); renderApp(); }
 async function reloadData(){
   try {
@@ -1046,6 +1058,7 @@ if (APP) {
     renderApp();
     if (APPSET.autoImport) importScans(true);
     if (!APPSET.wowDir) { await APP.findWow(); APPSET = await APP.getSettings(); renderApp(); }
+    checkAddon();
   })();
   APP.on('log', (l) => { const el = $('#aLog'); el.textContent += (el.textContent ? '\n' : '') + l; el.scrollTop = el.scrollHeight; });
   APP.on('status', (st) => { APPST = st; if (S.tab === 'app') renderApp(); });
@@ -1056,9 +1069,17 @@ if (APP) {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const act = b.dataset.act;
     if (act === 'scan') { APPST = { ...APPST, running: true }; renderApp(); APP.scanNow(); }
-    if (act === 'install') { const r = await APP.installAddon(); const msg = r.ok ? `<span class="up">Аддон установлен. Перезапустите игру или наберите /reload.</span>` : `<span class="down">${esc(r.err)}</span>`; $('#aImp').innerHTML = msg; if ($('#scanMsg')) $('#scanMsg').innerHTML = msg; }
+    if (act === 'install') {
+      document.querySelectorAll('[data-act=install]').forEach(x => { x.disabled = true; });
+      $('#aAddon').textContent = 'скачиваю и устанавливаю…';
+      const r = await APP.installAddon();
+      const msg = r.ok ? `<span class="up">Аддон ${esc(r.version)} установлен. В игре наберите /reload (или перезапустите игру).</span>` : `<span class="down">${esc(r.err)}</span>`;
+      $('#aImp').innerHTML = msg; if ($('#scanMsg')) $('#scanMsg').innerHTML = msg;
+      document.querySelectorAll('[data-act=install]').forEach(x => { x.disabled = false; });
+      checkAddon();
+    }
     if (act === 'import') importScans(false);
-    if (act === 'pickwow') { const r = await APP.pickWow(); if (r.err) $('#aImp').innerHTML = `<span class="down">${esc(r.err)}</span>`; APPSET = await APP.getSettings(); renderApp(); }
+    if (act === 'pickwow') { const r = await APP.pickWow(); if (r.err) $('#aImp').innerHTML = `<span class="down">${esc(r.err)}</span>`; APPSET = await APP.getSettings(); renderApp(); checkAddon(); }
     if (act === 'opendata') APP.openData();
     if (act === 'savekey') { await setApp({ clientId: $('#aCid').value.trim(), secret: $('#aSec').value.trim(), source: 'blizzard' }); }
   });

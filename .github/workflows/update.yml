@@ -47,6 +47,7 @@ jobs:
           cp index.html site/index.html
           mkdir -p site/addon
           cd addon && zip -r ../site/addon/WolfichMarket.zip WolfichMarket && cd ..
+          echo "{\"version\":\"$(sed -n 's/^## Version: *//p' addon/WolfichMarket/WolfichMarket.toc | tr -d '\r')\"}" > site/addon/version.json
           touch site/.nojekyll
           # программа для Windows
           P=build/WOLFICH-Market
