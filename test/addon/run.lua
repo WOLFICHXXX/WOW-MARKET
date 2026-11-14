@@ -440,6 +440,34 @@ do
   ns.RemoveSignal(3470, "sell"); ns.DB.alarm[3470] = nil
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 end
+-- общий рынок: свой снимок рассылается, чужие цены принимаются (только для своего аукциона)
+do
+  local q = ns._netQueue
+  for k in pairs(q) do q[k] = nil end
+  local sent = {}
+  local oldS = C_ChatInfo and C_ChatInfo.SendAddonMessage
+  C_ChatInfo = C_ChatInfo or {}
+  C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m end
+  local oldG = GetChannelName; GetChannelName = function() return 5 end
+  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [999999] = { 5, 1, 1 } } })
+  for _ = 1, 10 do advance(1) end
+  local hasP = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then hasP = true end end
+  check(sent[1] and sent[1]:sub(1, 2) == "H^" and hasP and sent[#sent]:sub(1, 2) == "E^", "общий рынок: снимок рассылается (" .. #sent .. " сообщ.)")
+  -- приём от другого игрока
+  local enc = function(n) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s = ""; n = math.floor(n); repeat local d = n % 36; s = D:sub(d + 1, d + 1) .. s; n = math.floor(n / 36) until n == 0; return s end
+  local t = time() + 5000
+  local rk = ns.realmKey:gsub("|", "~")
+  ns._netReceive("WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^1^2.19", "CHANNEL", "Друг-Realm")
+  ns._netReceive("WolfMkt1", "P^" .. rk .. "^" .. enc(t) .. "^" .. enc(2840) .. "," .. enc(160) .. "," .. enc(40) .. ";", "CHANNEL", "Друг-Realm")
+  ns._netReceive("WolfMkt1", "E^" .. rk .. "^" .. enc(t), "CHANNEL", "Друг-Realm")
+  check(ns.AHPrice(2840) == 160, "общий рынок: цена от другого игрока принята")
+  ns._netReceive("WolfMkt1", "H^Чужой~PvE^" .. enc(t + 10) .. "^1^2.19", "CHANNEL", "Враг-Realm")
+  ns._netReceive("WolfMkt1", "P^Чужой~PvE^" .. enc(t + 10) .. "^" .. enc(2840) .. "," .. enc(9) .. ",1;", "CHANNEL", "Враг-Realm")
+  ns._netReceive("WolfMkt1", "E^Чужой~PvE^" .. enc(t + 10), "CHANNEL", "Враг-Realm")
+  check(ns.AHPrice(2840) == 160, "общий рынок: цены чужого аукциона не принимаются")
+  ns.DB.net = nil
+  C_ChatInfo.SendAddonMessage = oldS; GetChannelName = oldG
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

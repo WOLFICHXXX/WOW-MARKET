@@ -246,7 +246,8 @@ local function updateHeader()
   end
   local S = ns.DB.settings
   panel.state:SetText((scan and (L"Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. L" лотов") or L"|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
-    .. (S.autoScan and (L"  /  авто раз в " .. S.autoScanMin .. L" мин") or L"  /  вручную"))
+    .. (S.autoScan and (L"  /  авто раз в " .. S.autoScanMin .. L" мин") or "")
+    .. ((ns.NetInfo and ns.NetInfo()) and ("\n" .. L"цены игроков" .. ": " .. ns.ago((ns.NetInfo())) .. " |cff888888(" .. ((select(2, ns.NetInfo()) or ""):match("^[^-]+") or "") .. ")|r") or ""))
 end
 
 -- строка списка предметов: звезда, иконка, имя, цена, изменение, кнопки
@@ -749,6 +750,8 @@ local function pageSettings(f)
   chk(L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() ns.DB.settings.minimapHidden = not ns.DB.settings.minimapShown end)
   chk(L"Подсветка в сумках: жёлтая - торговцу, зелёная - на аукцион", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
   chk(L"Стоимость сумок над окном сумок", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end)
+  chk(L"Общий рынок: делиться своими снимками с игроками", "netSend")
+  chk(L"Общий рынок: принимать цены от игроков", "netRecv")
   chk(L"Снимать аукцион автоматически, пока он открыт", "autoScan", updateHeader)
   local l1 = UI.Font(f, 11); l1:SetPoint("TOPLEFT", 6, y - 4); l1:SetText(L"Автоснимок раз в:")
   local x = 130

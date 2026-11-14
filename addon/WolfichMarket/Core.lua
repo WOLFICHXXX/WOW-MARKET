@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.18.2"
+ns.VERSION = "2.19.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -131,6 +131,8 @@ local DEFAULTS = {
   tooltip = true,
   bagGlow = true,
   bagValue = true,        -- стоимость сумок над окном сумок
+  netSend = true,         -- общий рынок: делиться своими снимками
+  netRecv = true,         -- общий рынок: принимать цены других игроков
   minimapShown = true,         -- подсветка в сумках: жёлтый - торговцу, зелёный - аукцион
   debug = false,
 }
@@ -210,6 +212,11 @@ function ns.AHPrice(id)
   if rec and rec[1] and rec[1] > 0 then p, t, q = rec[1], scan.t, rec[2] end
   local s = ns.DB.seen[id]
   if s and s.p and s.p > 0 and (not t or s.t > t) and s.r == (ns.priceRealm or ns.realmKey) then p, t = s.p, s.t; q = s.q or q end
+  -- цена от другого игрока с аддоном (общий рынок) - только если она свежее нашей
+  if ns.NetPrice then
+    local np, nt, nq = ns.NetPrice(id)
+    if np and np > 0 and (not t or nt > t) then p, t, q = np, nt, nq or q end
+  end
   return p, t, q
 end
 -- себестоимость материала: дешевле из торговца и аукциона

@@ -376,4 +376,8 @@ ns.EN = {
   ["сигнал, если ниже"] = "alert if below",
   ["сигнал, если выше"] = "alert if above",
   ["Слева - что хотите купить: сигнал, когда цена упадёт. Справа - что хотите продать: сигнал, когда цена вырастет. Сигналы общие для всех персонажей: снимок аукциона любым из них проверяет весь список."] = "Left - what you want to buy: alert when the price drops. Right - what you want to sell: alert when the price rises. Alerts are shared by all characters: an auction snapshot by any of them checks the whole list.",
+  ["общий рынок: %d свежих цен от %s (%s)"] = "shared market: %d fresh prices from %s (%s)",
+  ["цены игроков"] = "players' prices",
+  ["Общий рынок: делиться своими снимками с игроками"] = "Shared market: share my snapshots with players",
+  ["Общий рынок: принимать цены от игроков"] = "Shared market: accept prices from players",
 }

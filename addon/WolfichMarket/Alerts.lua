@@ -9,7 +9,7 @@ local function sound()
   pcall(PlaySound, id, "Master")
 end
 
-ns.Listen("SCAN_DONE", function(scan, prev)
+local function onScan(scan, prev)
   local S = ns.DB.settings
   -- скачки цен по отмеченным
   if S.alerts then
@@ -53,4 +53,6 @@ ns.Listen("SCAN_DONE", function(scan, prev)
       end
     end
   end
-end)
+end
+ns.Listen("SCAN_DONE", onScan)
+ns.Listen("NET_DONE", onScan) -- цены от других игроков с аддоном тоже проверяют сигналы
