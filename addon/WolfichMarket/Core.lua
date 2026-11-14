@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.20.8"
+ns.VERSION = "2.20.9"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -159,6 +159,37 @@ ns.On("ADDON_LOADED", function(name)
   ns.Fire("DB_READY")
 end)
 
+-- Аукцион в WoW Forever общий для всех серверов (и «каналов») одного режима: CAMWOWEU4Realm6PvP и
+-- CAMWOWEU5Realm4PvP торгуют на одном аукционе. Ключ аукциона = режим (PvP / PvE / обычный) + фракция.
+function ns.NormRealmKey(key)
+  if not key then return key end
+  local realm, faction = key:match("^(.*)|([^|]*)$")
+  if not realm then return key end
+  if realm == "PvP" or realm == "PvE" or realm == "RP" or realm == "Normal" then return key end -- уже новый вид
+  local mode = realm:match("(PvP)$") or realm:match("(PvE)$") or realm:match("(RP)$") or realm:match("Realm%d+(%a+)$") or "Normal"
+  return mode .. "|" .. faction
+end
+-- перевод старых данных (по имени сервера) на новый ключ: снимки, история, цены игроков, персонажи
+function ns.MigrateRealmKeys()
+  local DB = ns.DB
+  if DB.realmKeysV == 1 then return end
+  local scans = {}
+  for k, sc in pairs(DB.ahScans or {}) do
+    local nk = ns.NormRealmKey(k)
+    if not scans[nk] or (sc.t or 0) > (scans[nk].t or 0) then sc.realm = nk; scans[nk] = sc end
+  end
+  DB.ahScans = scans
+  for _, h in pairs(DB.hist or {}) do for _, p in ipairs(h) do if p[4] then p[4] = ns.NormRealmKey(p[4]) end end end
+  for _, s2 in pairs(DB.seen or {}) do if s2.r then s2.r = ns.NormRealmKey(s2.r) end end
+  for _, c in pairs(DB.chars or {}) do if c.realmKey then c.realmKey = ns.NormRealmKey(c.realmKey) end end
+  if DB.net then
+    local net = {}
+    for k, v in pairs(DB.net) do local nk = ns.NormRealmKey(k); if not net[nk] or (v.t or 0) > (net[nk].t or 0) then net[nk] = v end end
+    DB.net = net
+  end
+  DB.realmKeysV = 1
+end
+
 ns.On("PLAYER_LOGIN", function()
   local name = UnitName("player") or "?"
   local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName and GetRealmName()) or ""
@@ -167,7 +198,8 @@ ns.On("PLAYER_LOGIN", function()
   local guid = UnitGUID and UnitGUID("player")
   local old = ns.DB.chars[ns.charKey]
   if guid and old and old.guid and old.guid ~= guid then ns.charKey = ns.charKey .. "~" .. guid:sub(-6) end
-  ns.realmKey = (realm ~= "" and realm or "?") .. "|" .. ((UnitFactionGroup and UnitFactionGroup("player")) or "?")
+  ns.realmKey = ns.NormRealmKey((realm ~= "" and realm or "?") .. "|" .. ((UnitFactionGroup and UnitFactionGroup("player")) or "?"))
+  ns.MigrateRealmKeys()
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   local c = DB.chars[ns.charKey]

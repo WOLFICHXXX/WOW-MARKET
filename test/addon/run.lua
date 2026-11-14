@@ -529,6 +529,16 @@ do
   ns.realmKey = saved
   check(a == b and a ~= c and a ~= d, "общий рынок: разные сервера одного режима и фракции - один аукцион (" .. a .. ", " .. c .. ", " .. d .. ")")
 end
+-- старые данные по имени сервера переводятся на общий ключ аукциона
+do
+  local DB = ns.DB
+  local keep = { DB.ahScans, DB.realmKeysV }
+  DB.ahScans = { ["CAMWOWEU4Realm6PvP|Alliance"] = { t = 100, items = {} }, ["CAMWOWEU5Realm4PvP|Alliance"] = { t = 200, items = {} } }
+  DB.realmKeysV = nil
+  ns.MigrateRealmKeys()
+  check(DB.ahScans["PvP|Alliance"] and DB.ahScans["PvP|Alliance"].t == 200 and not DB.ahScans["CAMWOWEU4Realm6PvP|Alliance"], "снимки разных серверов одного режима объединены")
+  DB.ahScans, DB.realmKeysV = keep[1], keep[2]
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
