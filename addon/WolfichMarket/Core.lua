@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.18.1"
+ns.VERSION = "2.18.2"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -229,17 +229,34 @@ end
 
 -- ---------- история и отметки ----------
 local HIST_MAX = 120
+-- история цен общая для всех персонажей; у каждой точки - режим/фракция аукциона (r),
+-- чтобы твинк на другом аукционе не смешивал цены и не получал ложных сигналов
 function ns.AddHistory(id, p, q, t)
   local h = ns.DB.hist[id]
   if not h then h = {}; ns.DB.hist[id] = h end
-  local last = h[#h]
-  if last and t - last[1] < 120 then last[2], last[3] = p, q return end -- не чаще раза в 2 минуты
-  h[#h + 1] = { t, p, q }
+  local r = ns.priceRealm or ns.realmKey
+  for i = #h, math.max(1, #h - 10), -1 do -- последняя точка этого же аукциона
+    local last = h[i]
+    if (last[4] or r) == r then
+      if t - last[1] < 120 then last[2], last[3], last[4] = p, q, r return end -- не чаще раза в 2 минуты
+      break
+    end
+  end
+  h[#h + 1] = { t, p, q, r }
   while #h > HIST_MAX do table.remove(h, 1) end
+end
+-- точки истории для текущего аукциона (старые точки без пометки - для всех)
+function ns.History(id)
+  local h = ns.DB.hist[id]
+  if not h then return nil end
+  local r = ns.priceRealm or ns.realmKey
+  local out = {}
+  for _, p in ipairs(h) do if (p[4] or r) == r then out[#out + 1] = p end end
+  return out
 end
 -- средняя цена за последние N часов (без последней точки)
 function ns.AvgPrice(id, hours)
-  local h = ns.DB.hist[id]
+  local h = ns.History(id)
   if not h or #h < 2 then return nil end
   local from = time() - hours * 3600
   local sum, n = 0, 0

@@ -372,4 +372,8 @@ ns.EN = {
   ["Искусник: навык 225-299"] = "Artisan: skill 225-299",
   ["Мастер: навык 300+"] = "Master: skill 300+",
   ["Навык неизвестен"] = "Skill unknown",
+  ["|cff777777нет цены - нужен снимок аукциона|r"] = "|cff777777no price - an auction snapshot is needed|r",
+  ["сигнал, если ниже"] = "alert if below",
+  ["сигнал, если выше"] = "alert if above",
+  ["Слева - что хотите купить: сигнал, когда цена упадёт. Справа - что хотите продать: сигнал, когда цена вырастет. Сигналы общие для всех персонажей: снимок аукциона любым из них проверяет весь список."] = "Left - what you want to buy: alert when the price drops. Right - what you want to sell: alert when the price rises. Alerts are shared by all characters: an auction snapshot by any of them checks the whole list.",
 }

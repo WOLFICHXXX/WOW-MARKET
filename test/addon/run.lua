@@ -422,6 +422,24 @@ do
   check(after < 5 and not ns.QuickBusy(), "удалённая профессия убрана из очереди «Обновить цены» (осталось " .. after .. ")")
   ns.DB.settings.showUnlearned = nil
 end
+-- сигналы общие для персонажей; у сигнала видна цена срабатывания
+do
+  ns.AddSignal(3470, "sell")
+  ns.DB.alarm[3470] = 10
+  WolfichMarketMainFrame.tabs[2].scripts.OnClick(WolfichMarketMainFrame.tabs[2])
+  local row; for _, r in ipairs(ns._mainSig and ns._mainSig.sell.rows or {}) do if r.data and r.data.id == 3470 then row = r end end
+  check(row and (row.target.text:find("выше", 1, true) or row.target.text:find("above", 1, true)), "у сигнала видна цена срабатывания: " .. tostring(row and row.target.text))
+  -- твинк делает снимок - сигнал по отметке основы приходит
+  local main = ns.charKey
+  ns.charKey = "Твинк-CAMWOWEU4Realm6PvP"; ns.DB.chars[ns.charKey] = ns.DB.chars[ns.charKey] or { profs = {} }
+  local avg = ns.AvgPrice(3470, 24) or ns.AHPrice(3470) or 100
+  played = false
+  ns.Fire("SCAN_DONE", { t = time(), items = { [3470] = { math.floor(avg * 1.5), 5, 1 } } }, nil)
+  check(played, "твинк при снимке получает сигнал по общему списку")
+  ns.charKey = main
+  ns.RemoveSignal(3470, "sell"); ns.DB.alarm[3470] = nil
+  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

@@ -721,7 +721,7 @@ local function pageChart(f)
     if not chartItem then f.title:SetText(L"Выберите предмет: кнопка графика в списках"); f.stats:SetText(""); f.chart:SetPoints(nil); f.star:Hide(); f.search:Hide() return end
     f.star:Show(); f.search:Show()
     f.icon:SetTexture(ns.itemIcon(chartItem)); f.title:SetText(ns.itemLinkText(chartItem))
-    local h = ns.DB.hist[chartItem] or {}
+    local h = ns.History(chartItem) or {}
     local p = ns.AHPrice(chartItem)
     local a24, a7 = ns.AvgPrice(chartItem, 24), ns.AvgPrice(chartItem, 24 * 7)
     local lo, hi

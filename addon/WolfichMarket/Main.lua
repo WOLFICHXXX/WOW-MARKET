@@ -117,7 +117,7 @@ function craft.drawChart()
   if not id then card.chartTitle:SetText(""); card.chart:SetPoints(nil); return end
   local p = ns.AHPrice(id)
   card.chartTitle:SetText(L"График: " .. ns.itemLinkText(id) .. (p and ("  |cffaaaaaa" .. L"сейчас" .. "|r " .. ns.money(p, true)) or ""))
-  local h = ns.DB.hist[id]
+  local h = ns.History(id)
   ns.After(0, function() card.chart:SetPoints(h) end)
 end
 -- окно «Сигналы для рецепта»: галочки на предмет и ингредиенты, свой порог у каждого
@@ -431,7 +431,7 @@ function ns.ShowChartDialog(id)
   local p, avg = ns.AHPrice(id), ns.AvgPrice(id, 24)
   chartDlg.info:SetText((p and (L"сейчас" .. " " .. ns.money(p, true)) or L"|cff777777нет цены|r") .. (avg and ("   |cffaaaaaa" .. L"среднее за 24 ч" .. "|r " .. ns.money(avg, true)) or ""))
   chartDlg:Show()
-  local h = ns.DB.hist[id]
+  local h = ns.History(id)
   ns.After(0, function() chartDlg.chart:SetPoints(h) end)
 end
 
@@ -457,10 +457,10 @@ function ns.RemoveSignal(id, side)
 end
 local function buildSignals(f)
   local info = UI.Font(f, 11, UI.TEXT); info:SetPoint("TOPLEFT", 4, 0); info:SetPoint("RIGHT", -4, 0); info:SetWordWrap(true)
-  info:SetText(L"Слева - что хотите купить: сигнал, когда цена упадёт. Справа - что хотите продать: сигнал, когда цена вырастет. Порог можно задать каждому предмету, пустое поле - общий порог. Проверка - после каждого снимка аукциона.")
+  info:SetText(L"Слева - что хотите купить: сигнал, когда цена упадёт. Справа - что хотите продать: сигнал, когда цена вырастет. Сигналы общие для всех персонажей: снимок аукциона любым из них проверяет весь список.")
   local gl = UI.Font(f, 11); gl:SetPoint("TOPLEFT", 4, -40); gl:SetText(L"Общий порог, %:")
   sig.global = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); sig.global:SetSize(44, 20); sig.global:SetPoint("LEFT", gl, "RIGHT", 10, 0); sig.global:SetAutoFocus(false); sig.global:SetNumeric(true)
-  sig.global:SetScript("OnTextChanged", function(self, user) if user then local v = tonumber(self:GetText()); if v and v > 0 then ns.DB.settings.alertPct = v end end end)
+  sig.global:SetScript("OnTextChanged", function(self, user) if user then local v = tonumber(self:GetText()); if v and v > 0 then ns.DB.settings.alertPct = v; if sig.buy then sig.buy:Refresh(); sig.sell:Refresh() end end end end)
   local ah = UI.Font(f, 10, UI.DIM); ah:SetPoint("LEFT", sig.global, "RIGHT", 16, 0); ah:SetText(L"Добавить: впишите название или Shift+клик по предмету, пока поле в фокусе")
   sig.adds = {}
   local function panel(side, x1, x2, title, color)
@@ -482,16 +482,27 @@ local function buildSignals(f)
     local function col(txt, x) local c = UI.Font(hdr, 10, UI.DIM); c:SetPoint("RIGHT", hdr, "RIGHT", x, 0); c:SetText(txt) end
     local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 26, 0); h1:SetText(L"Предмет")
     col(L"Порог, %", -46); col(L"24 ч", -104); col(L"Цена", -150)
-    local list = UI.List(p, 24, function(r)
-      r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", 2, 0)
+    local list = UI.List(p, 34, function(r)
+      r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(22, 22); r.icon:SetPoint("LEFT", 2, 0)
       r.x = UI.Icon(r, "skin\\ai-x", 14, L"Убрать из списка", function(self) local d = self:GetParent().data; if d then ns.RemoveSignal(d.id, side) end end); r.x:SetPoint("RIGHT", -2, 0)
       r.chart = UI.Icon(r, "chart", 14, L"График цены", function(self) local d = self:GetParent().data; if d then ns.ShowChartDialog(d.id) end end); r.chart:SetPoint("RIGHT", r.x, "LEFT", -4, 0)
       r.thr = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.thr:SetSize(32, 18); r.thr:SetPoint("RIGHT", r.chart, "LEFT", -8, 0); r.thr:SetAutoFocus(false); r.thr:SetNumeric(true)
-      r.thr:SetScript("OnTextChanged", function(self, user) if user and r.data then local v = tonumber(self:GetText()); ns.DB.alarm[r.data.id] = (v and v > 0) and v or nil end end)
+      r.thr:SetScript("OnTextChanged", function(self, user)
+        if user and r.data then local v = tonumber(self:GetText()); ns.DB.alarm[r.data.id] = (v and v > 0) and v or nil; r.fillTarget(r.data) end
+      end)
       r.thr:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
       r.chg = UI.Font(r, 11); r.chg:SetPoint("RIGHT", r.thr, "LEFT", -8, 0); r.chg:SetWidth(46); r.chg:SetJustifyH("RIGHT")
       r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.chg, "LEFT", -4, 0); r.price:SetWidth(64); r.price:SetJustifyH("RIGHT")
-      r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -4, 0)
+      r.name = UI.Font(r, 11); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 5, 2); r.name:SetPoint("RIGHT", r.price, "LEFT", -4, 0)
+      -- вторая строка: при какой цене придёт сигнал (от средней за сутки +/- порог)
+      r.target = UI.Font(r, 10, UI.DIM); r.target:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 5, -3); r.target:SetPoint("RIGHT", r.price, "LEFT", -4, 0)
+      function r.fillTarget(d)
+        local base = ns.AvgPrice(d.id, 24) or ns.AHPrice(d.id)
+        local pct = ns.DB.alarm[d.id] or ns.DB.settings.alertPct or 20
+        if not base then r.target:SetText(L"|cff777777нет цены - нужен снимок аукциона|r") return end
+        local tp = side == "buy" and base * (1 - pct / 100) or base * (1 + pct / 100)
+        r.target:SetText((side == "buy" and L"сигнал, если ниже" or L"сигнал, если выше") .. " |cffffd100" .. ns.money(tp, true) .. "|r  |cff888888(" .. (side == "buy" and "-" or "+") .. pct .. "%)|r")
+      end
       r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
       r:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end, function(r, d)
@@ -499,6 +510,7 @@ local function buildSignals(f)
       local pr = ns.AHPrice(d.id); r.price:SetText(pr and ns.money(pr, true) or L"|cff777777нет|r")
       local avg = ns.AvgPrice(d.id, 24); r.chg:SetText(pr and avg and ns.pct((pr - avg) / avg * 100) or "")
       if not r.thr:HasFocus() then r.thr:SetText(ns.DB.alarm[d.id] or "") end
+      r.fillTarget(d)
     end)
     list:SetPoint("TOPLEFT", 10, -74); list:SetPoint("BOTTOMRIGHT", -10, 10)
     list.empty:SetText(side == "buy" and L"Пусто. Добавьте то, что хотите купить дешевле." or L"Пусто. Добавьте то, что хотите продать дороже.")
@@ -611,6 +623,7 @@ local function build()
 end
 
 ns._mainCraft = craft -- для автотестов
+ns._mainSig = sig
 function ns.ToggleMain()
   if not ns.DB or not ns.charKey then return end
   build()
