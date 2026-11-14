@@ -1,5 +1,6 @@
 -- WolfichMarket: оформление и виджеты (свои текстуры: тёмное дерево, бронза, золото)
 local _, ns = ...
+local L = ns.L
 local M = ns.MEDIA
 local UI = {}
 ns.UI = UI
@@ -175,7 +176,7 @@ end
 function UI.MoneyInput(parent, onChange)
   local f = CreateFrame("Frame", nil, parent); f:SetSize(170, 22)
   local boxes = {}
-  local labels = { "|cffffd100з|r", "|cffc7c7cfс|r", "|cffeda55fм|r" }
+  local labels = { L"|cffffd100з|r", L"|cffc7c7cfс|r", L"|cffeda55fм|r" }
   local x = 0
   for i = 1, 3 do
     local e = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
@@ -216,7 +217,7 @@ function UI.Chart(parent)
     for _, b in ipairs(self.bars) do b:Hide() end
     for _, s in ipairs(self.labels) do s:Hide() end
     for _, g in ipairs(self.grid) do g:Hide() end
-    if not pts or #pts < 2 then msg:SetText("Мало данных для графика.\nКаждый снимок аукциона добавляет точку."); msg:Show() return end
+    if not pts or #pts < 2 then msg:SetText(L"Мало данных для графика.\nКаждый снимок аукциона добавляет точку."); msg:Show() return end
     msg:Hide()
     local W, H = plot:GetWidth(), plot:GetHeight()
     if W < 10 or H < 10 then return end

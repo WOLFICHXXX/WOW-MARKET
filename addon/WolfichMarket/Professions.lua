@@ -1,5 +1,6 @@
 -- WolfichMarket: окно профессии — скан рецептов, прибыль на каждом рецепте, фильтр, поиск на аукционе
 local _, ns = ...
+local L = ns.L
 local safe, clean, UI = ns.safe, ns.clean, ns.UI
 local M = ns.MEDIA
 
@@ -161,9 +162,9 @@ local panel, list, detail, selected
 local function host() return ProfessionsFrame or TradeSkillFrame end
 
 local function profitText(pr)
-  if not pr.rec.out then return "|cff888888чары|r" end
+  if not pr.rec.out then return L"|cff888888чары|r" end
   if pr.profit then return (pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(pr.profit, true):gsub("|r", "|r" .. (pr.profit >= 0 and "|cff78d98a" or "|cffff7a66")) .. "|r" end
-  if pr.missing > 0 then return "|cffaa8866нет цены|r" end
+  if pr.missing > 0 then return L"|cffaa8866нет цены|r" end
   return "|cff777777-|r"
 end
 
@@ -182,13 +183,13 @@ local function refreshList()
     return x > y
   end)
   list:SetData(data)
-  list.empty:SetText(#rows == 0 and "Рецепты появятся после открытия окна профессии." or "Нет рецептов под фильтр.\nСнимите «только прибыльные» или обновите цены: окно аукциона > «Сканировать».")
+  list.empty:SetText(#rows == 0 and L"Рецепты появятся после открытия окна профессии." or L"Нет рецептов под фильтр.\nСнимите «только прибыльные» или обновите цены: окно аукциона > «Сканировать».")
   local scan = ns.CurrentScan()
-  local status = scan and ("Цены: снимок " .. ns.ago(scan.t)) or "|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r"
+  local status = scan and (L"Цены: снимок " .. ns.ago(scan.t)) or L"|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r"
   if S.showUnlearned then
     local un = 0
     for _, pr in ipairs(rows) do if not ns.IsLearned(pr.rec) then un = un + 1 end end
-    status = status .. (un > 0 and ("  |cffaaaaaa/ неизученных: " .. un .. "|r") or "  |cffff9966/ игра не прислала неизученные|r")
+    status = status .. (un > 0 and (L"  |cffaaaaaa/ неизученных: " .. un .. "|r") or L"  |cffff9966/ игра не прислала неизученные|r")
   end
   panel.status:SetText(status)
 end
@@ -197,14 +198,14 @@ local function fillDetail(rec)
   if not detail then return end
   selected = rec
   for _, r in ipairs(detail.rows) do r:Hide() end
-  if not rec then detail.title:SetText("Выберите рецепт"); detail.total:SetText(""); detail.src:SetText("") return end
+  if not rec then detail.title:SetText(L"Выберите рецепт"); detail.total:SetText(""); detail.src:SetText("") return end
   local pr = ns.Profit(rec)
   local learned = ns.IsLearned(rec)
-  detail.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or "  |cffff9966(не изучен)|r"))
+  detail.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or L"  |cffff9966(не изучен)|r"))
   if learned then detail.src:SetText("")
   else
-    local src = rec.src and rec.src ~= "" and rec.src or "игра не сообщает, где его взять"
-    detail.src:SetText("|cffe6b450Как получить:|r " .. src)
+    local src = rec.src and rec.src ~= "" and rec.src or L"игра не сообщает, где его взять"
+    detail.src:SetText(L"|cffe6b450Как получить:|r " .. src)
   end
   local items = {}
   if rec.out then items[#items + 1] = { id = rec.out, n = pr.qty or 1, unit = pr.sell, out = true } end
@@ -215,14 +216,14 @@ local function fillDetail(rec)
     r.id = it.id
     r.icon:SetTexture(ns.itemIcon(it.id))
     r.name:SetText((it.out and "|cffe6b450> |r" or "") .. ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or ""))
-    r.price:SetText(it.unit and ns.money(it.unit * (it.out and 1 or it.n), true) or "|cffaa8866нет цены|r")
+    r.price:SetText(it.unit and ns.money(it.unit * (it.out and 1 or it.n), true) or L"|cffaa8866нет цены|r")
     r.star:SetIcon(ns.IsMarked(it.id) and "star-on" or "star-off")
     r.search:SetEnabled(ns.AHIsOpen()); r.search:SetAlpha(ns.AHIsOpen() and 1 or 0.35)
     r:Show()
   end
-  local lines = { "Себестоимость: " .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost)) }
-  if pr.revenue then lines[#lines + 1] = "Доход (-5%): " .. ns.money(pr.revenue) end
-  if pr.profit then lines[#lines + 1] = "Прибыль: " .. profitText(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
+  local lines = { L"Себестоимость: " .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost)) }
+  if pr.revenue then lines[#lines + 1] = L"Доход (-5%): " .. ns.money(pr.revenue) end
+  if pr.profit then lines[#lines + 1] = L"Прибыль: " .. profitText(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
   detail.total:SetText(table.concat(lines, "\n"))
 end
 ns.FillRecipeDetail = fillDetail
@@ -236,18 +237,18 @@ local function build()
   panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 64, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 64, 0)
   panel:SetFrameStrata(h:GetFrameStrata()); panel:EnableMouse(true)
   UI.Skin(panel)
-  UI.Title(panel, "Прибыль крафта")
+  UI.Title(panel, L"Прибыль крафта")
   panel.status = UI.Font(panel, 10, UI.DIM); panel.status:SetPoint("TOPLEFT", 14, -44); panel.status:SetPoint("RIGHT", -12, 0)
   local S = ns.DB.settings
-  local chk = UI.Check(panel, "только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshList(); ns.DecorateRecipeRows() end)
+  local chk = UI.Check(panel, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshList(); ns.DecorateRecipeRows() end)
   chk:SetPoint("TOPLEFT", 10, -58)
-  local chk2 = UI.Check(panel, "включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshList(); ns.DecorateRecipeRows(); ns.Fire("RECIPES") end)
+  local chk2 = UI.Check(panel, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshList(); ns.DecorateRecipeRows(); ns.Fire("RECIPES") end)
   chk2:SetPoint("TOPLEFT", 10, -80)
-  local bP = UI.Button(panel, "по прибыли", 84, 20, function() panel.sortKey = "profit"; refreshList() end); bP:SetPoint("TOPRIGHT", -102, -60)
-  local bM = UI.Button(panel, "по марже", 84, 20, function() panel.sortKey = "margin"; refreshList() end); bM:SetPoint("TOPRIGHT", -14, -60)
+  local bP = UI.Button(panel, L"по прибыли", 84, 20, function() panel.sortKey = "profit"; refreshList() end); bP:SetPoint("TOPRIGHT", -102, -60)
+  local bM = UI.Button(panel, L"по марже", 84, 20, function() panel.sortKey = "margin"; refreshList() end); bM:SetPoint("TOPRIGHT", -14, -60)
 
   list = UI.List(panel, 22, function(r)
-    r.star = UI.Icon(r, "star-off", 14, "Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec.out then ns.ToggleMark(d.rec.out) end end)
+    r.star = UI.Icon(r, "star-off", 14, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec.out then ns.ToggleMark(d.rec.out) end end)
     r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
     r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", -86, 0)
@@ -262,7 +263,7 @@ local function build()
     r.icon:SetTexture(d.rec.out and ns.itemIcon(d.rec.out) or d.rec.icon or 134400)
     local learned = ns.IsLearned(d.rec)
     r.icon:SetDesaturated(not learned)
-    r.name:SetText(learned and ((DIFF[d.rec.diff] or "|cffffffff") .. d.rec.name .. "|r") or ("|cff9d9d9d" .. d.rec.name .. " |cffff9966(не изучен)|r"))
+    r.name:SetText(learned and ((DIFF[d.rec.diff] or "|cffffffff") .. d.rec.name .. "|r") or ("|cff9d9d9d" .. d.rec.name .. L" |cffff9966(не изучен)|r"))
     r.val:SetText(profitText(d))
   end)
   list:SetPoint("TOPLEFT", 10, -106); list:SetPoint("RIGHT", -10, 0); list:SetPoint("BOTTOM", panel, "BOTTOM", 0, 272)
@@ -278,8 +279,8 @@ local function build()
     local r = CreateFrame("Frame", nil, detail); r:SetHeight(18)
     r:SetPoint("TOPLEFT", 6, -26 - (i - 1) * 19); r:SetPoint("RIGHT", -6, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT")
-    r.search = UI.Icon(r, "search", 15, "Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT")
-    r.star = UI.Icon(r, "star-off", 15, "Отметить: уведомления о скачках цены", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.search, "LEFT", -4, 0)
+    r.search = UI.Icon(r, "search", 15, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT")
+    r.star = UI.Icon(r, "star-off", 15, L"Отметить: уведомления о скачках цены", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.search, "LEFT", -4, 0)
     r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.star, "LEFT", -6, 0); r.price:SetJustifyH("RIGHT")
     r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
     r:EnableMouse(true)
@@ -293,7 +294,7 @@ local function build()
   detail.src:SetWordWrap(true); detail.src:SetJustifyV("BOTTOM"); detail.src:SetMaxLines(4)
 
   -- кнопка-лапа на окне профессии: показать/скрыть панель
-  local tg = UI.Icon(h, "paw", 22, "WolfichMarket: прибыль крафта", function()
+  local tg = UI.Icon(h, "paw", 22, L"WolfichMarket: прибыль крафта", function()
     ns.DB.settings.profPanelHidden = not ns.DB.settings.profPanelHidden
     panel:SetShown(not ns.DB.settings.profPanelHidden)
   end)

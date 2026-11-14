@@ -1,5 +1,6 @@
 -- WolfichMarket: уведомления — скачки цен ТОЛЬКО по отмеченным предметам и лучший крафт
 local _, ns = ...
+local L = ns.L
 local UI = ns.UI
 
 local function sound()
@@ -29,8 +30,8 @@ ns.Listen("SCAN_DONE", function(scan, prev)
         ns.say(string.format("%s %s - %s %s", h.ch > 0 and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r", ns.itemLinkText(h.id), ns.money(h.p), ns.pct(h.ch)))
       end
       local top = hits[1]
-      UI.Toast(string.format("%s %s %s", top.ch > 0 and "|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t Подорожало:" or "|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t Подешевело:", ns.itemName(top.id), ns.pct(top.ch)),
-        ns.money(top.p) .. " за шт" .. (#hits > 1 and ("  /  ещё скачков: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
+      UI.Toast(string.format("%s %s %s", top.ch > 0 and L"|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t Подорожало:" or L"|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t Подешевело:", ns.itemName(top.id), ns.pct(top.ch)),
+        ns.money(top.p) .. L" за шт" .. (#hits > 1 and (L"  /  ещё скачков: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
       sound()
     end
   end
@@ -43,8 +44,8 @@ ns.Listen("SCAN_DONE", function(scan, prev)
       if changed then
         ns.DB.lastBest = { id = best.rec.id, p = best.profit }
         ns.After(S.alerts and 9 or 0, function()
-          UI.Toast("Лучший крафт: " .. best.rec.name, "Прибыль " .. ns.money(best.profit) .. " за штуку (" .. best.prof .. ")", best.rec.out and ns.itemIcon(best.rec.out))
-          ns.say("лучший крафт: " .. best.rec.name .. " - прибыль " .. ns.money(best.profit))
+          UI.Toast(L"Лучший крафт: " .. best.rec.name, L"Прибыль " .. ns.money(best.profit) .. L" за штуку (" .. best.prof .. ")", best.rec.out and ns.itemIcon(best.rec.out))
+          ns.say(L"лучший крафт: " .. best.rec.name .. L" - прибыль " .. ns.money(best.profit))
         end)
       end
     end

@@ -1,6 +1,14 @@
 -- WolfichMarket: ядро — база данных, события, цены, история, отметки.
 local addonName, ns = ...
-ns.VERSION = "2.1.0"
+-- язык: "ru" / "en"; по умолчанию — по языку клиента игры
+function ns.Lang()
+  local s = ns.DB and ns.DB.settings and ns.DB.settings.lang
+  if s == "ru" or s == "en" then return s end
+  return (GetLocale and GetLocale() == "ruRU") and "ru" or "en"
+end
+function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
+local L = ns.L
+ns.VERSION = "2.2.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -25,18 +33,18 @@ function ns.money(c, short)
   c = math.floor(math.abs(c) + 0.5)
   local g, s, m = math.floor(c / 10000), math.floor(c % 10000 / 100), c % 100
   local out = {}
-  if g > 0 then out[#out + 1] = g .. "|cffffd100з|r" end
-  if (g > 0 or s > 0) and not (short and g >= 100) then out[#out + 1] = s .. "|cffc7c7cfс|r" end
-  if g == 0 and not (short and s >= 10) then out[#out + 1] = m .. "|cffeda55fм|r" end
+  if g > 0 then out[#out + 1] = g .. L"|cffffd100з|r" end
+  if (g > 0 or s > 0) and not (short and g >= 100) then out[#out + 1] = s .. L"|cffc7c7cfс|r" end
+  if g == 0 and not (short and s >= 10) then out[#out + 1] = m .. L"|cffeda55fм|r" end
   return (neg and "|cffff6060-|r" or "") .. table.concat(out, " ")
 end
 function ns.ago(t)
-  if not t or t == 0 then return "никогда" end
+  if not t or t == 0 then return L"никогда" end
   local m = math.floor((time() - t) / 60)
-  if m < 1 then return "только что" end
-  if m < 60 then return m .. " мин назад" end
-  if m < 60 * 24 then return math.floor(m / 60) .. " ч назад" end
-  return math.floor(m / 1440) .. " дн назад"
+  if m < 1 then return L"только что" end
+  if m < 60 then return m .. L" мин назад" end
+  if m < 60 * 24 then return math.floor(m / 60) .. L" ч назад" end
+  return math.floor(m / 1440) .. L" дн назад"
 end
 function ns.pct(v)
   if not v then return "|cff777777-|r" end
@@ -98,7 +106,7 @@ end
 evFrame:SetScript("OnEvent", function(_, event, ...)
   for _, fn in ipairs(handlers[event] or {}) do
     local ok, err = pcall(fn, ...)
-    if not ok and ns.DB and ns.DB.settings.debug then ns.say("ошибка в " .. event .. ": " .. tostring(err)) end
+    if not ok and ns.DB and ns.DB.settings.debug then ns.say(L"ошибка в " .. event .. ": " .. tostring(err)) end
   end
 end)
 -- собственные сигналы между модулями
@@ -150,7 +158,7 @@ ns.On("PLAYER_LOGIN", function()
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   ns.Fire("LOGIN")
-  ns.say("v" .. ns.VERSION .. " загружен. Цены и прибыль - в окнах аукциона и профессий. /wm - справка.")
+  ns.say("v" .. ns.VERSION .. L" загружен. Цены и прибыль - в окнах аукциона и профессий. /wm - справка.")
 end)
 
 ns.On("GET_ITEM_INFO_RECEIVED", function(id)
@@ -177,8 +185,8 @@ end
 function ns.CostPrice(id)
   local v = ns.DB.vendor[id]
   local a = ns.AHPrice(id)
-  if v and (not a or v <= a) then return v, "торговец" end
-  if a then return a, "аукцион" end
+  if v and (not a or v <= a) then return v, L"торговец" end
+  if a then return a, L"аукцион" end
   return nil, nil
 end
 -- запомнить цену, увиденную при поиске на аукционе
@@ -210,7 +218,7 @@ function ns.IsMarked(id) return ns.DB.marked[id] == true end
 function ns.ToggleMark(id)
   if not id then return end
   if ns.DB.marked[id] then ns.DB.marked[id] = nil else ns.DB.marked[id] = true end
-  ns.say((ns.DB.marked[id] and "|cfff0c85a|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t отмечено|r: " or "отметка снята: ") .. ns.itemLinkText(id))
+  ns.say((ns.DB.marked[id] and L"|cfff0c85a|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t отмечено|r: " or L"отметка снята: ") .. ns.itemLinkText(id))
   ns.Fire("MARKS")
 end
 
@@ -227,9 +235,9 @@ end
 -- поиск предмета в окне аукциона
 function ns.AHIsOpen() return ns.ahOpen == true end
 function ns.SearchAH(id)
-  if not ns.ahOpen then ns.say("откройте окно аукциона, чтобы искать.") return end
+  if not ns.ahOpen then ns.say(L"откройте окно аукциона, чтобы искать.") return end
   local name = ns.itemName(id)
-  if name:sub(1, 1) == "#" then ns.say("название предмета ещё грузится, нажмите ещё раз.") return end
+  if name:sub(1, 1) == "#" then ns.say(L"название предмета ещё грузится, нажмите ещё раз.") return end
   local sb = AuctionHouseFrame and AuctionHouseFrame.SearchBar
   if sb and sb.SetSearchText and sb.StartSearch then
     if AuctionHouseFrame.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy then

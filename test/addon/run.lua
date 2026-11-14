@@ -96,6 +96,14 @@ ns.OpenChart(2840)
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
 -- закрытие
 fire("AUCTION_HOUSE_CLOSED"); check(not ns.AHIsOpen(), "аукцион закрыт")
+-- английский язык
+ns.DB.settings.lang = "en"
+check(ns.money(15000):find("g", 1, true) and ns.L("Купить") == "Buy" and ns.ago(time()) == "just now", "английский: деньги, кнопки, время")
+local miss = 0; for k, v in pairs(ns.EN) do if v == nil or v == "" then miss = miss + 1 end end
+check(miss == 0, "все английские строки заполнены")
+ns.DB.settings.lang = nil; LOCALE = "enUS"
+check(ns.Lang() == "en", "авто: английский клиент -> английский")
+LOCALE = "ruRU"; check(ns.Lang() == "ru", "авто: русский клиент -> русский")
 SlashCmdList.WOLFICHMARKET("best")
 SlashCmdList.WOLFICHMARKET("marks")
 SlashCmdList.WOLFICHMARKET("")

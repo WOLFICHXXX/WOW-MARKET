@@ -1,5 +1,6 @@
 -- WolfichMarket: цена аукциона, тренд и прибыль в подсказке предмета
 local _, ns = ...
+local L = ns.L
 
 local function findRecipe(id)
   local c = ns.DB.chars[ns.charKey or ""]
@@ -18,15 +19,15 @@ local function addLines(tt, id)
   if p then
     local avg = ns.AvgPrice(id, 24)
     tt:AddDoubleLine(head, ns.money(p) .. (avg and ("  " .. ns.pct((p - avg) / avg * 100)) or ""))
-    tt:AddDoubleLine("|cffaaaaaa  аукцион, " .. ns.ago(t) .. "|r", avg and ("|cffaaaaaaсредняя 24 ч " .. ns.money(avg, true) .. "|r") or "")
+    tt:AddDoubleLine(L"|cffaaaaaa  аукцион, " .. ns.ago(t) .. "|r", avg and (L"|cffaaaaaaсредняя 24 ч " .. ns.money(avg, true) .. "|r") or "")
   else
     tt:AddLine(head)
   end
-  if v then tt:AddDoubleLine("|cffaaaaaa  у торговца|r", ns.money(v)) end
+  if v then tt:AddDoubleLine(L"|cffaaaaaa  у торговца|r", ns.money(v)) end
   local rec = findRecipe(id)
   if rec then
     local pr = ns.Profit(rec)
-    if pr.profit then tt:AddDoubleLine("|cffaaaaaa  прибыль крафта|r", (pr.profit >= 0 and "|cff78d98a" or "|cffff7a66") .. ns.money(pr.profit) .. "|r") end
+    if pr.profit then tt:AddDoubleLine(L"|cffaaaaaa  прибыль крафта|r", (pr.profit >= 0 and "|cff78d98a" or "|cffff7a66") .. ns.money(pr.profit) .. "|r") end
   end
   tt:Show()
 end

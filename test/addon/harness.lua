@@ -50,7 +50,7 @@ OBJ_Disable = function(self) self.enabled = false end
 OBJ_GetMinMaxValues = function() return 0, 0 end
 function CreateFrame(kind, name, parent, tmpl) local o = newObj(kind, name, parent); if name then _G[name] = o end return o end
 UIParent = newObj("Frame"); GameTooltip = newObj("GameTooltip"); ItemRefTooltip = newObj("GameTooltip")
-STANDARD_TEXT_FONT = "x"; UISpecialFrames = {}; NUM_BAG_SLOTS = 4; SlashCmdList = {}
+GetLocale = function() return LOCALE or "ruRU" end; STANDARD_TEXT_FONT = "x"; UISpecialFrames = {}; NUM_BAG_SLOTS = 4; SlashCmdList = {}
 function UnitName() return "Вульфыч" end
 function GetNormalizedRealmName() return "CAMWOWEU4Realm6PvP" end
 function UnitFactionGroup() return "Alliance" end
