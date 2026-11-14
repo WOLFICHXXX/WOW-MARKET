@@ -315,6 +315,21 @@ do
   ns.DB.settings.planUseStock = nil
   ns.ClearPlans()
 end
+-- стоимость сумок: полная, «Сбросить» (только новое), «Обновить»
+do
+  ns.UpdateBagValue()
+  local full = ns.BagValue()
+  check(full > 0 and WolfichMarketBagValue and WolfichMarketBagValue:IsShown(), "над сумками строка с оценкой стоимости")
+  ns.BagReset()
+  check(ns.BagValue() == 0, "«Сбросить»: уже лежащее не считается")
+  local oldI = C_Container.GetContainerItemInfo
+  C_Container.GetContainerItemInfo = function(b, s2) local r = oldI(b, s2); if r and s2 == 1 then r = { itemID = r.itemID, stackCount = r.stackCount + 4 } end; return r end
+  local farmed = ns.BagValue()
+  check(farmed > 0 and farmed < full, "после сброса считается только нафармленное")
+  C_Container.GetContainerItemInfo = oldI
+  ns.BagFull()
+  check(ns.BagValue() == full, "«Обновить»: снова полная стоимость")
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

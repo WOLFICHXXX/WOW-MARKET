@@ -147,3 +147,88 @@ function ns.PlanNeeds()
   end)
   return out, total
 end
+
+-- ---------- оценка сумок над окном сумок: «Сбросить» (считать только новое - для фарма) и «Обновить» (вся стоимость) ----------
+-- цена предмета: на аукцион (за вычетом 5%) или торговцу - что выгоднее; персональные - только торговцу
+local function unitValue(id, bound)
+  local v = ns.VendorSell and ns.VendorSell(id) or 0
+  if bound then return v end
+  local a = ns.AHPrice(id)
+  local net = a and math.floor(a * (1 - (ns.AH_CUT or 0.05))) or 0
+  return math.max(net, v or 0)
+end
+function ns.BagValue()
+  local counts, units = {}, {}
+  local C = C_Container
+  for _, b in ipairs(bagIDs()) do
+    local n = (C and C.GetContainerNumSlots and safe(C.GetContainerNumSlots, b)) or 0
+    for s = 1, n do
+      local info = C and C.GetContainerItemInfo and safe(C.GetContainerItemInfo, b, s)
+      if info and info.itemID then
+        local id = info.itemID
+        counts[id] = (counts[id] or 0) + (info.stackCount or 1)
+        local u = unitValue(id, info.isBound)
+        if not units[id] or u > units[id] then units[id] = u end
+      end
+    end
+  end
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  local base = c and c.bagBase
+  local total = 0
+  for id, n in pairs(counts) do
+    local k = base and math.max(0, n - (base[id] or 0)) or n
+    total = total + k * (units[id] or 0)
+  end
+  return total, base ~= nil, c and c.bagBaseT
+end
+function ns.BagReset()
+  local c = ns.DB.chars[ns.charKey]; if not c then return end
+  c.bagBase = read(bagIDs()); c.bagBaseT = time()
+  ns.Fire("INVENTORY")
+end
+function ns.BagFull()
+  local c = ns.DB.chars[ns.charKey]; if not c then return end
+  c.bagBase = nil; c.bagBaseT = nil
+  ns.Fire("INVENTORY")
+end
+
+local bar
+local function host()
+  if ContainerFrameCombinedBags and ContainerFrameCombinedBags:IsShown() then return ContainerFrameCombinedBags end
+  if ContainerFrame1 and ContainerFrame1:IsShown() then return ContainerFrame1 end
+end
+local function updateBar()
+  if not bar then return end
+  local h = host()
+  if not h or not ns.DB or ns.DB.settings.bagValue == false then bar:Hide() return end
+  bar:ClearAllPoints(); bar:SetPoint("BOTTOMLEFT", h, "TOPLEFT", 0, 2); bar:SetPoint("BOTTOMRIGHT", h, "TOPRIGHT", 0, 2)
+  local total, farm, t = ns.BagValue()
+  bar.text:SetText(farm and (L"Нафармлено" .. ": |cffffffff" .. ns.money(total, true) .. "|r  |cffaaaaaa(" .. string.format(L"с %s", date("%H:%M", t)) .. ")|r")
+    or (L"Сумки" .. ": |cffffffff~" .. ns.money(total, true) .. "|r"))
+  bar:Show()
+end
+local function buildBar()
+  if bar or not ns.UI then return end
+  local UI = ns.UI
+  bar = CreateFrame("Frame", "WolfichMarketBagValue", UIParent)
+  bar:SetHeight(30); bar:SetFrameStrata("HIGH")
+  UI.Skin(bar, { theme = "acard", scale = 0.22 })
+  bar.text = UI.Font(bar, 12, UI.GOLD); bar.text:SetPoint("LEFT", 12, 0)
+  bar.full = UI.Button(bar, L"Обновить", 78, 20, function() ns.BagFull() end); bar.full:SetPoint("RIGHT", -8, 0)
+  bar.reset = UI.Button(bar, L"Сбросить", 78, 20, function() ns.BagReset() end); bar.reset:SetPoint("RIGHT", bar.full, "LEFT", -4, 0)
+  bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -6, 0)
+  bar.reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar.reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar.full:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Снова показывать полную стоимость сумок.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar.full:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Оценка: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar:Hide()
+  for _, f in ipairs({ ContainerFrameCombinedBags, ContainerFrame1 }) do
+    if f and f.HookScript then f:HookScript("OnShow", function() ns.After(0, updateBar) end); f:HookScript("OnHide", function() ns.After(0, updateBar) end) end
+  end
+end
+ns.Listen("LOGIN", function() buildBar(); updateBar() end)
+ns.Listen("INVENTORY", updateBar)
+ns.Listen("PRICES", updateBar)
+ns.UpdateBagValue = updateBar

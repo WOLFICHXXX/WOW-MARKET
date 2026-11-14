@@ -291,4 +291,12 @@ ns.EN = {
   ["цены обновляются у аукциониста - откройте аукцион."] = "prices are updated at the auctioneer - open the auction house.",
   ["Обновить цены всего рецепта (результат и все материалы) - когда открыт аукцион, без 15-минутного ожидания."] = "Update prices of the whole recipe (result and all materials) - while the auction house is open, without the 15-minute wait.",
   ["нужно"] = "need",
+  ["Нафармлено"] = "Farmed",
+  ["с %s"] = "since %s",
+  ["Сумки"] = "Bags",
+  ["Сбросить"] = "Reset",
+  ["Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое."] = "Before farming: what is already in your bags no longer counts - only new loot is shown.",
+  ["Снова показывать полную стоимость сумок."] = "Show the full value of your bags again.",
+  ["Оценка: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу."] = "Estimate: each item at its best price - auction (minus 5%) or vendor; soulbound items - vendor only.",
+  ["Стоимость сумок над окном сумок"] = "Bag value above the bag window",
 }

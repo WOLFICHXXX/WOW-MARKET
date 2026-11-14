@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.12.0"
+ns.VERSION = "2.13.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -130,6 +130,7 @@ local DEFAULTS = {
   minProfit = 0,
   tooltip = true,
   bagGlow = true,
+  bagValue = true,        -- стоимость сумок над окном сумок
   minimapShown = true,         -- подсветка в сумках: жёлтый - торговцу, зелёный - аукцион
   debug = false,
 }
