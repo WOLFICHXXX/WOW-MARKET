@@ -70,7 +70,8 @@ local function fillCard(rec)
   elseif not ns.IsLearned(rec) then card.craft:Disable(); card.craft.tip = L"Рецепт ещё не изучен"
   else card.craft:Enable(); card.craft.tip = nil end
   local c = ns.DB.chars[charKey] or {}
-  local pr = ns.WithRealm(c.realmKey, ns.Profit, rec)
+  local stock = ns.DB.settings.useBank and ns.Stock(charKey) or nil
+  local pr = ns.WithRealm(c.realmKey, ns.Profit, rec, stock)
   pr.rec = rec
   local learned = ns.IsLearned(rec)
   card.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or L"  |cffff9966(не изучен)|r"))
@@ -81,19 +82,26 @@ local function fillCard(rec)
     local r = card.rows[i]; if not r then break end
     r.id = it.id
     r.icon:SetTexture(ns.itemIcon(it.id))
-    r.name:SetText((it.out and "|cffe6b450> |r" or "") .. ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or ""))
-    r.price:SetText(it.unit and ns.money(it.unit * (it.out and 1 or it.n), true) or L"|cffaa8866нет цены|r")
+    -- с «Учитывать банк»: сколько есть в банке и сумках; покупать только недостающее
+    local haveTxt = ""
+    if not it.out and it.have then
+      haveTxt = it.have >= it.n and (" |cff78d98a" .. L"есть" .. " " .. it.have .. "|r") or (" |cffffb060" .. L"есть" .. " " .. it.have .. "|r")
+    end
+    r.name:SetText((it.out and "|cffe6b450> |r" or "") .. ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or "") .. haveTxt)
+    local qty = it.out and 1 or (it.buy or it.n)
+    r.price:SetText(it.unit and (qty > 0 and ns.money(it.unit * qty, true) or L"|cff78d98aсвоё|r") or (qty > 0 and L"|cffaa8866нет цены|r" or L"|cff78d98aсвоё|r"))
     r.star:SetIcon(ns.IsMarked(it.id) and "star-on" or "star-off")
     r.search:SetAlpha(ns.AHIsOpen() and 1 or 0.35)
     r:Show()
   end
-  local lines = { L"Себестоимость: " .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost)) }
+  local lines = { (pr.stock and L"Докупить на 1 крафт: " or L"Себестоимость: ") .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost))
+    .. (pr.crafts and ("   |cffaaaaaa" .. L"из запаса хватит на " .. pr.crafts .. "|r") or "") }
   if pr.revenue then lines[#lines + 1] = L"Доход (-5%): " .. ns.money(pr.revenue) end
   if pr.profit then lines[#lines + 1] = L"Прибыль: " .. profitStr(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
   card.total:SetText(table.concat(lines, "\n"))
   -- «Крафт» и «Поставить сигнал» — сразу под последней строкой рецепта
   local n = math.min(#items, #card.rows)
-  card.craft:ClearAllPoints(); card.craft:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -34 - n * 22 - 6)
+  card.craft:ClearAllPoints(); card.craft:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -52 - n * 22 - 6)
   craft.drawChart()
 end
 -- график цены выбранного предмета (по умолчанию — результат рецепта)
@@ -208,8 +216,11 @@ local function buildCraft(f)
   local S = ns.DB.settings
   local c1 = UI.Check(f, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshCraft(); ns.Fire("RECIPES") end); c1:SetPoint("TOPLEFT", 0, -48)
   local c2 = UI.Check(f, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshCraft(); ns.Fire("RECIPES"); if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end end); c2:SetPoint("TOPLEFT", 170, -48)
-  local bP = UI.Button(f, L"по прибыли", 104, 22, function() craft.sortKey = "profit"; refreshCraft() end); bP:SetPoint("TOPLEFT", 446, -48)
-  local bM = UI.Button(f, L"по марже", 104, 22, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("LEFT", bP, "RIGHT", 6, 0)
+  local c3 = UI.Check(f, L"учитывать банк", function() return S.useBank end, function(v) S.useBank = v; if ns.MarkProfitDirty then ns.MarkProfitDirty() end; refreshCraft(); ns.Fire("RECIPES") end); c3:SetPoint("TOPLEFT", 400, -48)
+  c3:HookScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Материалы из банка и сумок этого персонажа считаются своими: в себестоимость идёт только то, что нужно докупить. Банк запоминается, когда вы открываете его этим персонажем.", 1, 1, 1, true); GameTooltip:Show() end)
+  c3:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  local bM = UI.Button(f, L"по марже", 96, 22, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("TOPRIGHT", 0, -48)
+  local bP = UI.Button(f, L"по прибыли", 104, 22, function() craft.sortKey = "profit"; refreshCraft() end); bP:SetPoint("RIGHT", bM, "LEFT", -6, 0)
   craft.list = UI.List(f, 22, function(r)
     r.star = UI.Icon(r, "star-off", 14, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec.out then ns.ToggleMark(d.rec.out) end end); r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
@@ -231,7 +242,8 @@ local function buildCraft(f)
   function craft.setTop(dy)
     c1:ClearAllPoints(); c1:SetPoint("TOPLEFT", 0, -48 - dy)
     c2:ClearAllPoints(); c2:SetPoint("TOPLEFT", 170, -48 - dy)
-    bP:ClearAllPoints(); bP:SetPoint("TOPLEFT", 446, -48 - dy)
+    c3:ClearAllPoints(); c3:SetPoint("TOPLEFT", 400, -48 - dy)
+    bM:ClearAllPoints(); bM:SetPoint("TOPRIGHT", 0, -48 - dy)
     craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", 0, -78 - dy); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
     card:ClearAllPoints(); card:SetPoint("TOPLEFT", f, "TOP", 10, -78 - dy); card:SetPoint("BOTTOMRIGHT")
   end
@@ -345,8 +357,59 @@ local function buildSignals(f)
   sig.list.empty:SetText(L"Отмеченных предметов нет.\nОтметьте звёздочкой в окне крафта, Alt+клик в сумке или впишите выше.")
 end
 
+-- ---------- вкладка «Банк» ----------
+local bank = {}
+local refreshBank
+local function buildBank(f)
+  local S = ns.DB.settings
+  bank.status = UI.Font(f, 11, UI.DIM); bank.status:SetPoint("TOPLEFT", 4, 0); bank.status:SetPoint("RIGHT", -4, 0); bank.status:SetWordWrap(true)
+  local cb = UI.Check(f, L"вместе с сумками", function() return S.bankWithBags end, function(v) S.bankWithBags = v; refreshBank() end); cb:SetPoint("TOPLEFT", 0, -30)
+  bank.total = UI.Font(f, 13, UI.GOLD); bank.total:SetPoint("TOPRIGHT", -4, -32); bank.total:SetJustifyH("RIGHT")
+  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -60); hdr:SetPoint("TOPRIGHT", 0, -60); hdr:SetHeight(14)
+  local function col(t, x) local s2 = UI.Font(hdr, 10, UI.DIM); s2:SetPoint("RIGHT", hdr, "RIGHT", x, 0); s2:SetText(t) end
+  local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 46, 0); h1:SetText(L"Предмет")
+  col(L"Всего", -12); col(L"Цена за шт", -130); col(L"Кол-во", -250)
+  bank.list = UI.List(f, 24, function(r)
+    r.star = UI.Icon(r, "star-off", 16, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d then ns.ToggleMark(d.id) end end); r.star:SetPoint("LEFT", 4, 0)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", r.star, "RIGHT", 6, 0)
+    r.sum = UI.Font(r, 11); r.sum:SetPoint("RIGHT", -12, 0); r.sum:SetWidth(110); r.sum:SetJustifyH("RIGHT")
+    r.unit = UI.Font(r, 11); r.unit:SetPoint("RIGHT", r.sum, "LEFT", -8, 0); r.unit:SetWidth(110); r.unit:SetJustifyH("RIGHT")
+    r.cnt = UI.Font(r, 12); r.cnt:SetPoint("RIGHT", r.unit, "LEFT", -8, 0); r.cnt:SetWidth(60); r.cnt:SetJustifyH("RIGHT")
+    r.name = UI.Font(r, 12); r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", r.cnt, "LEFT", -6, 0)
+    r:SetScript("OnClick", function(self) if self.data then ns.ShowChartDialog(self.data.id) end end)
+    r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:AddLine(L"Клик - график цены", 0.9, 0.7, 0.3); GameTooltip:Show() end end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end, function(r, d)
+    r.star:SetIcon(ns.IsMarked(d.id) and "star-on" or "star-off")
+    r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
+    r.cnt:SetText(d.n .. (d.inBags and d.inBags > 0 and (" |cffaaaaaa(" .. d.inBags .. ")|r") or ""))
+    r.unit:SetText(d.p and ns.money(d.p, true) or L"|cff777777нет|r")
+    r.sum:SetText(d.p and ns.money(d.p * d.n, true) or "")
+  end)
+  bank.list:SetPoint("TOPLEFT", 0, -76); bank.list:SetPoint("BOTTOMRIGHT")
+end
+function refreshBank()
+  if not bank.list then return end
+  local c = ns.DB.chars[charKey] or {}
+  local S = ns.DB.settings
+  local items = {}
+  for id, n in pairs(c.bank or {}) do items[id] = { id = id, n = n, inBags = 0 } end
+  if S.bankWithBags then
+    for id, n in pairs(c.bags or {}) do local d = items[id] or { id = id, n = 0, inBags = 0 }; d.n = d.n + n; d.inBags = n; items[id] = d end
+  end
+  local list, total = {}, 0
+  ns.WithRealm(c.realmKey, function()
+    for _, d in pairs(items) do d.p = ns.AHPrice(d.id); if d.p then total = total + d.p * d.n end; list[#list + 1] = d end
+  end)
+  table.sort(list, function(a, b) local x, y = (a.p or 0) * a.n, (b.p or 0) * b.n; if x == y then return ns.itemName(a.id) < ns.itemName(b.id) end return x > y end)
+  bank.list:SetData(list)
+  bank.list.empty:SetText(L"Банк этого персонажа ещё не записан - зайдите им и откройте банк у банкира.")
+  bank.status:SetText(c.bankT and (L"Банк: снимок " .. ns.ago(c.bankT) .. L" |cffaaaaaa(обновляется, когда банк открыт)|r") or L"|cffff9966Банк не записан - откройте банк этим персонажем.|r")
+  bank.total:SetText(L"Стоимость по аукциону: " .. ns.money(total))
+end
+
 -- ---------- окно ----------
-local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() else refreshSignals() end end
+local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() else refreshBank() end end
 local function selectView(i)
   view = i
   for k, b in ipairs(win.tabs) do
@@ -375,12 +438,12 @@ local function build()
   nextB:SetPoint("LEFT", win.charName, "RIGHT", 4, 0)
   -- вкладки
   win.tabs = {}
-  for i, n in ipairs({ L"Крафт", L"Сигналы" }) do
+  for i, n in ipairs({ L"Крафт", L"Сигналы", L"Банк" }) do
     local b = UI.Button(win, n, 124, 26, function() selectView(i) end)
-    b:SetPoint("TOPRIGHT", -24 - (2 - i) * 130, -63); win.tabs[i] = b
+    b:SetPoint("TOPRIGHT", -24 - (3 - i) * 130, -63); win.tabs[i] = b
   end
   win.pages = {}
-  for i, builder in ipairs({ buildCraft, buildSignals }) do
+  for i, builder in ipairs({ buildCraft, buildSignals, buildBank }) do
     local f = CreateFrame("Frame", nil, win); f:SetPoint("TOPLEFT", 24, -100); f:SetPoint("BOTTOMRIGHT", -24, 22)
     builder(f); f:Hide(); win.pages[i] = f
   end
@@ -401,6 +464,7 @@ ns.Listen("MARKS", refresh)
 ns.Listen("RECIPES", refresh)
 ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
+ns.Listen("INVENTORY", refresh)
 
 -- ---------- кнопка у миникарты ----------
 local function placeMini(b)

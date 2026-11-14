@@ -128,15 +128,22 @@ end
 
 -- ---------- прибыль ----------
 -- { cost, missing, sell, revenue, profit, margin, parts = { {id, n, unit, src} } }
-function ns.Profit(rec)
-  local cost, missing, parts = 0, 0, {}
+-- stock (необязательно): { [itemID] = сколько есть в банке и сумках } — свои материалы не покупаются,
+-- в себестоимость идёт только то, чего не хватает на один крафт; crafts — сколько раз хватит запаса целиком
+function ns.Profit(rec, stock)
+  local cost, missing, parts, crafts = 0, 0, {}, nil
   for _, r in ipairs(rec.reag or {}) do
     local id, n = r[1], r[2]
     local unit, src = ns.CostPrice(id)
-    if unit then cost = cost + unit * n else missing = missing + 1 end
-    parts[#parts + 1] = { id = id, n = n, unit = unit, src = src }
+    local have = stock and stock[id] or 0
+    local buy = stock and math.max(0, n - have) or n
+    if buy > 0 then
+      if unit then cost = cost + unit * buy else missing = missing + 1 end
+    end
+    if stock then local k = math.floor(have / math.max(1, n)); crafts = crafts and math.min(crafts, k) or k end
+    parts[#parts + 1] = { id = id, n = n, unit = unit, src = src, have = stock and have or nil, buy = buy }
   end
-  local res = { cost = cost, missing = missing, parts = parts }
+  local res = { cost = cost, missing = missing, parts = parts, crafts = crafts, stock = stock and true or nil }
   if rec.out then
     local sell = ns.AHPrice(rec.out)
     local q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2
@@ -168,13 +175,13 @@ function ns.OpenRecipeInGame(rec, profName)
 end
 function ns.IsLearned(rec) return rec.learned ~= false end
 -- все рецепты всех профессий текущего персонажа с прибылью (неизученные — только если попросили)
-local function collect(c, profFilter, withUnlearned)
+local function collect(c, profFilter, withUnlearned, stock)
   local out = {}
   for prof, p in pairs(c.profs or {}) do
     if not profFilter or prof == profFilter then
       for _, rec in ipairs(p.recipes or {}) do
         if withUnlearned or ns.IsLearned(rec) then
-          local pr = ns.Profit(rec)
+          local pr = ns.Profit(rec, stock)
           pr.rec, pr.prof = rec, prof
           out[#out + 1] = pr
         end
@@ -187,8 +194,10 @@ end
 function ns.AllRecipeProfits(profFilter, withUnlearned, charKey)
   local c = ns.DB.chars[charKey or ns.charKey]
   if not c then return {} end
-  if charKey and charKey ~= ns.charKey and c.realmKey then return ns.WithRealm(c.realmKey, collect, c, profFilter, withUnlearned) end
-  return collect(c, profFilter, withUnlearned)
+  -- «Учитывать банк»: материалы из банка и сумок этого персонажа не покупаются
+  local stock = ns.DB.settings.useBank and ns.Stock and ns.Stock(charKey or ns.charKey) or nil
+  if charKey and charKey ~= ns.charKey and c.realmKey then return ns.WithRealm(c.realmKey, collect, c, profFilter, withUnlearned, stock) end
+  return collect(c, profFilter, withUnlearned, stock)
 end
 function ns.CraftCost(id)
   local best, bestRec, bestPr
@@ -392,6 +401,7 @@ ns.On("SKILL_LINES_CHANGED", function() ns.ScanSkills() end)
 ns.Listen("LOGIN", function() ns.ScanSkills(); ns.After(4, function() ns.ScanSkills(); ns.CleanStrangers() end) end)
 local function refreshAll() if panel and panel:IsShown() then refreshList(); fillDetail(selected) end; ns.DecorateRecipeRows() end
 ns.Listen("PRICES", function() indexDirty = true; refreshAll() end)
+ns.Listen("INVENTORY", function() if ns.DB.settings.useBank then indexDirty = true end end)
 ns.Listen("MARKS", function() if panel and panel:IsShown() then list:Refresh(); fillDetail(selected) end end)
 ns.Listen("RECIPES", function() indexDirty = true; if panel and panel:IsShown() then refreshList() end end)
 ns.Listen("AH_STATE", function() if panel and panel:IsShown() then fillDetail(selected) end end)

@@ -203,6 +203,28 @@ ns.ahOpen = false
 if not (WolfichMarketMainFrame and WolfichMarketMainFrame:IsShown()) then ns.ToggleMain() end
 ns.ShowChartDialog(2840)
 check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown(), "график цены из «Сигналов» открывается без аукциона")
+-- банк: запоминается у персонажа, материалы из запаса не покупаются, вкладка «Банк»
+do
+  local oldN, oldI = C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo
+  C_Container.GetContainerNumSlots = function(b) return (b == -1 and 1) or (b == 0 and 2) or 0 end
+  C_Container.GetContainerItemInfo = function(b, s2) if b == -1 then return { itemID = 2840, stackCount = 30 } end return oldI(b, s2) end
+  ns._bankOpen(true); ns.ScanBank(); ns.ScanBags(); ns._bankOpen(false)
+  local c = ns.DB.chars[ns.charKey]
+  check(c.bank and c.bank[2840] == 30 and c.bankT, "банк персонажа записан")
+  check(ns.Stock()[2840] == 42, "запас = банк + сумки")
+  local rec = { reag = { { 2840, 2 }, { 3470, 10 } } }
+  local full, own = ns.Profit(rec), ns.Profit(rec, ns.Stock())
+  check(own.cost < full.cost and own.crafts == 0 and own.parts[1].buy == 0 and own.parts[2].buy == 5, "свои материалы не идут в себестоимость, недостающее - докупить")
+  C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo = oldN, oldI
+  ns.DB.settings.useBank = true
+  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
+  check(WolfichMarketMainFrame.pages[3]:IsShown(), "вкладка «Банк» открывается")
+  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
+  local row = ns._mainCraft.list.rows[1]
+  if row and row.data then row.scripts.OnClick(row) end
+  check(ns._mainCraft.card.total.text ~= "", "карточка рецепта с учётом банка строится")
+  ns.DB.settings.useBank = nil
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
