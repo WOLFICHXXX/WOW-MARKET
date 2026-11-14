@@ -234,7 +234,32 @@ local function pageBuy(f)
   -- покупка «товара» (стакается): количество → цена → подтверждение
   f.qtyLabel = UI.Font(f, 11); f.qtyLabel:SetPoint("BOTTOMLEFT", 4, 40); f.qtyLabel:SetText(L"Количество:")
   f.qty = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); f.qty:SetSize(60, 20); f.qty:SetPoint("LEFT", f.qtyLabel, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true); f.qty:SetText("1")
-  f.price = UI.Button(f, L"Узнать цену", 110, 22, function()
+  -- цена считается сама при изменении количества: сразу оценка по списку лотов, через полсекунды - точная цена сервера
+  f.estimate = function()
+    local q = tonumber(f.qty:GetText()) or 0
+    f.confirm:Disable(); f.confirm:SetLabel(L"Купить")
+    if q <= 0 then f.total:SetText(L"Укажите количество.") return end
+    local left, sum = q, 0
+    for _, d in ipairs(f.list.data or {}) do
+      if left <= 0 then break end
+      if d.commodity then local take = math.min(left, d.qty or 0); sum = sum + take * d.unit; left = left - take end
+    end
+    if left > 0 then f.total:SetText(string.format(L"|cffff9966На аукционе только %d шт.|r", q - left)) return end
+    f.total:SetText(L"~ Итого: " .. ns.money(sum) .. "  |cffaaaaaa(" .. ns.money(sum / q) .. L" за шт)|r")
+  end
+  local quoteToken = 0
+  f.requestQuote = function()
+    quoteToken = quoteToken + 1
+    local my = quoteToken
+    ns.After(0.5, function()
+      if my ~= quoteToken or not buyItem or not f.qty:IsShown() then return end
+      local q = tonumber(f.qty:GetText()) or 0
+      if q > 0 then pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q) end
+    end)
+  end
+  f.qty:SetScript("OnTextChanged", function(_, user) if user and f.qty:IsShown() then f.estimate(); f.requestQuote() end end)
+  f.qty:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  f.price = UI.Button(f, L"Обновить", 100, 22, function()
     local q = tonumber(f.qty:GetText()) or 0
     if buyItem and q > 0 then f.confirm:Disable(); f.total:SetText(L"запрос цены..."); pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q) end
   end); f.price:SetPoint("LEFT", f.qty, "RIGHT", 10, 0)
@@ -336,8 +361,9 @@ ns.Listen("SEARCH_RESULTS", function(itemID, commodity, itemKey)
     end
   end
   f.setCommodity(commodity)
-  f.sub:SetText(#d > 0 and (commodity and L"Товар: укажите количество и нажмите «Узнать цену»" or L"Выберите лот и нажмите «Купить»") or L"На аукционе сейчас нет")
+  f.sub:SetText(#d > 0 and (commodity and L"Товар: укажите количество - цена посчитается сама" or L"Выберите лот и нажмите «Купить»") or L"На аукционе сейчас нет")
   f.list:SetData(d)
+  if commodity and #d > 0 then f.estimate(); f.requestQuote() end
 end)
 ns.On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if not panel then return end

@@ -272,4 +272,9 @@ ns.EN = {
   ["< Назад"] = "< Back",
   ["Найти этот предмет на аукционе"] = "Find this item at the auction house",
   ["  /  вручную"] = "  /  manual",
+  ["Укажите количество."] = "Enter a quantity.",
+  ["|cffff9966На аукционе только %d шт.|r"] = "|cffff9966Only %d available.|r",
+  ["~ Итого: "] = "~ Total: ",
+  ["Обновить"] = "Refresh",
+  ["Товар: укажите количество - цена посчитается сама"] = "Commodity: enter a quantity - the price updates by itself",
 }

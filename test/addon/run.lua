@@ -277,6 +277,19 @@ do
   ns.SeenPrice(2840, 777, 10)
   check(#ns.DB.hist[2840] == before + 1 and ns.DB.hist[2840][#ns.DB.hist[2840]][2] == 777, "свежая цена добавляет точку на график")
 end
+-- покупка товара: цена пересчитывается сама при изменении количества
+do
+  ns.ahOpen = true
+  ns.OpenBuy(2840)
+  fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
+  local f = ns._ahPages[3]
+  startedBuy = nil
+  f.qty:SetText("15"); f.qty.scripts.OnTextChanged(f.qty, true)
+  for _ = 1, 3 do advance(1) end
+  check(startedBuy and startedBuy[2] == 15, "при изменении количества цена запрашивается сама")
+  f.qty:SetText("999"); f.qty.scripts.OnTextChanged(f.qty, true)
+  check(f.total.text:find("30", 1, true) ~= nil, "больше, чем есть на аукционе - предупреждение")
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
