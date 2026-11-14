@@ -198,8 +198,8 @@ local function updateBar()
   if not bar then return end
   if not ns.DB or ns.DB.settings.bagValue == false then bar:Hide() return end
   local total, farm, t = ns.BagValue()
-  bar.text:SetText(farm and (L"Нафармлено" .. ": |cffffffff" .. ns.money(total, true) .. "|r  |cffaaaaaa(" .. string.format(L"с %s", date("%H:%M", t)) .. ")|r")
-    or (L"Сумки" .. ": |cffffffff~" .. ns.money(total, true) .. "|r"))
+  bar.text:SetText(farm and (L"Фарм" .. ": |cffffffff" .. ns.money(total, true) .. "|r") or (L"Сумки" .. ": |cffffffff~" .. ns.money(total, true) .. "|r"))
+  bar.farmSince = farm and t or nil
   bar:Show()
 end
 local function savePos()
@@ -210,23 +210,28 @@ local function buildBar()
   if bar or not ns.UI then return end
   local UI = ns.UI
   bar = CreateFrame("Frame", "WolfichMarketBagValue", UIParent)
-  bar:SetSize(330, 30); bar:SetFrameStrata("MEDIUM"); bar:SetClampedToScreen(true)
+  bar:SetSize(220, 24); bar:SetFrameStrata("MEDIUM"); bar:SetClampedToScreen(true)
   bar:SetMovable(true); bar:EnableMouse(true); bar:RegisterForDrag("LeftButton")
   bar:SetScript("OnDragStart", bar.StartMoving)
   bar:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); savePos() end)
   local p = ns.DB.settings.bagPos
   if p then bar:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else bar:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -320, 260) end
-  UI.Skin(bar, { theme = "acard", scale = 0.22 })
-  bar.close = UI.Icon(bar, "skin\\ai-x", 14, L"Скрыть (вернуть: Настройки у аукциониста или /wm bags)", function() ns.DB.settings.bagValue = false; bar:Hide() end)
-  bar.close:SetPoint("RIGHT", -8, 0)
-  bar.full = UI.Button(bar, L"Все", 46, 20, function() ns.BagFull() end); bar.full:SetPoint("RIGHT", bar.close, "LEFT", -4, 0)
-  bar.reset = UI.Button(bar, L"Сброс", 54, 20, function() ns.BagReset() end); bar.reset:SetPoint("RIGHT", bar.full, "LEFT", -3, 0)
-  bar.text = UI.Font(bar, 12, UI.GOLD); bar.text:SetPoint("LEFT", 10, 0); bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -4, 0)
+  UI.Skin(bar, { theme = "acard", scale = 0.16 })
+  bar.close = UI.Icon(bar, "skin\\ai-x", 12, L"Скрыть (вернуть: Настройки у аукциониста или /wm bags)", function() ns.DB.settings.bagValue = false; bar:Hide() end)
+  bar.close:SetPoint("RIGHT", -6, 0)
+  bar.full = UI.Button(bar, L"Все", 34, 18, function() ns.BagFull() end); bar.full:SetPoint("RIGHT", bar.close, "LEFT", -3, 0)
+  bar.reset = UI.Button(bar, L"Сброс", 46, 18, function() ns.BagReset() end); bar.reset:SetPoint("RIGHT", bar.full, "LEFT", -2, 0)
+  bar.text = UI.Font(bar, 11, UI.GOLD); bar.text:SetPoint("LEFT", 8, 0); bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -3, 0)
   bar.reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое.", 1, 1, 1, true); GameTooltip:Show() end)
   bar.reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
   bar.full:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Снова показывать полную стоимость сумок.", 1, 1, 1, true); GameTooltip:Show() end)
   bar.full:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  bar:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Стоимость сумок: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу. Перетащите мышью, чтобы передвинуть.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(L"Стоимость сумок: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу. Перетащите мышью, чтобы передвинуть.", 1, 1, 1, true)
+    if self.farmSince then GameTooltip:AddLine(string.format(L"Фарм считается с %s", date("%H:%M", self.farmSince)), 0.9, 0.7, 0.3) end
+    GameTooltip:Show()
+  end)
   bar:SetScript("OnLeave", function() GameTooltip:Hide() end)
   bar:Hide()
 end

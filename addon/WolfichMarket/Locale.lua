@@ -425,4 +425,6 @@ ns.EN = {
   ["окошко стоимости сумок показано"] = "bag value window shown",
   ["окошко стоимости сумок скрыто"] = "bag value window hidden",
   ["Окошко стоимости сумок (перетаскивается)"] = "Bag value window (draggable)",
+  ["Фарм"] = "Farm",
+  ["Фарм считается с %s"] = "Farm counted since %s",
 }
