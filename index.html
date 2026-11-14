@@ -393,6 +393,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
 <!-- ПРОГРАММА (только в приложении) -->
 <section id="t-app" hidden>
   <div class="sec-head"><div><h2>Программа</h2><p>Расписание сканирования, источник данных, игра и уведомления.</p></div></div>
+  <div class="note warn" id="aUpd" hidden style="align-items:center"><svg><use href="#i-dl"/></svg><div style="flex:1">Вышла новая версия программы: <b id="aUpdV"></b> (у вас <span id="aUpdC"></span>). Скачайте архив, распакуйте поверх папки программы и запустите SETUP.bat — он сам закроет старую версию.</div><a class="btn sm" id="aUpdLink" href="#" target="_blank" rel="noopener">Скачать</a></div>
   <div class="cards">
     <div class="frame card">
       <h3><svg><use href="#i-clock"/></svg>Сканирование</h3>
@@ -1059,6 +1060,11 @@ if (APP) {
     if (APPSET.autoImport) importScans(true);
     if (!APPSET.wowDir) { await APP.findWow(); APPSET = await APP.getSettings(); renderApp(); }
     checkAddon();
+    APP.appUpdate().then(u => {
+      if (!u.update) return;
+      $('#aUpd').hidden = false; $('#aUpdV').textContent = u.latest; $('#aUpdC').textContent = u.current; $('#aUpdLink').href = u.url;
+      const tab = $('#appTabBtn'); if (!tab.querySelector('.badge')) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = '1'; tab.appendChild(b); }
+    });
   })();
   APP.on('log', (l) => { const el = $('#aLog'); el.textContent += (el.textContent ? '\n' : '') + l; el.scrollTop = el.scrollHeight; });
   APP.on('status', (st) => { APPST = st; if (S.tab === 'app') renderApp(); });

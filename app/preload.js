@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("wolfMarket", {
   readScans: () => ipcRenderer.invoke("read-scans"),
   installAddon: () => ipcRenderer.invoke("install-addon"),
   addonInfo: () => ipcRenderer.invoke("addon-info"),
+  appUpdate: () => ipcRenderer.invoke("app-update"),
   findWow: () => ipcRenderer.invoke("find-wow"),
   pickWow: () => ipcRenderer.invoke("pick-wow"),
   notify: (title, body) => ipcRenderer.invoke("notify", title, body),

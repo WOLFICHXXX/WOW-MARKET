@@ -338,6 +338,11 @@ ipcMain.handle("scan-now", () => scan("вручную"));
 ipcMain.handle("read-scans", () => readScans());
 ipcMain.handle("install-addon", () => installAddon());
 ipcMain.handle("addon-info", () => addonInfo());
+ipcMain.handle("app-update", async () => {
+  const v = await getUrl(`${SITE}/app/version.json`, 15000);
+  let latest = ""; try { if (v) latest = JSON.parse(v.toString()).version || ""; } catch (e) {}
+  return { current: app.getVersion(), latest, update: !!latest && cmpVer(latest, app.getVersion()) > 0, url: `${SITE}/app/WolfichMarket-App.zip` };
+});
 ipcMain.handle("find-wow", () => findWow());
 ipcMain.handle("pick-wow", async () => {
   const r = await dialog.showOpenDialog(win, { title: "Папка World of Warcraft (в ней есть _forever_)", properties: ["openDirectory"] });

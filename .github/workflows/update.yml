@@ -57,6 +57,7 @@ jobs:
           cp -r addon $P/program/addon
           (cd build && zip -qr ../site/app/WolfichMarket-App.zip WOLFICH-Market)
           cp app/icon.png site/app/icon.png
+          node -e "console.log(JSON.stringify({version:require('./app/package.json').version}))" > site/app/version.json
 
       - uses: actions/configure-pages@v5
 
