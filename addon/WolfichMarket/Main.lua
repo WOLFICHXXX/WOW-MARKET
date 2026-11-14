@@ -505,7 +505,7 @@ ns.Listen("MARKS", refresh)
 ns.Listen("RECIPES", refresh)
 ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
-ns.Listen("INVENTORY", refresh)
+ns.Listen("INVENTORY", function() if view == 3 or ns.DB.settings.useBank then refresh() end end)
 
 -- ---------- кнопка у миникарты ----------
 local function placeMini(b)

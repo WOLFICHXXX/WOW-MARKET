@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.13.0"
+ns.VERSION = "2.13.1"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -178,7 +178,11 @@ ns.On("PLAYER_LOGIN", function()
 end)
 
 ns.On("GET_ITEM_INFO_RECEIVED", function(id)
-  if id and pendingNames[id] then pendingNames[id] = nil; ns.itemName(id); ns.Fire("NAMES") end
+  -- названия приходят пачками - одно обновление окон на пачку, а не на каждый предмет
+  if id and pendingNames[id] then
+    pendingNames[id] = nil; ns.itemName(id)
+    if not ns._namesQueued then ns._namesQueued = true; ns.After(0.5, function() ns._namesQueued = false; ns.Fire("NAMES") end) end
+  end
 end)
 
 -- ---------- цены ----------

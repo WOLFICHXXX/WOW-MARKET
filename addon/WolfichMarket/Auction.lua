@@ -21,7 +21,7 @@ local function finishScan()
   local items = {}
   local i = 0
   local function step()
-    local last = math.min(i + 2000, n - 1)
+    local last = math.min(i + 1000, n - 1)
     for k = i, last do
       local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = safe(C_AuctionHouse.GetReplicateItemInfo, k)
       if itemID then
@@ -66,14 +66,28 @@ function ns.StartScan(auto)
   setStatus()
   local ok = pcall(C_AuctionHouse.ReplicateItems)
   if not ok then busy = false; setStatus(); ns.say(L"сервер отказал - подождите 15 минут.") return end
-  ns.After(20, function() if busy and (safe(C_AuctionHouse.GetNumReplicateItems) or 0) > 0 then finishScan() end end)
-  ns.After(90, function() if busy and not processing then busy = false; setStatus(); ns.say(L"сервер не прислал аукцион - попробуйте позже.") end end)
+  -- сервер присылает аукцион частями: обрабатываем, только когда число лотов перестало расти
+  local lastN, stable = -1, 0
+  local function poll()
+    if not busy or processing then return end
+    local n = safe(C_AuctionHouse.GetNumReplicateItems) or 0
+    if n > 0 and n == lastN then stable = stable + 1 else stable = 0 end
+    lastN = n
+    if stable >= 2 then finishScan() else ns.After(2, poll) end
+  end
+  ns.After(3, poll)
+  ns.After(180, function()
+    if not busy or processing then return end
+    if (safe(C_AuctionHouse.GetNumReplicateItems) or 0) > 0 then finishScan() return end -- что пришло - то и обработаем
+    busy = false; setStatus(); ns.say(L"сервер не прислал аукцион - попробуйте позже.")
+  end)
 end
 function ns.ScanBusy() return busy end
 
 local replPending = false
 ns.On("REPLICATE_ITEM_LIST_UPDATE", function()
-  if busy and not replPending then replPending = true; ns.After(1, function() replPending = false; if busy then finishScan() end end) end
+  -- сигнал «список готов» может прийти на каждую часть - сам дождётся, пока число лотов не перестанет расти (poll в StartScan)
+  if busy and not replPending then replPending = true; ns.After(1, function() replPending = false end) end
 end)
 
 -- автоскан: раз в N минут, пока открыт аукционист
@@ -856,4 +870,4 @@ ns.Listen("MARKS", refreshCurrent)
 ns.Listen("RECIPES", refreshCurrent)
 ns.Listen("NAMES", refreshCurrent)
 ns.Listen("PLAN", refreshCurrent)
-ns.Listen("INVENTORY", refreshCurrent)
+ns.Listen("INVENTORY", function() if tabs and tabs.current == 7 then refreshCurrent() end end) -- запас нужен только «Плану»

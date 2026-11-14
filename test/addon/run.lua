@@ -19,7 +19,7 @@ check(#ns.AllRecipeProfits(nil) == 4 and #ns.AllRecipeProfits(nil, true) == 5, "
 -- аукцион + снимок
 fire("AUCTION_HOUSE_SHOW")
 check(WolfichMarketAHPanel ~= nil, "панель у окна аукциона создана")
-ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); advance(2)
+ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 12 do advance(1) end -- данные приходят частями: ждём, пока число лотов не перестанет расти
 local scan = ns.CurrentScan()
 check(scan and scan.items[2840] and scan.items[2840][1] == 140 and scan.items[2840][2] == 25, "снимок: медный слиток 140м, 25 шт")
 -- прибыль
@@ -47,7 +47,7 @@ for i, r in ipairs({}) do end
 C_AuctionHouse.GetReplicateItemInfo = (function(old) return function(i) local a = { old(i) }; if a[17] == 2840 then a[10] = a[10] * 2 end; return table.unpack(a, 1, 18) end end)(C_AuctionHouse.GetReplicateItemInfo)
 ns.DB.ahLastReq = 0
 played = false
-ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); advance(15)
+ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
 check(played, "уведомление со звуком о скачке цены отмеченного")
 local found = false; for _, s in ipairs(printed) do if s:find("Медный слиток") and s:find("media\\up", 1, true) then found = true end end
 check(found, "строка о подорожании меди в чате")
@@ -329,6 +329,18 @@ do
   C_Container.GetContainerItemInfo = oldI
   ns.BagFull()
   check(ns.BagValue() == full, "«Обновить»: снова полная стоимость")
+end
+-- снимок приходит частями: обработка только когда число лотов перестало расти
+do
+  ns.ahOpen = true; ns.DB.ahLastReq = 0
+  local oldN = C_AuctionHouse.GetNumReplicateItems
+  local full, shown = oldN(), 1
+  C_AuctionHouse.GetNumReplicateItems = function() return math.min(shown, full) end
+  ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE")
+  for _ = 1, full do advance(1); shown = shown + 1 end -- пока растёт - ждём
+  for _ = 1, 15 do advance(1) end
+  C_AuctionHouse.GetNumReplicateItems = oldN
+  check(ns.CurrentScan().lots == full and not ns.ScanBusy(), "снимок ждёт все части аукциона")
 end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad

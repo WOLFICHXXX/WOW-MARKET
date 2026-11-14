@@ -184,12 +184,12 @@ end
 function ns.BagReset()
   local c = ns.DB.chars[ns.charKey]; if not c then return end
   c.bagBase = read(bagIDs()); c.bagBaseT = time()
-  ns.Fire("INVENTORY")
+  if ns.UpdateBagValue then ns.UpdateBagValue() end
 end
 function ns.BagFull()
   local c = ns.DB.chars[ns.charKey]; if not c then return end
   c.bagBase = nil; c.bagBaseT = nil
-  ns.Fire("INVENTORY")
+  if ns.UpdateBagValue then ns.UpdateBagValue() end
 end
 
 local bar
@@ -201,6 +201,9 @@ local function updateBar()
   if not bar then return end
   local h = host()
   if not h or not ns.DB or ns.DB.settings.bagValue == false then bar:Hide() return end
+  -- строка живёт на слое самого окна сумок: не перекрывает другие окна
+  if bar:GetParent() ~= h then bar:SetParent(h) end
+  bar:SetFrameStrata(h:GetFrameStrata() or "MEDIUM"); bar:SetFrameLevel((h:GetFrameLevel() or 1) + 5)
   bar:ClearAllPoints(); bar:SetPoint("BOTTOMLEFT", h, "TOPLEFT", 0, 2); bar:SetPoint("BOTTOMRIGHT", h, "TOPRIGHT", 0, 2)
   local total, farm, t = ns.BagValue()
   bar.text:SetText(farm and (L"Нафармлено" .. ": |cffffffff" .. ns.money(total, true) .. "|r  |cffaaaaaa(" .. string.format(L"с %s", date("%H:%M", t)) .. ")|r")
@@ -211,7 +214,7 @@ local function buildBar()
   if bar or not ns.UI then return end
   local UI = ns.UI
   bar = CreateFrame("Frame", "WolfichMarketBagValue", UIParent)
-  bar:SetHeight(30); bar:SetFrameStrata("HIGH")
+  bar:SetHeight(30)
   UI.Skin(bar, { theme = "acard", scale = 0.22 })
   bar.text = UI.Font(bar, 12, UI.GOLD); bar.text:SetPoint("LEFT", 12, 0)
   bar.full = UI.Button(bar, L"Обновить", 78, 20, function() ns.BagFull() end); bar.full:SetPoint("RIGHT", -8, 0)
@@ -229,6 +232,9 @@ local function buildBar()
   end
 end
 ns.Listen("LOGIN", function() buildBar(); updateBar() end)
-ns.Listen("INVENTORY", updateBar)
-ns.Listen("PRICES", updateBar)
-ns.UpdateBagValue = updateBar
+-- не чаще раза в полсекунды, сколько бы раз ни нажимали и ни менялись сумки
+local barQueued
+local function queueBar() if barQueued then return end; barQueued = true; ns.After(0.3, function() barQueued = false; updateBar() end) end
+ns.Listen("INVENTORY", queueBar)
+ns.Listen("PRICES", queueBar)
+ns.UpdateBagValue = queueBar
