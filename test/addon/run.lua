@@ -84,6 +84,10 @@ sell.mulBtns[1].scripts.OnClick(sell.mulBtns[1]); check(sell.money:Get() == base
 sell.allBtn.scripts.OnClick(sell.allBtn)
 local n = 0; for _ in pairs(sell.checked) do n = n + 1 end
 check(n == 2 and sell.bulk.enabled, "продажа: отмечены все с ценой (" .. n .. ")")
+sell.mulBtns[3].scripts.OnClick(sell.mulBtns[3])
+local q1 = sell.queue()[1]
+check(q1 and q1.unit == math.floor((ns.AHPrice(q1.d.id) - 1) * 1.10 + 0.5), "«Выставить отмеченные» учитывает +10%")
+sell.mulBtns[1].scripts.OnClick(sell.mulBtns[1])
 postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
 check(postedLot ~= nil, "продажа: «Выставить отмеченные» выставил первый лот")
 check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")

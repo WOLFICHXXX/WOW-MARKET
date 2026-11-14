@@ -439,11 +439,22 @@ local function pageSell(f)
   local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 8, -94); pl:SetText(L"Цена за шт:")
   f.money = UI.MoneyInput(box, function() f.calc() end); f.money:SetPoint("LEFT", pl, "RIGHT", 4, 0)
   -- быстрые наценки к начальной цене (минимальная на аукционе − 1м)
-  local function setMul(k) if f.basePrice and f.basePrice > 0 then f.money:Set(math.floor(f.basePrice * k + 0.5)); f.calc() end end
+  -- наценка действует и на выбранный предмет, и на «Выставить отмеченные»
+  f.markup = 1
+  local function setMul(k)
+    f.markup = k
+    for i, b in ipairs(f.mulBtns or {}) do
+      local on = ({ 1, 1.05, 1.10 })[i] == k
+      b:SetNormalTexture(M .. (on and "btn-gold" or "btn")); local c = on and { 0.15, 0.09, 0.02 } or UI.TEXT; b.label:SetTextColor(c[1], c[2], c[3])
+    end
+    if f.basePrice and f.basePrice > 0 then f.money:Set(math.floor(f.basePrice * k + 0.5)); f.calc() end
+    if f.updateBulk then f.updateBulk() end
+  end
   local bMin = UI.Button(box, L"мин", 40, 20, function() setMul(1) end); bMin:SetPoint("LEFT", f.money, "RIGHT", 0, 0)
   local b5 = UI.Button(box, "+5%", 40, 20, function() setMul(1.05) end); b5:SetPoint("LEFT", bMin, "RIGHT", 3, 0)
   local b10 = UI.Button(box, "+10%", 44, 20, function() setMul(1.10) end); b10:SetPoint("LEFT", b5, "RIGHT", 3, 0)
   f.mulBtns = { bMin, b5, b10 }
+  setMul(1)
   local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 8, -120); ql:SetText(L"Количество:")
   f.qty = CreateFrame("EditBox", nil, box, "InputBoxTemplate"); f.qty:SetSize(54, 20); f.qty:SetPoint("LEFT", ql, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true)
   f.qty:SetScript("OnTextChanged", function() f.calc() end)
@@ -460,7 +471,7 @@ local function pageSell(f)
     f.sel:SetText(ns.itemLinkText(d.id) .. L" |cffaaaaaa(в сумках " .. d.count .. ")|r")
     local p = ns.AHPrice(d.id)
     f.basePrice = p and math.max(1, p - 1) or nil
-    f.money:Set(f.basePrice or 0)
+    f.money:Set(f.basePrice and math.floor(f.basePrice * (f.markup or 1) + 0.5) or 0)
     d.commodity = d.loc and C_AuctionHouse.GetItemCommodityStatus and Enum and Enum.ItemCommodityStatus
       and safe(C_AuctionHouse.GetItemCommodityStatus, d.loc) == Enum.ItemCommodityStatus.Commodity
     f.qty:SetText(d.commodity and d.count or 1)
@@ -502,7 +513,7 @@ local function pageSell(f)
     for _, d in ipairs(bagItems()) do
       if f.checked[d.id] then
         local p = ns.AHPrice(d.id)
-        if p then q[#q + 1] = { d = d, unit = math.max(1, p - 1) } end
+        if p then q[#q + 1] = { d = d, unit = math.floor(math.max(1, p - 1) * (f.markup or 1) + 0.5) } end
       end
     end
     return q
@@ -517,7 +528,7 @@ local function pageSell(f)
     else
       f.bulk:SetLabel(L"Выставить: " .. ns.itemName(q[1].d.id) .. (#q > 1 and (" (+" .. (#q - 1) .. ")") or "")); f.bulk:Enable()
       local key = GetBindingKey and GetBindingKey("WOLFICHMARKET_POSTNEXT")
-      f.bulkInfo:SetText(L"Одно нажатие - один лот (так требует игра)" .. (key and (L", клавиша |cffe6b450" .. key .. "|r") or L", можно назначить клавишу в настройках управления") .. L". Цена на 1м ниже минимальной, срок " .. L(DURS[f.dur][2]) .. ".")
+      f.bulkInfo:SetText(L"Одно нажатие - один лот (так требует игра)" .. (key and (L", клавиша |cffe6b450" .. key .. "|r") or L", можно назначить клавишу в настройках управления") .. L". Цена на 1м ниже минимальной" .. ((f.markup or 1) > 1 and (" +" .. math.floor((f.markup - 1) * 100 + 0.5) .. "%") or "") .. L", срок " .. L(DURS[f.dur][2]) .. ".")
     end
   end
   f.postNext = function()

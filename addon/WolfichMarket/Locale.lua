@@ -219,4 +219,6 @@ ns.EN = {
   ["Поставить сигнал"] = "Set alert",
   ["Выбрать галочками предмет и ингредиенты для сигналов о скачках цены"] = "Pick the item and ingredients for price spike alerts",
   ["убраны чужие профессии у этого персонажа: "] = "removed professions that do not belong to this character: ",
+  [". Цена на 1м ниже минимальной"] = ". Price 1c under the lowest",
+  [", срок "] = ", duration ",
 }
