@@ -363,7 +363,9 @@ local function pageBuy(f)
     f.total:SetText(L"~ Итого: " .. ns.money(sum) .. "  |cffaaaaaa(" .. ns.money(sum / q) .. L" за шт)|r")
     f.confirm:Enable()
   end
-  f.requestQuote = function() start(tonumber(f.qty:GetText()) or 0) end
+  -- автозапрос цены - только при вводе с клавиатуры; если игра всё же запретит (ADDON_ACTION_BLOCKED),
+  -- больше не пробуем до перезагрузки: остаётся «Купить» в два нажатия
+  f.requestQuote = function() if not ns._quoteBlocked then start(tonumber(f.qty:GetText()) or 0) end end
   -- запрос прямо при вводе (нажатие клавиши), без таймера - иначе сервер его не принимает
   f.qty:SetScript("OnTextChanged", function(_, user) if user and f.qty:IsShown() then f.estimate(); f.requestQuote() end end)
   f.qty:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
@@ -476,7 +478,7 @@ ns.Listen("SEARCH_RESULTS", function(itemID, commodity, itemKey)
   f.setCommodity(commodity)
   f.sub:SetText(#d > 0 and (commodity and L"Товар: укажите количество - цена посчитается сама" or L"Выберите лот и нажмите «Купить»") or L"На аукционе сейчас нет")
   f.list:SetData(d)
-  if commodity and #d > 0 then f.estimate(); f.requestQuote() end
+  if commodity and #d > 0 then f.estimate() end -- из события игры цену не запрашиваем: это разрешено только по нажатию
 end)
 ns.On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if not panel then return end
@@ -928,3 +930,7 @@ ns.Listen("RECIPES", refreshCurrent)
 ns.Listen("NAMES", refreshCurrent)
 ns.Listen("PLAN", refreshCurrent)
 ns.Listen("INVENTORY", function() if tabs and tabs.current == 7 then refreshCurrent() end end) -- запас нужен только «Плану»
+
+-- игра запретила вызов (нужно нажатие игрока) - выключаем автозапрос цены
+ns.On("ADDON_ACTION_BLOCKED", function(addon) if addon == "WolfichMarket" then ns._quoteBlocked = true end end)
+ns.On("ADDON_ACTION_FORBIDDEN", function(addon) if addon == "WolfichMarket" then ns._quoteBlocked = true end end)
