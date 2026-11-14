@@ -2,7 +2,7 @@
 -- Команды: /wm — окно экспорта, /wm reset — очистить данные этого персонажа.
 local addonName, ns = ...
 
-local VERSION = "1.1.1"
+local VERSION = "1.2.0"
 local PREFIX = "|cffe6b450WolfichMarket|r: "
 local function say(msg) print(PREFIX .. msg) end
 
@@ -295,9 +295,53 @@ local function saveCategories()
   end
 end
 
+-- кнопка в окне аукциона
+local ahButton
+local COOLDOWN = 15 * 60
+local function setBtn(text, enabled)
+  if not ahButton then return end
+  ahButton:SetText(text)
+  if enabled then ahButton:Enable() else ahButton:Disable() end
+end
+local function refreshBtn()
+  if not ahButton or ahBusy then return end
+  local left = (DB.ahLastReq or 0) + COOLDOWN - time()
+  if left > 0 then
+    setBtn(string.format("Скан через %d:%02d", math.floor(left / 60), left % 60), false)
+    C_Timer.After(1, refreshBtn)
+  else
+    setBtn("Сканировать аукцион", true)
+  end
+end
+local startReplicate
+local function createAHButton()
+  if ahButton then refreshBtn() return end
+  local parent = AuctionHouseFrame or AuctionFrame
+  if not parent then return end
+  local b = CreateFrame("Button", "WolfichMarketScanButton", parent, "UIPanelButtonTemplate")
+  b:SetSize(170, 22)
+  b:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -28, -1)
+  b:SetFrameStrata("HIGH")
+  b:SetScript("OnClick", function() startReplicate() end)
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+    GameTooltip:AddLine("WolfichMarket", 0.9, 0.7, 0.3)
+    GameTooltip:AddLine("Полный снимок аукциона: цены, количество, категории.", 1, 1, 1, true)
+    GameTooltip:AddLine("Сервер разрешает раз в 15 минут.", 0.7, 0.7, 0.7, true)
+    if DB.ahScan then GameTooltip:AddLine("Последний снимок: " .. date("%d.%m %H:%M", DB.ahScan.t or 0) .. ", лотов " .. (DB.ahScan.lots or 0), 0.5, 0.9, 0.5) end
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  ahButton = b
+  refreshBtn()
+end
+
+local processing = false
 local function finishReplicate()
+  if processing then return end
   local n = safe(C_AuctionHouse.GetNumReplicateItems) or 0
-  if n == 0 then say("аукцион ответил пустым списком — попробуйте ещё раз через минуту.") ahBusy = false return end
+  if n > 0 then processing = true end
+  if n == 0 then say("аукцион ответил пустым списком — попробуйте ещё раз через минуту.") ahBusy = false refreshBtn() return end
   say(string.format("получено лотов: %d, обрабатываю…", n))
   local items, classes = {}, {}
   local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
@@ -325,6 +369,7 @@ local function finishReplicate()
       end
     end
     i = last + 1
+    setBtn(string.format("Обработка %d%%", math.floor(i / n * 100)), false)
     if i < n then C_Timer.After(0, step) return end
     local count = 0
     for _ in pairs(items) do count = count + 1 end
@@ -335,23 +380,33 @@ local function finishReplicate()
       faction = UnitFactionGroup and UnitFactionGroup("player") or "",
       items = items, classes = classes,
     }
-    ahBusy = false
+    ahBusy, processing = false, false
+    setBtn("Готово ✓", false)
+    C_Timer.After(3, refreshBtn)
     say(string.format("|cff78d98aснимок аукциона готов|r: %d лотов, %d предметов. Наберите /reload — и пришлите файл WolfichMarket.lua из папки WTF.", n, count))
   end
   step()
 end
 
-local function startReplicate()
+startReplicate = function()
   if not (C_AuctionHouse and C_AuctionHouse.ReplicateItems) then say("в этой версии игры нет полного скана аукциона.") return end
   if not ahOpen then ahWanted = true say("откройте окно аукциона — скан начнётся сам.") return end
   if ahBusy then say("скан уже идёт…") return end
   ahBusy, ahWanted = true, false
   saveCategories()
+  DB.ahLastReq = time()
+  setBtn("Сканирую…", false)
   say("запрашиваю весь аукцион (сервер разрешает это раз в 15 минут), подождите…")
   local ok = pcall(C_AuctionHouse.ReplicateItems)
-  if not ok then ahBusy = false say("сервер отказал — подождите 15 минут после прошлого скана.") return end
+  if not ok then ahBusy = false refreshBtn() say("сервер отказал — подождите 15 минут после прошлого скана.") return end
   -- если событие не придёт, проверим сами через 20 секунд
   C_Timer.After(20, function() if ahBusy and (safe(C_AuctionHouse.GetNumReplicateItems) or 0) > 0 then finishReplicate() end end)
+  C_Timer.After(90, function()
+    if ahBusy and (safe(C_AuctionHouse.GetNumReplicateItems) or 0) == 0 then
+      ahBusy = false; refreshBtn()
+      say("сервер не прислал аукцион — скорее всего, прошло меньше 15 минут с прошлого скана. Попробуйте позже.")
+    end
+  end)
 end
 
 local scanTimer
@@ -390,6 +445,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
     scanSkillLevels()
   elseif event == "AUCTION_HOUSE_SHOW" then
     ahOpen = true
+    pcall(createAHButton)
     saveCategories()
     if ahWanted then C_Timer.After(1, startReplicate) end
   elseif event == "AUCTION_HOUSE_CLOSED" then
