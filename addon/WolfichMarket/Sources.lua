@@ -6,9 +6,11 @@ local UI = ns.UI
 local safe = ns.safe
 
 local RU = function() return ns.Lang() == "ru" end
-local function npcName(id) local n = ns.RS and ns.RS.npc[id]; if not n then return "#" .. id end; return RU() and n[1] or (n[2] ~= "" and n[2] or n[1]) end
+-- в данных Wowhead у части NPC нет русского имени - там английское в квадратных скобках; скобки убираем
+local function unbr(s) return (s and s:match("^%[(.*)%]$")) or s end
+local function npcName(id) local n = ns.RS and ns.RS.npc[id]; if not n then return "#" .. id end; return unbr(RU() and n[1] or (n[2] ~= "" and n[2] or n[1])) end
 local function zoneName(id) local z = id and ns.RS and ns.RS.zone[id]; if not z then return nil end; return RU() and z[1] or (z[2] ~= "" and z[2] or z[1]) end
-local function questName(id) local q = ns.RS and ns.RS.quest[id]; if not q then return "#" .. id end; return RU() and q[1] or (q[3] ~= "" and q[3] or q[1]), q[2] end
+local function questName(id) local q = ns.RS and ns.RS.quest[id]; if not q then return "#" .. id end; return unbr(RU() and q[1] or (q[3] ~= "" and q[3] or q[1])), q[2] end
 local REPN = { L"Дружелюбие", L"Уважение", L"Почтение", L"Превознесение" }
 local FACTION_RU = {
   ["Argent Dawn"] = "Серебряный Рассвет", ["Timbermaw Hold"] = "Древобрюхи", ["Thorium Brotherhood"] = "Братство Тория",
@@ -152,19 +154,21 @@ local function drawMap(entry)
   local Lr = layers and layers[1]
   if not Lr or not tex or #tex == 0 then m.msg:SetText(L"Карта этой зоны недоступна"); m.msg:Show() return end
   m.msg:Hide()
-  local W = m:GetWidth()
-  local k = W / Lr.layerWidth
+  -- карта вписывается в рамку целиком; плитки по краям больше самой карты - лишнее обрезается
+  local W, H = m:GetWidth(), m:GetHeight()
+  local k = math.min(W / Lr.layerWidth, H / Lr.layerHeight)
+  m.canvas:ClearAllPoints(); m.canvas:SetSize(Lr.layerWidth * k, Lr.layerHeight * k); m.canvas:SetPoint("CENTER")
   local cols = math.ceil(Lr.layerWidth / Lr.tileWidth)
   for i, fid in ipairs(tex) do
-    local t = m.tiles[i] or m:CreateTexture(nil, "ARTWORK"); m.tiles[i] = t
+    local t = m.tiles[i] or m.canvas:CreateTexture(nil, "ARTWORK"); m.tiles[i] = t
     local c, r = (i - 1) % cols, math.floor((i - 1) / cols)
     t:SetTexture(fid); t:SetSize(Lr.tileWidth * k, Lr.tileHeight * k)
-    t:ClearAllPoints(); t:SetPoint("TOPLEFT", m, "TOPLEFT", c * Lr.tileWidth * k, -r * Lr.tileHeight * k); t:Show()
+    t:ClearAllPoints(); t:SetPoint("TOPLEFT", m.canvas, "TOPLEFT", c * Lr.tileWidth * k, -r * Lr.tileHeight * k); t:Show()
   end
   -- если NPC уже встречали - метка там, где вы его видели
   local p = entry.npc and ns.DB.npcPos and ns.DB.npcPos[entry.npc]
   if p and p[1] == mapID then
-    m.pin:ClearAllPoints(); m.pin:SetPoint("CENTER", m, "TOPLEFT", p[2] * Lr.layerWidth * k, -p[3] * Lr.layerHeight * k); m.pin:Show()
+    m.pin:ClearAllPoints(); m.pin:SetPoint("CENTER", m.canvas, "TOPLEFT", p[2] * Lr.layerWidth * k, -p[3] * Lr.layerHeight * k); m.pin:Show()
     dlg.zoneLabel:SetText((zoneName(entry.zone) or "") .. string.format("   |cffffd100%.1f, %.1f|r", p[2] * 100, p[3] * 100))
   end
 end
@@ -191,13 +195,16 @@ function ns.ShowSources(rec)
       r.title:SetAlpha(d.dim and 0.5 or 1); r.detail:SetAlpha(d.dim and 0.5 or 1)
       r.sel:SetShown(dlg.cur == d)
     end)
-    dlg.list:SetPoint("TOPLEFT", 16, -74); dlg.list:SetPoint("BOTTOMRIGHT", dlg, "BOTTOM", 40, 18)
+    dlg.list:SetPoint("TOPLEFT", 16, -74); dlg.list:SetPoint("BOTTOMRIGHT", dlg, "BOTTOMRIGHT", -352, 18)
     -- карта зоны (картинка самой игры) справа
-    local m = CreateFrame("Frame", nil, dlg); m:SetPoint("TOPLEFT", dlg, "TOP", 52, -96); m:SetSize(330, 220)
+    local m = CreateFrame("Frame", nil, dlg); m:SetPoint("TOPRIGHT", dlg, "TOPRIGHT", -24, -96); m:SetSize(312, 208)
     local bg = m:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.45)
+    m.canvas = CreateFrame("Frame", nil, m); m.canvas:SetPoint("CENTER"); m.canvas:SetSize(312, 208)
+    if m.SetClipsChildren then m:SetClipsChildren(true) end
+    if m.canvas.SetClipsChildren then m.canvas:SetClipsChildren(true) end
     m.tiles = {}
     m.msg = UI.Font(m, 11, UI.DIM); m.msg:SetPoint("CENTER"); m.msg:SetJustifyH("CENTER")
-    m.pin = m:CreateTexture(nil, "OVERLAY"); m.pin:SetTexture(ns.MEDIA .. "paw"); m.pin:SetSize(22, 22); m.pin:Hide()
+    m.pin = m.canvas:CreateTexture(nil, "OVERLAY"); m.pin:SetTexture(ns.MEDIA .. "paw"); m.pin:SetSize(22, 22); m.pin:Hide()
     dlg.map = m
     dlg.zoneLabel = UI.Font(dlg, 12, UI.GOLD); dlg.zoneLabel:SetPoint("BOTTOMLEFT", m, "TOPLEFT", 0, 6); dlg.zoneLabel:SetPoint("RIGHT", m, "RIGHT", 0, 0)
     dlg.openMap = UI.Button(dlg, L"Открыть карту зоны", 170, 24, function()
