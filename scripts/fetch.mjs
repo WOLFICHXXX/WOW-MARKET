@@ -153,6 +153,19 @@ async function probeRulesets() {
   return out;
 }
 
+// Одинаковы ли аукционы в разных наборах правил (или номер аукциона = режим)?
+async function probeCross(rp) {
+  const out = [];
+  for (const rid of Object.keys(rp || {})) for (const hid of [110, 111, 119, 123]) {
+    const r = await api(`/data/wow/ruleset/${rid}/auctions/${hid}`, NS_DYN);
+    const a = r.data?.auctions || [];
+    const row = { rid: +rid, hid, status: r.status, lots: a.length, firstIds: a.slice(0, 3).map(x => x.id), lm: r.lastModified };
+    out.push(row);
+    log(`Разведка набор ${rid} (${rp[rid]?.detail?.name || ''}) аукцион ${hid}: ${a.length} лотов, первые id ${row.firstIds.join(',')}, ${row.lm}`);
+  }
+  return out;
+}
+
 async function probeRealms() {
   const out = {};
   for (const p of ['/data/wow/realm/index', '/data/wow/connected-realm/index']) {
@@ -320,6 +333,7 @@ async function main() {
     if (!houses.length) throw new Error('Не удалось найти ни одного аукциона в API');
     if (!meta.realmProbe || env.PROBE) meta.realmProbe = await probeRealms();
     if (!meta.rulesetProbe || env.PROBE) meta.rulesetProbe = await probeRulesets();
+    if (!meta.crossProbe || env.PROBE) meta.crossProbe = await probeCross(meta.rulesetProbe);
     const prevHouses = Object.fromEntries((meta.houses || []).map(h => [h.id, h]));
     const done = [];
     let unchanged = 0;
