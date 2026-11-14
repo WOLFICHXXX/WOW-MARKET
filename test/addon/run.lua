@@ -172,6 +172,37 @@ LOCALE = "ruRU"; check(ns.Lang() == "ru", "авто: русский клиент
 SlashCmdList.WOLFICHMARKET("best")
 SlashCmdList.WOLFICHMARKET("marks")
 SlashCmdList.WOLFICHMARKET("")
+-- Shift+клик по предмету при открытом аукционе открывает его на аукционе (но не во время набора в чате)
+do
+  local got, oldS, oldOpen, oldShift = nil, ns.SearchAH, ns.ahOpen, IsShiftKeyDown
+  ns.SearchAH = function(id) got = id end
+  ns.ahOpen = true; IsShiftKeyDown = function() return true end
+  HandleModifiedItemClick("|Hitem:2840::|h[x]|h")
+  check(got == 2840, "Shift+клик открывает предмет на аукционе")
+  got = nil; ChatEdit_GetActiveWindow = function() return {} end
+  HandleModifiedItemClick("|Hitem:2840::|h[x]|h")
+  check(got == nil, "Shift+клик при наборе в чате - не трогаем")
+  ChatEdit_GetActiveWindow = nil; ns.SearchAH, ns.ahOpen, IsShiftKeyDown = oldS, oldOpen, oldShift
+end
+-- профессии другого персонажа не прилипают к текущему
+do
+  local c = ns.DB.chars[ns.charKey]
+  local oldSk, oldProfs = c.skills, c.profs
+  c.skills = { { name = "Алхимия", skill = 225, max = 225, line = 171 }, { name = "Кулинария", skill = 225, max = 225, line = 185 } }
+  check(ns.OwnsProfession("Алхимия", { professionID = 171, skillLevel = 225, maxSkillLevel = 225 }), "своя профессия сохраняется")
+  check(not ns.OwnsProfession("Кузнечное дело", { professionID = 164, skillLevel = 150, maxSkillLevel = 150 }), "чужая профессия не сохраняется")
+  check(not ns.OwnsProfession("Кулинария", { professionID = 185, skillLevel = 1, maxSkillLevel = 75 }), "кулинария другого персонажа (1/75) не сохраняется")
+  c.profs = { ["Алхимия"] = { skill = 225, max = 225, recipes = {} }, ["Кулинария"] = { skill = 200, max = 225, base = 185, recipes = {} },
+    ["Кузнечное дело"] = { skill = 150, max = 150, recipes = {} }, ["Наложение чар"] = { skill = 150, max = 150, base = 333, recipes = {} } }
+  ns.CleanStrangers()
+  check(c.profs["Алхимия"] and c.profs["Кулинария"] and not c.profs["Кузнечное дело"] and not c.profs["Наложение чар"], "чистка убирает только чужие профессии")
+  c.skills, c.profs = oldSk, oldProfs
+end
+-- график из вкладки «Сигналы» открывается своим окном (аукцион не нужен)
+ns.ahOpen = false
+if not (WolfichMarketMainFrame and WolfichMarketMainFrame:IsShown()) then ns.ToggleMain() end
+ns.ShowChartDialog(2840)
+check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown(), "график цены из «Сигналов» открывается без аукциона")
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

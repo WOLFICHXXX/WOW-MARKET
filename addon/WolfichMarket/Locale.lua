@@ -226,4 +226,10 @@ ns.EN = {
   ["Правый клик - удалить профессию у персонажа"] = "Right click - remove the profession from the character",
   ["Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий."] = "No saved professions for this character - log in with it and open its profession windows.",
   ["WolfichMarket: показать/скрыть панель"] = "WolfichMarket: show/hide panel",
+  ["убраны чужие профессии у этого персонажа: "] = "removed professions that belong to another character: ",
+  ["|cff777777нет цены|r"] = "|cff777777no price|r",
+  ["среднее за 24 ч"] = "24h average",
+  ["1 нажатие = 1 лот"] = "1 click = 1 auction",
+  [". Цена: мин-1м"] = ". Price: min-1c",
+  ["Одно нажатие - один лот (так требует игра). Клавишу можно назначить в настройках управления, макрос: /click WolfichMarketPostNextButton"] = "One click posts one auction (the game requires it). You can bind a key in Key Bindings, macro: /click WolfichMarketPostNextButton",
 }

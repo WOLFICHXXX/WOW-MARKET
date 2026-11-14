@@ -41,8 +41,14 @@ function ns.ScanProfession()
       recipes[#recipes + 1] = rec
     end
   end
+  ns.ScanSkills() -- свежая книга профессий (уровень мог вырасти)
+  local base = safe(C_TradeSkillUI.GetBaseProfessionInfo)
+  if not ns.OwnsProfession(prof, base) then
+    ns.dbg("чужая профессия не сохранена: " .. prof)
+    return
+  end
   local c = ns.DB.chars[ns.charKey]
-  c.profs[prof] = { skill = skill, max = maxSkill, t = time(), recipes = recipes, line = line }
+  c.profs[prof] = { skill = skill, max = maxSkill, t = time(), recipes = recipes, line = line, base = base and base.professionID or nil }
   ns.curProf = prof
   ns.Fire("RECIPES")
 end
@@ -57,9 +63,53 @@ function ns.ScanSkills()
   local out = {}
   for i = 1, 6 do
     local idx = list[i]
-    if idx then local name, _, rank, maxRank = safe(GetProfessionInfo, idx); if name then out[#out + 1] = { name = clean(name), skill = rank or 0, max = maxRank or 0 } end end
+    if idx then
+      local name, _, rank, maxRank, _, _, line = safe(GetProfessionInfo, idx)
+      if name then out[#out + 1] = { name = clean(name), skill = rank or 0, max = maxRank or 0, line = line } end
+    end
   end
-  ns.DB.chars[ns.charKey].skills = out
+  if #out > 0 then ns.DB.chars[ns.charKey].skills = out end
+  return out
+end
+-- открытое окно профессии - этого персонажа? (а не чужая ссылка/другой персонаж)
+-- сверяем номер базовой профессии, имя и уровень с книгой профессий персонажа
+function ns.OwnsProfession(prof, base)
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  local sk = c and c.skills
+  if not sk or #sk == 0 then return true end -- книга ещё не прочитана - не мешаем
+  local id = base and base.professionID
+  local bname = base and base.professionName and clean(base.professionName)
+  local haveLines = false
+  for _, s in ipairs(sk) do
+    if s.line then haveLines = true end
+    if (id and s.line == id) or s.name == prof or (bname and s.name == bname) then
+      -- то же ремесло, но чужой уровень (ссылка на профессию другого персонажа)
+      local lv, mx = base and base.skillLevel, base and base.maxSkillLevel
+      if lv and mx and mx > 0 and s.max and s.max > 0 and lv ~= s.skill and mx ~= s.max then return false end
+      return true
+    end
+  end
+  return not haveLines -- без номеров профессий не уверены - сохраняем
+end
+-- убрать у текущего персонажа профессии, которых нет в его книге (попали от другого персонажа)
+function ns.CleanStrangers()
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  local sk = c and c.skills
+  if not c or not c.profs or not sk or #sk == 0 then return end
+  local lines, names, levels, haveLines = {}, {}, {}, false
+  for _, s in ipairs(sk) do
+    if s.line then lines[s.line] = true; haveLines = true end
+    names[s.name] = true; levels[(s.skill or 0) .. "/" .. (s.max or 0)] = true
+  end
+  if not haveLines then return end
+  local removed = {}
+  for name, p in pairs(c.profs) do
+    local own
+    if p.base then own = lines[p.base] or names[name]
+    else own = names[name] or (p.line and lines[p.line]) or levels[(p.skill or 0) .. "/" .. (p.max or 0)] end -- старые записи: по имени или уровню
+    if not own then c.profs[name] = nil; removed[#removed + 1] = name end
+  end
+  if #removed > 0 then ns.say(L"убраны чужие профессии у этого персонажа: " .. table.concat(removed, ", ")); ns.Fire("RECIPES") end
 end
 
 local function scanMerchant()
@@ -339,7 +389,7 @@ ns.Listen("SCAN_DONE", function()
 end)
 ns.On("MERCHANT_SHOW", scanMerchant)
 ns.On("SKILL_LINES_CHANGED", function() ns.ScanSkills() end)
-ns.Listen("LOGIN", function() ns.ScanSkills() end)
+ns.Listen("LOGIN", function() ns.ScanSkills(); ns.After(4, function() ns.ScanSkills(); ns.CleanStrangers() end) end)
 local function refreshAll() if panel and panel:IsShown() then refreshList(); fillDetail(selected) end; ns.DecorateRecipeRows() end
 ns.Listen("PRICES", function() indexDirty = true; refreshAll() end)
 ns.Listen("MARKS", function() if panel and panel:IsShown() then list:Refresh(); fillDetail(selected) end end)

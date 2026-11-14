@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.7.2"
+ns.VERSION = "2.8.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -25,6 +25,7 @@ local safe = ns.safe
 function ns.clean(s) return (tostring(s or ""):gsub("[%^\r\n]", " ")) end
 local PREFIX = "|cffe6b450WolfichMarket|r: "
 function ns.say(msg) print(PREFIX .. tostring(msg)) end
+function ns.dbg(msg) if ns.DB and ns.DB.settings and ns.DB.settings.debug then ns.say("|cff888888" .. tostring(msg) .. "|r") end end
 
 -- ---------- деньги ----------
 function ns.money(c, short)
@@ -157,11 +158,16 @@ ns.On("PLAYER_LOGIN", function()
   local name = UnitName("player") or "?"
   local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName and GetRealmName()) or ""
   ns.charKey = realm ~= "" and (name .. "-" .. realm) or name
+  -- одинаковое имя на разных персонажах (другой режим/фракция) не должно сливать их профессии
+  local guid = UnitGUID and UnitGUID("player")
+  local old = ns.DB.chars[ns.charKey]
+  if guid and old and old.guid and old.guid ~= guid then ns.charKey = ns.charKey .. "~" .. guid:sub(-6) end
   ns.realmKey = (realm ~= "" and realm or "?") .. "|" .. ((UnitFactionGroup and UnitFactionGroup("player")) or "?")
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   local c = DB.chars[ns.charKey]
   c.realmKey = ns.realmKey
+  c.guid = guid or c.guid
   c.class = select(2, UnitClass("player"))
   c.name = UnitName("player")
   ns.Fire("LOGIN")
@@ -247,6 +253,13 @@ if hooksecurefunc then
       local id = ns.idFromLink(link)
       if id and ns.DB then ns.ToggleMark(id) end
     end
+    -- Shift+клик по любому предмету (сумки, ссылки) при открытом аукционе - открыть его на аукционе,
+    -- если не набирается сообщение в чате и не в фокусе поле ввода
+    if IsShiftKeyDown and IsShiftKeyDown() and not (IsAltKeyDown() or IsControlKeyDown()) and ns.ahOpen then
+      local typing = (ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()) or (GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus())
+      local id = ns.idFromLink(link)
+      if id and not typing then ns.SearchAH(id, link) end
+    end
   end)
 end
 
@@ -254,6 +267,16 @@ end
 function ns.AHIsOpen() return ns.ahOpen == true end
 function ns.SearchAH(id)
   if not ns.ahOpen then ns.say(L"откройте окно аукциона, чтобы искать.") return end
+  -- товар (ткань, травы, зелья...) - сразу его страница покупки, без поиска по названию
+  local AH = AuctionHouseFrame
+  if AH and AH.SelectBrowseResult and C_AuctionHouse and C_AuctionHouse.MakeItemKey and C_AuctionHouse.GetItemKeyInfo then
+    local key = ns.safe(C_AuctionHouse.MakeItemKey, id)
+    local info = key and ns.safe(C_AuctionHouse.GetItemKeyInfo, key)
+    if info and info.isCommodity then
+      if AH.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy then pcall(AH.SetDisplayMode, AH, AuctionHouseFrameDisplayMode.Buy) end
+      if pcall(AH.SelectBrowseResult, AH, { itemKey = key }) then return end
+    end
+  end
   local name = ns.itemName(id)
   if name:sub(1, 1) == "#" then ns.say(L"название предмета ещё грузится, нажмите ещё раз.") return end
   local sb = AuctionHouseFrame and AuctionHouseFrame.SearchBar

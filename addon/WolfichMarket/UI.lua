@@ -164,7 +164,7 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local hl = b:CreateTexture(nil, "HIGHLIGHT"); place(hl, k); hl:SetBlendMode("ADD"); hl:SetAlpha(0.35); hls[k] = hl
   end
   local fs = b:CreateFontString(nil, "OVERLAY")
-  local base = math.max(10, math.min(13, math.floor(h * 0.5)))
+  local base = math.max(11, math.min(13, math.floor(h * 0.55)))
   setFont(fs, UI.FONT, base, "OUTLINE") -- шрифт до первого SetText, иначе игра выдаёт ошибку
   fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs
@@ -186,6 +186,14 @@ function UI.Button(parent, text, w, h, onClick, gold)
   end
   function b:IsGold() return isGold end
   function b:SetLabel(t) fs:SetText(t or ""); fit() end
+  -- ширина по тексту (шрифт base не уменьшается): для кнопок со своей шириной
+  function b:FitWidth(minW, maxW)
+    setFont(fs, UI.FONT, base, "OUTLINE"); fs:SetWidth(0)
+    local tw = (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0
+    self:SetWidth(math.max(minW or 0, math.min(maxW or 1000, math.floor(tw + cap * 2 + 14))))
+    fit()
+    return self:GetWidth()
+  end
   b:SetGold(gold); b:SetLabel(text)
   b:SetScript("OnDisable", function()
     fs:SetTextColor(0.55, 0.52, 0.46); for _, t in pairs(parts) do t:SetDesaturated(true) end

@@ -36,14 +36,23 @@ local function refreshProfs()
   for p in pairs(c.profs or {}) do names[#names + 1] = p end
   table.sort(names)
   if not prof or not c.profs[prof] then prof = names[1] end
+  -- кнопки по ширине текста, переносятся во второй ряд, если не влезают
+  local W = craft.page:GetWidth() or 0
+  if W < 200 then W = 812 end
+  local x, row = 0, 0
   for i, b in ipairs(craft.profBtns) do
     local p = names[i]
     if p then
       local d = c.profs[p]
-      b.prof = p; b:SetLabel(p .. " |cffaaaaaa" .. (d.skill or 0) .. "/" .. (d.max or 0) .. "|r"); b:Show()
-      b:SetGold(p == prof)
+      b.prof = p; b:SetLabel(p .. " |cffaaaaaa" .. (d.skill or 0) .. "/" .. (d.max or 0) .. "|r")
+      local w = b:FitWidth(120, 260)
+      if x > 0 and x + w > W then x = 0; row = row + 1 end
+      b:ClearAllPoints(); b:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -16 - row * 30)
+      x = x + w + 6
+      b:Show(); b:SetGold(p == prof)
     else b:Hide() end
   end
+  craft.setTop(row * 30)
   craft.noProf:SetShown(#names == 0)
 end
 local function fillCard(rec)
@@ -173,8 +182,9 @@ end
 local function buildCraft(f)
   craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("TOPLEFT", 4, 0); craft.status:SetPoint("RIGHT", -4, 0)
   craft.profBtns = {}
-  for i = 1, 6 do
-    local b = UI.Button(f, "", 128, 22, function(self, btn)
+  craft.page = f
+  for i = 1, 10 do
+    local b = UI.Button(f, "", 128, 26, function(self, btn)
       if btn == "RightButton" then
         if StaticPopupDialogs and StaticPopup_Show then
           StaticPopupDialogs.WOLFICHMARKET_DELPROF = StaticPopupDialogs.WOLFICHMARKET_DELPROF or {
@@ -192,14 +202,14 @@ local function buildCraft(f)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L"Правый клик - удалить профессию у персонажа", 1, 1, 1); GameTooltip:Show() end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    b:SetPoint("TOPLEFT", (i - 1) * 132, -16); craft.profBtns[i] = b
+    b:SetPoint("TOPLEFT", 0, -16); craft.profBtns[i] = b
   end
-  craft.noProf = UI.Font(f, 11, UI.DIM); craft.noProf:SetPoint("TOPLEFT", 4, -20); craft.noProf:SetText(L"Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий.")
+  craft.noProf = UI.Font(f, 11, UI.DIM); craft.noProf:SetPoint("TOPLEFT", 4, -24); craft.noProf:SetText(L"Нет сохранённых профессий у этого персонажа - зайдите им и откройте окна его профессий.")
   local S = ns.DB.settings
-  local c1 = UI.Check(f, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshCraft(); ns.Fire("RECIPES") end); c1:SetPoint("TOPLEFT", 0, -42)
-  local c2 = UI.Check(f, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshCraft(); ns.Fire("RECIPES"); if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end end); c2:SetPoint("TOPLEFT", 160, -42)
-  local bP = UI.Button(f, L"по прибыли", 84, 20, function() craft.sortKey = "profit"; refreshCraft() end); bP:SetPoint("TOPLEFT", 436, -44)
-  local bM = UI.Button(f, L"по марже", 84, 20, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("LEFT", bP, "RIGHT", 4, 0)
+  local c1 = UI.Check(f, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshCraft(); ns.Fire("RECIPES") end); c1:SetPoint("TOPLEFT", 0, -48)
+  local c2 = UI.Check(f, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshCraft(); ns.Fire("RECIPES"); if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end end); c2:SetPoint("TOPLEFT", 170, -48)
+  local bP = UI.Button(f, L"по прибыли", 104, 22, function() craft.sortKey = "profit"; refreshCraft() end); bP:SetPoint("TOPLEFT", 446, -48)
+  local bM = UI.Button(f, L"по марже", 104, 22, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("LEFT", bP, "RIGHT", 6, 0)
   craft.list = UI.List(f, 22, function(r)
     r.star = UI.Icon(r, "star-off", 14, L"Отметить: уведомления о скачках цены", function(self) local d = self:GetParent().data; if d and d.rec.out then ns.ToggleMark(d.rec.out) end end); r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
@@ -213,16 +223,24 @@ local function buildCraft(f)
     r.name:SetText(learned and ((DIFF[d.rec.diff] or "|cffffffff") .. d.rec.name .. "|r") or ("|cff9d9d9d" .. d.rec.name .. L" |cffff9966(не изучен)|r"))
     r.val:SetText(profitStr(d))
   end)
-  craft.list:SetPoint("TOPLEFT", 0, -70); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
+  craft.list:SetPoint("TOPLEFT", 0, -78); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
   -- карточка рецепта
   local card = CreateFrame("Frame", nil, f)
-  card:SetPoint("TOPLEFT", f, "TOP", 10, -70); card:SetPoint("BOTTOMRIGHT")
+  card:SetPoint("TOPLEFT", f, "TOP", 10, -78); card:SetPoint("BOTTOMRIGHT")
+  -- второй ряд профессий сдвигает фильтры, список и карточку вниз
+  function craft.setTop(dy)
+    c1:ClearAllPoints(); c1:SetPoint("TOPLEFT", 0, -48 - dy)
+    c2:ClearAllPoints(); c2:SetPoint("TOPLEFT", 170, -48 - dy)
+    bP:ClearAllPoints(); bP:SetPoint("TOPLEFT", 446, -48 - dy)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", 0, -78 - dy); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
+    card:ClearAllPoints(); card:SetPoint("TOPLEFT", f, "TOP", 10, -78 - dy); card:SetPoint("BOTTOMRIGHT")
+  end
   UI.Skin(card, { theme = "mcard" })
-  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 14, -14); card.title:SetPoint("RIGHT", -14, 0)
+  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 16, -30); card.title:SetPoint("RIGHT", -16, 0)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(20)
-    r:SetPoint("TOPLEFT", 12, -38 - (i - 1) * 22); r:SetPoint("RIGHT", -12, 0)
+    r:SetPoint("TOPLEFT", 14, -52 - (i - 1) * 22); r:SetPoint("RIGHT", -14, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT")
     r.search = UI.Icon(r, "search", 16, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT")
     r.star = UI.Icon(r, "star-off", 16, L"Отметить: уведомления о скачках цены", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
@@ -259,6 +277,34 @@ local function refreshSignals()
   sig.list:SetData(d)
   sig.global:SetText(ns.DB.settings.alertPct)
 end
+-- окно графика цены (из вкладки «Сигналы»): работает и без открытого аукциона
+local chartDlg
+function ns.ShowChartDialog(id)
+  if not id then return end
+  if not win then return end -- окно ещё не построено (вызов только из вкладки «Сигналы»)
+  if not chartDlg then
+    chartDlg = CreateFrame("Frame", "WolfichMarketChartDialog", win)
+    chartDlg:SetSize(620, 380); chartDlg:SetPoint("CENTER", win, "CENTER"); chartDlg:SetFrameStrata("DIALOG"); chartDlg:EnableMouse(true); chartDlg:SetToplevel(true)
+    UI.Skin(chartDlg, { theme = "main", scale = 0.6 })
+    UI.Title(chartDlg, L"График цены")
+    UI.Close(chartDlg)
+    chartDlg.icon = chartDlg:CreateTexture(nil, "ARTWORK"); chartDlg.icon:SetSize(28, 28); chartDlg.icon:SetPoint("TOPLEFT", 20, -50)
+    chartDlg.name = UI.Font(chartDlg, 13, UI.GOLD); chartDlg.name:SetPoint("TOPLEFT", chartDlg.icon, "TOPRIGHT", 8, -1); chartDlg.name:SetPoint("RIGHT", -20, 0)
+    chartDlg.info = UI.Font(chartDlg, 11, UI.DIM); chartDlg.info:SetPoint("TOPLEFT", chartDlg.name, "BOTTOMLEFT", 0, -3); chartDlg.info:SetPoint("RIGHT", -20, 0)
+    chartDlg.chart = UI.Chart(chartDlg); chartDlg.chart.showPeaks = true
+    chartDlg.chart:SetPoint("TOPLEFT", 16, -88); chartDlg.chart:SetPoint("BOTTOMRIGHT", -20, 18)
+  end
+  chartDlg.id = id
+  chartDlg.icon:SetTexture(ns.itemIcon(id))
+  chartDlg.name:SetText(ns.itemLinkText(id))
+  local p, avg = ns.AHPrice(id), ns.AvgPrice(id, 24)
+  chartDlg.info:SetText((p and (L"сейчас" .. " " .. ns.money(p, true)) or L"|cff777777нет цены|r") .. (avg and ("   |cffaaaaaa" .. L"среднее за 24 ч" .. "|r " .. ns.money(avg, true)) or ""))
+  if not win:IsShown() then win:Show() end
+  chartDlg:Show()
+  local h = ns.DB.hist[id]
+  ns.After(0, function() chartDlg.chart:SetPoints(h) end)
+end
+
 local function buildSignals(f)
   local info = UI.Font(f, 11, UI.TEXT); info:SetPoint("TOPLEFT", 4, 0); info:SetPoint("RIGHT", -4, 0); info:SetWordWrap(true)
   info:SetText(L"Уведомления о скачках цены приходят только по отмеченным предметам - после каждого снимка аукциона. Порог можно задать для каждого предмета, пустое поле - общий порог.")
@@ -282,7 +328,7 @@ local function buildSignals(f)
     r.star = UI.Icon(r, "star-on", 16, L"Снять отметку", function(self) local d = self:GetParent().data; if d then ns.ToggleMark(d.id) end end); r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", r.star, "RIGHT", 6, 0)
     r.search = UI.Icon(r, "search", 16, L"Найти в окне аукциона", function(self) local d = self:GetParent().data; if d then ns.SearchAH(d.id) end end); r.search:SetPoint("RIGHT", -4, 0)
-    r.chart = UI.Icon(r, "chart", 16, L"График цены", function(self) local d = self:GetParent().data; if d and ns.OpenChart then ns.OpenChart(d.id) end end); r.chart:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
+    r.chart = UI.Icon(r, "chart", 16, L"График цены", function(self) local d = self:GetParent().data; if d then ns.ShowChartDialog(d.id) end end); r.chart:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
     r.thr = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.thr:SetSize(40, 18); r.thr:SetPoint("RIGHT", r.chart, "LEFT", -14, 0); r.thr:SetAutoFocus(false); r.thr:SetNumeric(true)
     r.thr:SetScript("OnTextChanged", function(self, user) if user and r.data then local v = tonumber(self:GetText()); ns.DB.alarm[r.data.id] = (v and v > 0) and v or nil end end)
     r.thr:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
