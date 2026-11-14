@@ -37,7 +37,6 @@ function ns.ScanProfession()
           if r and r.itemID and need > 0 and slot.required ~= false then table.insert(rec.reag, { r.itemID, need }); ns.itemName(r.itemID) end
         end
       end
-      if not rec.learned then rec.src = safe(C_TradeSkillUI.GetRecipeSourceText, rid) end
       if rec.out then ns.itemName(rec.out) end
       recipes[#recipes + 1] = rec
     end
@@ -198,16 +197,12 @@ local function fillDetail(rec)
   if not detail then return end
   selected = rec
   for _, r in ipairs(detail.rows) do r:Hide() end
-  if not rec then detail.title:SetText(L"Выберите рецепт"); detail.total:SetText(""); detail.src:SetText("") return end
+  if not rec then detail.title:SetText(L"Выберите рецепт"); detail.total:SetText("") return end
   local pr = ns.Profit(rec)
   pr.rec = rec
   local learned = ns.IsLearned(rec)
   detail.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or L"  |cffff9966(не изучен)|r"))
-  if learned then detail.src:SetText("")
-  else
-    local src = rec.src and rec.src ~= "" and rec.src or L"игра не сообщает, где его взять"
-    detail.src:SetText(L"|cffe6b450Как получить:|r " .. src)
-  end
+
   local items = {}
   if rec.out then items[#items + 1] = { id = rec.out, n = pr.qty or 1, unit = pr.sell, out = true } end
   for _, p in ipairs(pr.parts) do items[#items + 1] = p end
@@ -243,7 +238,7 @@ local function build()
   local S = ns.DB.settings
   local chk = UI.Check(panel, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshList(); ns.DecorateRecipeRows() end)
   chk:SetPoint("TOPLEFT", 10, -58)
-  local chk2 = UI.Check(panel, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshList(); ns.DecorateRecipeRows(); ns.Fire("RECIPES") end)
+  local chk2 = UI.Check(panel, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; ns.Fire("RECIPES"); ns.DecorateRecipeRows() end)
   chk2:SetPoint("TOPLEFT", 10, -80)
   local bP = UI.Button(panel, L"по прибыли", 84, 20, function() panel.sortKey = "profit"; refreshList() end); bP:SetPoint("TOPRIGHT", -102, -60)
   local bM = UI.Button(panel, L"по марже", 84, 20, function() panel.sortKey = "margin"; refreshList() end); bM:SetPoint("TOPRIGHT", -14, -60)
@@ -291,8 +286,6 @@ local function build()
     detail.rows[i] = r
   end
   detail.total = UI.Font(detail, 11, UI.TEXT); detail.total:SetPoint("BOTTOMLEFT", 8, 8); detail.total:SetPoint("RIGHT", -8, 0); detail.total:SetWordWrap(true); detail.total:SetJustifyV("BOTTOM")
-  detail.src = UI.Font(detail, 10, UI.TEXT); detail.src:SetPoint("BOTTOMLEFT", detail.total, "TOPLEFT", 0, 6); detail.src:SetPoint("RIGHT", -8, 0)
-  detail.src:SetWordWrap(true); detail.src:SetJustifyV("BOTTOM"); detail.src:SetMaxLines(4)
 
   -- кнопка-лапа на окне профессии: показать/скрыть панель
   local tg = UI.Icon(h, "paw", 22, L"WolfichMarket: прибыль крафта", function()
@@ -318,7 +311,11 @@ end
 
 -- ---------- прибыль прямо на строках списка рецептов игры ----------
 local recipeIndex = {}
+local indexDirty = true
+function ns.MarkProfitDirty() indexDirty = true end
 local function indexRecipes()
+  if not indexDirty then return end
+  indexDirty = false
   wipe(recipeIndex)
   for _, pr in ipairs(ns.AllRecipeProfits(ns.curProf, ns.DB.settings.showUnlearned)) do recipeIndex[pr.rec.id] = pr end
 end
@@ -361,24 +358,29 @@ end
 
 -- ---------- события ----------
 local timer
-local function onTradeSkill()
+local lastScanAt, lastScanProf = 0, nil
+local function onTradeSkill(force)
   if timer then timer:Cancel() end
-  timer = C_Timer and C_Timer.NewTimer and C_Timer.NewTimer(0.5, function()
-    ns.ScanProfession(); build(); hookRows()
+  timer = C_Timer and C_Timer.NewTimer and C_Timer.NewTimer(1, function()
+    local prof = professionInfo()
+    if force == true or prof ~= lastScanProf or GetTime() - lastScanAt > 3 then
+      ns.ScanProfession(); lastScanAt, lastScanProf = GetTime(), prof
+    end
+    build(); hookRows()
     if panel and panel:IsShown() then refreshList() end
     ns.DecorateRecipeRows()
   end)
   if not timer then ns.ScanProfession(); build(); hookRows() end
 end
-ns.On("TRADE_SKILL_SHOW", onTradeSkill)
-ns.On("TRADE_SKILL_LIST_UPDATE", onTradeSkill)
+ns.On("TRADE_SKILL_SHOW", function() onTradeSkill(true) end)
+ns.On("TRADE_SKILL_LIST_UPDATE", function() onTradeSkill(false) end)
 ns.On("TRADE_SKILL_DATA_SOURCE_CHANGED", onTradeSkill)
 ns.On("MERCHANT_SHOW", scanMerchant)
 ns.On("SKILL_LINES_CHANGED", function() ns.ScanSkills() end)
 ns.Listen("LOGIN", function() ns.ScanSkills() end)
 local function refreshAll() if panel and panel:IsShown() then refreshList(); fillDetail(selected) end; ns.DecorateRecipeRows() end
-ns.Listen("PRICES", refreshAll)
-ns.Listen("MARKS", refreshAll)
-ns.Listen("RECIPES", function() if panel and panel:IsShown() then refreshList() end end)
+ns.Listen("PRICES", function() indexDirty = true; refreshAll() end)
+ns.Listen("MARKS", function() if panel and panel:IsShown() then list:Refresh(); fillDetail(selected) end end)
+ns.Listen("RECIPES", function() indexDirty = true; if panel and panel:IsShown() then refreshList() end end)
 ns.Listen("AH_STATE", function() if panel and panel:IsShown() then fillDetail(selected) end end)
 ns.Listen("NAMES", function() if panel and panel:IsShown() then list:Refresh() end end)

@@ -19,7 +19,7 @@ local function finishScan()
   local items = {}
   local i = 0
   local function step()
-    local last = math.min(i + 3000, n - 1)
+    local last = math.min(i + 2000, n - 1)
     for k = i, last do
       local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = safe(C_AuctionHouse.GetReplicateItemInfo, k)
       if itemID then
