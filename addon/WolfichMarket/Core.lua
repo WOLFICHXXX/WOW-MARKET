@@ -1,6 +1,6 @@
 -- WolfichMarket: ядро — база данных, события, цены, история, отметки.
 local addonName, ns = ...
-ns.VERSION = "2.0.2"
+ns.VERSION = "2.1.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -117,6 +117,7 @@ local DEFAULTS = {
   autoScan = true,        -- сам снимать аукцион, пока открыт аукционист
   autoScanMin = 15,       -- раз в N минут (не чаще 15 - ограничение сервера)
   profitOnly = false,     -- фильтр в окне профессии
+  showUnlearned = false,  -- показывать неизученные рецепты
   minProfit = 0,
   tooltip = true,
   debug = false,

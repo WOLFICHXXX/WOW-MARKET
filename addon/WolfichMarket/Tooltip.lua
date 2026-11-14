@@ -4,7 +4,7 @@ local _, ns = ...
 local function findRecipe(id)
   local c = ns.DB.chars[ns.charKey or ""]
   for _, p in pairs(c and c.profs or {}) do
-    for _, rec in ipairs(p.recipes or {}) do if rec.out == id then return rec end end
+    for _, rec in ipairs(p.recipes or {}) do if rec.out == id and rec.learned ~= false then return rec end end
   end
 end
 

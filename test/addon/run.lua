@@ -8,7 +8,14 @@ check(ns.DB and ns.charKey == "Вульфыч-CAMWOWEU4Realm6PvP", "загруз
 fire("TRADE_SKILL_SHOW"); advance(1)
 check(WolfichMarketProfPanel ~= nil, "панель у окна профессии создана")
 local recs = ns.DB.chars[ns.charKey].profs["Кузнечное дело"].recipes
-check(#recs == 4, "рецепты записаны: " .. #recs)
+check(#recs == 5, "рецепты записаны (с неизученным): " .. #recs)
+local un; for _, r in ipairs(recs) do if r.learned == false then un = r end end
+check(un and un.src and un.src:find("Тед Хаммер", 1, true), "неизученный рецепт и где его взять")
+ns.DB.settings.showUnlearned = true
+local okD, errD = pcall(ns.FillRecipeDetail, un); check(okD, "карточка неизученного рецепта" .. (okD and "" or (": " .. tostring(errD))))
+ns.DecorateRecipeRows()
+ns.DB.settings.showUnlearned = false
+check(#ns.AllRecipeProfits(nil) == 4 and #ns.AllRecipeProfits(nil, true) == 5, "галочка «включая неизученные» в расчётах")
 -- аукцион + снимок
 fire("AUCTION_HOUSE_SHOW")
 check(WolfichMarketAHPanel ~= nil, "панель у окна аукциона создана")

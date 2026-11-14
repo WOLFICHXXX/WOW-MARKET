@@ -193,14 +193,14 @@ local function pageCraft(f)
     itemRow(r)
   end, function(r, d)
     fillItemRow(r, { id = d.id })
-    r.name:SetText(ns.itemLinkText(d.id))
+    r.name:SetText(ns.itemLinkText(d.id) .. (ns.IsLearned(d.pr.rec) and "" or " |cffff9966(не изучен)|r"))
     r.chg:SetText(d.pr.profit and ((d.pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(d.pr.profit, true) .. "|r") or "|cffaa8866нет цены|r")
     r.chg:SetWidth(80)
   end)
   l:SetAllPoints()
   f.refresh = function()
     local d = {}
-    for _, pr in ipairs(ns.AllRecipeProfits()) do if pr.rec.out then d[#d + 1] = { id = pr.rec.out, pr = pr } end end
+    for _, pr in ipairs(ns.AllRecipeProfits(nil, ns.DB.settings.showUnlearned)) do if pr.rec.out then d[#d + 1] = { id = pr.rec.out, pr = pr } end end
     table.sort(d, function(a, b) return (a.pr.profit or -1e12) > (b.pr.profit or -1e12) end)
     l:SetData(d)
     l.empty:SetText("Откройте окна своих профессий - здесь появятся рецепты с прибылью.")
@@ -261,11 +261,11 @@ local function pageBuy(f)
     for _, prof in ipairs(profs) do
       local seen, items = {}, {}
       for _, rec in ipairs(c.profs[prof].recipes or {}) do
-        for _, r in ipairs(rec.reag or {}) do
+        if ns.DB.settings.showUnlearned or ns.IsLearned(rec) then for _, r in ipairs(rec.reag or {}) do
           local id = r[1]
           if not seen[id] then seen[id] = { id = id, recipes = 0 }; items[#items + 1] = seen[id] end
           seen[id].recipes = seen[id].recipes + 1
-        end
+        end end
       end
       if #items > 0 then
         table.sort(items, function(a, b) return ns.itemName(a.id) < ns.itemName(b.id) end)

@@ -25,9 +25,9 @@ function ns.ScanProfession()
   local recipes = {}
   for _, rid in ipairs(ids) do
     local ri = safe(C_TradeSkillUI.GetRecipeInfo, rid)
-    if ri and ri.learned then
+    if ri and not ri.isDummyRecipe and ri.name then
       local sch = safe(C_TradeSkillUI.GetRecipeSchematic, rid, false)
-      local rec = { id = rid, name = clean(ri.name), diff = ri.relativeDifficulty, icon = ri.icon,
+      local rec = { id = rid, name = clean(ri.name), diff = ri.relativeDifficulty, icon = ri.icon, learned = ri.learned and true or false,
         out = sch and sch.outputItemID or nil, qmin = sch and sch.quantityMin or 1, qmax = sch and sch.quantityMax or 1, reag = {} }
       if sch and sch.reagentSlotSchematics then
         for _, slot in ipairs(sch.reagentSlotSchematics) do
@@ -36,6 +36,7 @@ function ns.ScanProfession()
           if r and r.itemID and need > 0 and slot.required ~= false then table.insert(rec.reag, { r.itemID, need }); ns.itemName(r.itemID) end
         end
       end
+      if not rec.learned then rec.src = safe(C_TradeSkillUI.GetRecipeSourceText, rid) end
       if rec.out then ns.itemName(rec.out) end
       recipes[#recipes + 1] = rec
     end
@@ -97,17 +98,20 @@ function ns.Profit(rec)
   return res
 end
 
--- все рецепты всех профессий текущего персонажа с прибылью
-function ns.AllRecipeProfits(profFilter)
+function ns.IsLearned(rec) return rec.learned ~= false end
+-- все рецепты всех профессий текущего персонажа с прибылью (неизученные — только если попросили)
+function ns.AllRecipeProfits(profFilter, withUnlearned)
   local out = {}
   local c = ns.DB.chars[ns.charKey]
   if not c then return out end
   for prof, p in pairs(c.profs or {}) do
     if not profFilter or prof == profFilter then
       for _, rec in ipairs(p.recipes or {}) do
-        local pr = ns.Profit(rec)
-        pr.rec, pr.prof = rec, prof
-        out[#out + 1] = pr
+        if withUnlearned or ns.IsLearned(rec) then
+          local pr = ns.Profit(rec)
+          pr.rec, pr.prof = rec, prof
+          out[#out + 1] = pr
+        end
       end
     end
   end
@@ -118,7 +122,7 @@ function ns.CraftCost(id)
   for _, c in pairs(ns.DB.chars) do
     for _, p in pairs(c.profs or {}) do
       for _, rec in ipairs(p.recipes or {}) do
-        if rec.out == id then
+        if rec.out == id and ns.IsLearned(rec) then
           local pr = ns.Profit(rec)
           if pr.missing == 0 then
             local unit = pr.cost / math.max(1, ((rec.qmin or 1) + (rec.qmax or 1)) / 2)
@@ -141,8 +145,10 @@ function ns.RecipeItems()
   local c = ns.DB.chars[ns.charKey]
   for _, p in pairs(c and c.profs or {}) do
     for _, rec in ipairs(p.recipes or {}) do
-      if rec.out then s[rec.out] = true end
-      for _, r in ipairs(rec.reag or {}) do s[r[1]] = true end
+      if ns.IsLearned(rec) then -- для истории цен берём только изученные рецепты
+        if rec.out then s[rec.out] = true end
+        for _, r in ipairs(rec.reag or {}) do s[r[1]] = true end
+      end
     end
   end
   return s
@@ -163,8 +169,8 @@ end
 
 local function refreshList()
   if not panel or not panel:IsShown() then return end
-  local rows = ns.AllRecipeProfits(ns.curProf)
   local S = ns.DB.settings
+  local rows = ns.AllRecipeProfits(ns.curProf, S.showUnlearned)
   local data = {}
   for _, pr in ipairs(rows) do
     if not S.profitOnly or (pr.profit and pr.profit > (S.minProfit or 0)) then data[#data + 1] = pr end
@@ -178,16 +184,28 @@ local function refreshList()
   list:SetData(data)
   list.empty:SetText(#rows == 0 and "Рецепты появятся после открытия окна профессии." or "Нет рецептов под фильтр.\nСнимите «только прибыльные» или обновите цены: окно аукциона > «Сканировать».")
   local scan = ns.CurrentScan()
-  panel.status:SetText(scan and ("Цены: снимок " .. ns.ago(scan.t)) or "|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r")
+  local status = scan and ("Цены: снимок " .. ns.ago(scan.t)) or "|cffff9966Цен нет - откройте аукцион и нажмите «Сканировать».|r"
+  if S.showUnlearned then
+    local un = 0
+    for _, pr in ipairs(rows) do if not ns.IsLearned(pr.rec) then un = un + 1 end end
+    status = status .. (un > 0 and ("  |cffaaaaaa/ неизученных: " .. un .. "|r") or "  |cffff9966/ игра не прислала неизученные|r")
+  end
+  panel.status:SetText(status)
 end
 
 local function fillDetail(rec)
   if not detail then return end
   selected = rec
   for _, r in ipairs(detail.rows) do r:Hide() end
-  if not rec then detail.title:SetText("Выберите рецепт"); detail.total:SetText("") return end
+  if not rec then detail.title:SetText("Выберите рецепт"); detail.total:SetText(""); detail.src:SetText("") return end
   local pr = ns.Profit(rec)
-  detail.title:SetText((DIFF[rec.diff] or "|cffffffff") .. rec.name .. "|r")
+  local learned = ns.IsLearned(rec)
+  detail.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or "  |cffff9966(не изучен)|r"))
+  if learned then detail.src:SetText("")
+  else
+    local src = rec.src and rec.src ~= "" and rec.src or "игра не сообщает, где его взять"
+    detail.src:SetText("|cffe6b450Как получить:|r " .. src)
+  end
   local items = {}
   if rec.out then items[#items + 1] = { id = rec.out, n = pr.qty or 1, unit = pr.sell, out = true } end
   for _, p in ipairs(pr.parts) do items[#items + 1] = p end
@@ -223,6 +241,8 @@ local function build()
   local S = ns.DB.settings
   local chk = UI.Check(panel, "только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshList(); ns.DecorateRecipeRows() end)
   chk:SetPoint("TOPLEFT", 10, -58)
+  local chk2 = UI.Check(panel, "включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshList(); ns.DecorateRecipeRows(); ns.Fire("RECIPES") end)
+  chk2:SetPoint("TOPLEFT", 10, -80)
   local bP = UI.Button(panel, "по прибыли", 84, 20, function() panel.sortKey = "profit"; refreshList() end); bP:SetPoint("TOPRIGHT", -102, -60)
   local bM = UI.Button(panel, "по марже", 84, 20, function() panel.sortKey = "margin"; refreshList() end); bM:SetPoint("TOPRIGHT", -14, -60)
 
@@ -240,14 +260,16 @@ local function build()
   end, function(r, d)
     r.star:SetIcon(d.rec.out and ns.IsMarked(d.rec.out) and "star-on" or "star-off"); r.star:SetShown(d.rec.out ~= nil)
     r.icon:SetTexture(d.rec.out and ns.itemIcon(d.rec.out) or d.rec.icon or 134400)
-    r.name:SetText((DIFF[d.rec.diff] or "|cffffffff") .. d.rec.name .. "|r")
+    local learned = ns.IsLearned(d.rec)
+    r.icon:SetDesaturated(not learned)
+    r.name:SetText(learned and ((DIFF[d.rec.diff] or "|cffffffff") .. d.rec.name .. "|r") or ("|cff9d9d9d" .. d.rec.name .. " |cffff9966(не изучен)|r"))
     r.val:SetText(profitText(d))
   end)
-  list:SetPoint("TOPLEFT", 10, -86); list:SetPoint("RIGHT", -10, 0); list:SetPoint("BOTTOM", panel, "BOTTOM", 0, 222)
+  list:SetPoint("TOPLEFT", 10, -106); list:SetPoint("RIGHT", -10, 0); list:SetPoint("BOTTOM", panel, "BOTTOM", 0, 272)
 
   -- карточка выбранного рецепта
   detail = CreateFrame("Frame", nil, panel)
-  detail:SetPoint("BOTTOMLEFT", 10, 10); detail:SetPoint("BOTTOMRIGHT", -10, 10); detail:SetHeight(206)
+  detail:SetPoint("BOTTOMLEFT", 10, 10); detail:SetPoint("BOTTOMRIGHT", -10, 10); detail:SetHeight(256)
   local dbg = detail:CreateTexture(nil, "BACKGROUND"); dbg:SetAllPoints(); dbg:SetColorTexture(0, 0, 0, 0.3)
   local line = detail:CreateTexture(nil, "BORDER"); line:SetPoint("TOPLEFT"); line:SetPoint("TOPRIGHT"); line:SetHeight(1); line:SetColorTexture(0.85, 0.66, 0.32, 0.6)
   detail.title = UI.Font(detail, 12, UI.GOLD, "OVERLAY", "OUTLINE"); detail.title:SetPoint("TOPLEFT", 8, -7); detail.title:SetPoint("RIGHT", -8, 0)
@@ -267,6 +289,8 @@ local function build()
     detail.rows[i] = r
   end
   detail.total = UI.Font(detail, 11, UI.TEXT); detail.total:SetPoint("BOTTOMLEFT", 8, 8); detail.total:SetPoint("RIGHT", -8, 0); detail.total:SetWordWrap(true); detail.total:SetJustifyV("BOTTOM")
+  detail.src = UI.Font(detail, 10, UI.TEXT); detail.src:SetPoint("BOTTOMLEFT", detail.total, "TOPLEFT", 0, 6); detail.src:SetPoint("RIGHT", -8, 0)
+  detail.src:SetWordWrap(true); detail.src:SetJustifyV("BOTTOM"); detail.src:SetMaxLines(4)
 
   -- кнопка-лапа на окне профессии: показать/скрыть панель
   local tg = UI.Icon(h, "paw", 22, "WolfichMarket: прибыль крафта", function()
@@ -294,7 +318,7 @@ end
 local recipeIndex = {}
 local function indexRecipes()
   wipe(recipeIndex)
-  for _, pr in ipairs(ns.AllRecipeProfits(ns.curProf)) do recipeIndex[pr.rec.id] = pr end
+  for _, pr in ipairs(ns.AllRecipeProfits(ns.curProf, ns.DB.settings.showUnlearned)) do recipeIndex[pr.rec.id] = pr end
 end
 local function decorate(frame)
   if not frame or not frame.GetElementData then return end

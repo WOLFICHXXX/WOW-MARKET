@@ -65,7 +65,7 @@ SOUNDKIT = { RAID_WARNING = 8959 }
 Enum = { TooltipDataType = { Item = 0 }, AuctionHouseSortOrder = { Price = 0 }, ItemCommodityStatus = { Item = 1, Commodity = 2 } }
 local ttcb; TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) ttcb = fn end }
 -- предметы
-local NAMES = { [2840] = "Медный слиток", [2589] = "Льняная ткань", [3470] = "Грубый шлифовальный камень", [2835] = "Грубый камень", [2862] = "Грубое точило", [6217] = "Медный жезл", [10940] = "Странная пыль", [3575] = "Железный слиток", [7071] = "Железная скоба" }
+local NAMES = { [2840] = "Медный слиток", [2589] = "Льняная ткань", [3470] = "Грубый шлифовальный камень", [2835] = "Грубый камень", [2862] = "Грубое точило", [6217] = "Медный жезл", [10940] = "Странная пыль", [3575] = "Железный слиток", [7071] = "Железная скоба", [2853] = "Медные наручи" }
 C_Item = { GetItemNameByID = function(id) return NAMES[id] end, GetItemIconByID = function() return 1 end, GetItemQualityByID = function() return 1 end }
 ITEM_QUALITY_COLORS = { [1] = { hex = "|cffffffff" } }
 -- профессии
@@ -74,11 +74,13 @@ local RECIPES = {
   [2660] = { name = "Грубое точило", out = 2862, d = 3, r = { { 2835, 1 } } },
   [1245287] = { name = "Медный жезл", out = 6217, d = 3, r = { { 2840, 1 } } },
   [8768] = { name = "Железная скоба", out = 7071, d = 3, q = 2, r = { { 3575, 1 } } },
+  [7071] = { name = "Медные наручи", out = 2853, d = 0, r = { { 2840, 2 } }, unlearned = true },
 }
 C_TradeSkillUI = {
   GetBaseProfessionInfo = function() return { professionName = "Кузнечное дело", skillLevel = 150, maxSkillLevel = 150 } end,
   GetAllRecipeIDs = function() local t = {} for k in pairs(RECIPES) do t[#t + 1] = k end return t end,
-  GetRecipeInfo = function(id) local r = RECIPES[id]; return { name = r.name, learned = true, relativeDifficulty = r.d, icon = 1 } end,
+  GetRecipeInfo = function(id) local r = RECIPES[id]; return { name = r.name, learned = not r.unlearned, relativeDifficulty = r.d, icon = 1 } end,
+  GetRecipeSourceText = function(id) return "|cffffd200Тренер:|r Тед Хаммер|n|cffffd200Место:|r Штормград" end,
   GetRecipeSchematic = function(id) local r = RECIPES[id]; local slots = {}
     for _, x in ipairs(r.r) do slots[#slots + 1] = { quantityRequired = x[2], reagents = { { itemID = x[1] } } } end
     return { outputItemID = r.out, quantityMin = r.q or 1, quantityMax = r.q or 1, reagentSlotSchematics = slots } end,
@@ -95,7 +97,7 @@ AuctionHouseFrame = newObj("Frame"); AuctionHouseFrame.SearchBar = { SetSearchTe
 -- аукцион
 local REP = {}
 local function lot(id, cnt, buy) REP[#REP + 1] = { id, cnt, buy } end
-lot(2840, 20, 20 * 150); lot(2840, 5, 5 * 140); lot(2835, 40, 40 * 30); lot(3470, 10, 10 * 120); lot(2862, 3, 3 * 90); lot(6217, 1, 400); lot(3575, 10, 10 * 200); lot(7071, 20, 20 * 300)
+lot(2840, 20, 20 * 150); lot(2840, 5, 5 * 140); lot(2835, 40, 40 * 30); lot(3470, 10, 10 * 120); lot(2862, 3, 3 * 90); lot(6217, 1, 400); lot(3575, 10, 10 * 200); lot(7071, 20, 20 * 300); lot(2853, 2, 2 * 900)
 C_AuctionHouse = {
   ReplicateItems = function() end, GetNumReplicateItems = function() return #REP end,
   GetReplicateItemInfo = function(i) local r = REP[i + 1]; return NAMES[r[1]], 0, r[2], 1, true, 1, 0, 0, 0, r[3], 0, nil, nil, nil, nil, 0, r[1], true end,
