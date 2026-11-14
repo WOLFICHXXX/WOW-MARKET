@@ -2,7 +2,7 @@
 ## Title: WolfichMarket
 ## Notes: Сканирует ваши профессии, рецепты и цены торговцев для сайта WOW-MARKET. Команды: /wm, /wm ah
 ## Author: WOLFICH
-## Version: 1.1.0
+## Version: 1.1.1
 ## SavedVariables: WolfichMarketDB
 
 WolfichMarket.lua

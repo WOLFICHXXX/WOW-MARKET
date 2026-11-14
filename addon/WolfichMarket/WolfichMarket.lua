@@ -2,6 +2,7 @@
 -- Команды: /wm — окно экспорта, /wm reset — очистить данные этого персонажа.
 local addonName, ns = ...
 
+local VERSION = "1.1.1"
 local PREFIX = "|cffe6b450WolfichMarket|r: "
 local function say(msg) print(PREFIX .. msg) end
 
@@ -367,7 +368,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
     charKey = realm ~= "" and (name .. "-" .. realm) or name
     DB.chars[charKey] = DB.chars[charKey] or { profs = {} }
     scanSkillLevels()
-    say("загружен. Откройте окна своих профессий и загляните к торговцам, затем /wm — экспорт.")
+    say("v" .. VERSION .. " загружен. /wm — экспорт профессий, /wm ah — снимок аукциона (окно аукциона должно быть открыто).")
   elseif not DB or not charKey then
     return
   elseif event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE" or event == "TRADE_SKILL_DATA_SOURCE_CHANGED" then
@@ -400,7 +401,7 @@ end)
 
 SLASH_WOLFICHMARKET1 = "/wm"
 SLASH_WOLFICHMARKET2 = "/wolfichmarket"
-SlashCmdList.WOLFICHMARKET = function(msg)
+local function slash(msg)
   msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
   if not DB or not charKey then say("ещё не загрузился, попробуйте через пару секунд.") return end
   if msg == "reset" then
@@ -421,3 +422,11 @@ SlashCmdList.WOLFICHMARKET = function(msg)
     showExport()
   end
 end
+
+-- ошибки не должны пропадать молча
+SlashCmdList.WOLFICHMARKET = function(msg)
+  local ok, err = xpcall(function() slash(msg) end, function(e) return tostring(e) .. "\n" .. (debugstack and debugstack(2, 3, 0) or "") end)
+  if not ok then say("|cffff6060ошибка:|r " .. tostring(err)) end
+end
+SLASH_WOLFICHMARKETAH1 = "/wmah"
+SlashCmdList.WOLFICHMARKETAH = function() SlashCmdList.WOLFICHMARKET("ah") end
