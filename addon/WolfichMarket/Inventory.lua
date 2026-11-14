@@ -192,44 +192,43 @@ function ns.BagFull()
   if ns.UpdateBagValue then ns.UpdateBagValue() end
 end
 
+-- маленькое отдельное окошко «стоимость сумок»: перетаскивается мышью, место запоминается, от сумок не зависит
 local bar
-local function host()
-  if ContainerFrameCombinedBags and ContainerFrameCombinedBags:IsShown() then return ContainerFrameCombinedBags end
-  if ContainerFrame1 and ContainerFrame1:IsShown() then return ContainerFrame1 end
-end
 local function updateBar()
   if not bar then return end
-  local h = host()
-  if not h or not ns.DB or ns.DB.settings.bagValue == false then bar:Hide() return end
-  -- строка живёт на слое самого окна сумок: не перекрывает другие окна
-  if bar:GetParent() ~= h then bar:SetParent(h) end
-  bar:SetFrameStrata(h:GetFrameStrata() or "MEDIUM"); bar:SetFrameLevel((h:GetFrameLevel() or 1) + 5)
-  bar:ClearAllPoints(); bar:SetPoint("BOTTOMLEFT", h, "TOPLEFT", 0, 2); bar:SetPoint("BOTTOMRIGHT", h, "TOPRIGHT", 0, 2)
+  if not ns.DB or ns.DB.settings.bagValue == false then bar:Hide() return end
   local total, farm, t = ns.BagValue()
   bar.text:SetText(farm and (L"Нафармлено" .. ": |cffffffff" .. ns.money(total, true) .. "|r  |cffaaaaaa(" .. string.format(L"с %s", date("%H:%M", t)) .. ")|r")
     or (L"Сумки" .. ": |cffffffff~" .. ns.money(total, true) .. "|r"))
   bar:Show()
 end
+local function savePos()
+  local p, _, rp, x, y = bar:GetPoint()
+  ns.DB.settings.bagPos = { p or "CENTER", rp or "CENTER", math.floor((x or 0) + 0.5), math.floor((y or 0) + 0.5) }
+end
 local function buildBar()
   if bar or not ns.UI then return end
   local UI = ns.UI
   bar = CreateFrame("Frame", "WolfichMarketBagValue", UIParent)
-  bar:SetHeight(30)
+  bar:SetSize(330, 30); bar:SetFrameStrata("MEDIUM"); bar:SetClampedToScreen(true)
+  bar:SetMovable(true); bar:EnableMouse(true); bar:RegisterForDrag("LeftButton")
+  bar:SetScript("OnDragStart", bar.StartMoving)
+  bar:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); savePos() end)
+  local p = ns.DB.settings.bagPos
+  if p then bar:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else bar:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -320, 260) end
   UI.Skin(bar, { theme = "acard", scale = 0.22 })
-  bar.text = UI.Font(bar, 12, UI.GOLD); bar.text:SetPoint("LEFT", 12, 0)
-  bar.full = UI.Button(bar, L"Обновить", 78, 20, function() ns.BagFull() end); bar.full:SetPoint("RIGHT", -8, 0)
-  bar.reset = UI.Button(bar, L"Сбросить", 78, 20, function() ns.BagReset() end); bar.reset:SetPoint("RIGHT", bar.full, "LEFT", -4, 0)
-  bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -6, 0)
+  bar.close = UI.Icon(bar, "skin\\ai-x", 14, L"Скрыть (вернуть: Настройки у аукциониста или /wm bags)", function() ns.DB.settings.bagValue = false; bar:Hide() end)
+  bar.close:SetPoint("RIGHT", -8, 0)
+  bar.full = UI.Button(bar, L"Все", 46, 20, function() ns.BagFull() end); bar.full:SetPoint("RIGHT", bar.close, "LEFT", -4, 0)
+  bar.reset = UI.Button(bar, L"Сброс", 54, 20, function() ns.BagReset() end); bar.reset:SetPoint("RIGHT", bar.full, "LEFT", -3, 0)
+  bar.text = UI.Font(bar, 12, UI.GOLD); bar.text:SetPoint("LEFT", 10, 0); bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -4, 0)
   bar.reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое.", 1, 1, 1, true); GameTooltip:Show() end)
   bar.reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
   bar.full:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Снова показывать полную стоимость сумок.", 1, 1, 1, true); GameTooltip:Show() end)
   bar.full:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  bar:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Оценка: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Стоимость сумок: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу. Перетащите мышью, чтобы передвинуть.", 1, 1, 1, true); GameTooltip:Show() end)
   bar:SetScript("OnLeave", function() GameTooltip:Hide() end)
   bar:Hide()
-  for _, f in ipairs({ ContainerFrameCombinedBags, ContainerFrame1 }) do
-    if f and f.HookScript then f:HookScript("OnShow", function() ns.After(0, updateBar) end); f:HookScript("OnHide", function() ns.After(0, updateBar) end) end
-  end
 end
 ns.Listen("LOGIN", function() buildBar(); updateBar() end)
 -- не чаще раза в полсекунды, сколько бы раз ни нажимали и ни менялись сумки

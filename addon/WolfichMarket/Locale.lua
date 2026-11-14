@@ -418,4 +418,11 @@ ns.EN = {
   ["выключены"] = "off",
   ["/wm chat window | main | tab | quiet | off - журнал окна, общий чат, своя вкладка, только сигналы, выключить"] = "/wm chat window | main | tab | quiet | off - window log, general chat, own tab, alerts only, off",
   ["  |cffe6b450/wm chat|r - куда писать сообщения: window - журнал окна (по умолчанию), main - чат, tab - своя вкладка, off - никуда"] = "  |cffe6b450/wm chat|r - where messages go: window - window log (default), main - chat, tab - own tab, off - nowhere",
+  ["Скрыть (вернуть: Настройки у аукциониста или /wm bags)"] = "Hide (bring back: settings at the auctioneer or /wm bags)",
+  ["Все"] = "All",
+  ["Сброс"] = "Reset",
+  ["Стоимость сумок: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу. Перетащите мышью, чтобы передвинуть."] = "Bag value: each item at its best price - auction (minus 5%) or vendor; soulbound - vendor only. Drag to move.",
+  ["окошко стоимости сумок показано"] = "bag value window shown",
+  ["окошко стоимости сумок скрыто"] = "bag value window hidden",
+  ["Окошко стоимости сумок (перетаскивается)"] = "Bag value window (draggable)",
 }

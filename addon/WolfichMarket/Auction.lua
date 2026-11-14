@@ -749,7 +749,7 @@ local function pageSettings(f)
   chk(L"Цена и прибыль в подсказке предмета", "tooltip")
   chk(L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() ns.DB.settings.minimapHidden = not ns.DB.settings.minimapShown end)
   chk(L"Подсветка в сумках: жёлтая - торговцу, зелёная - на аукцион", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
-  chk(L"Стоимость сумок над окном сумок", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end)
+  chk(L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end)
   chk(L"Общий рынок: делиться своими снимками с игроками", "netSend")
   chk(L"Общий рынок: принимать цены от игроков", "netRecv")
   -- куда писать сообщения аддона
