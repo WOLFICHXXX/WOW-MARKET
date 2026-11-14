@@ -359,7 +359,7 @@ footer svg{width:16px;height:16px;vertical-align:-3px;color:var(--gold3)}
     <div class="frame card">
       <h3><svg><use href="#i-dl"/></svg>Аддон WolfichMarket</h3>
       <ol class="steps">
-        <li><span><a class="btn sm web-only" href="addon/WolfichMarket.zip" id="addonLink"><svg width="14" height="14"><use href="#i-dl"/></svg>Скачать WolfichMarket.zip</a><button class="btn sm app-only" data-act="install"><svg width="14" height="14"><use href="#i-dl"/></svg>Установить аддон в игру</button></span></li>
+        <li><span><a class="btn sm web-only" href="addon/WolfichMarket.zip" id="addonLink"><svg width="14" height="14"><use href="#i-dl"/></svg><span id="addonLinkText">Скачать WolfichMarket.zip</span></a><button class="btn sm app-only" data-act="install"><svg width="14" height="14"><use href="#i-dl"/></svg>Установить аддон в игру</button></span></li>
         <li><span><b>Через CurseForge</b> (когда проект пройдёт проверку): найдите <b>WolfichMarket</b> во вкладке Forever и нажмите «Установить». <b>Вручную:</b> распакуйте архив в <code>World of Warcraft\_forever_\Interface\AddOns\</code> — должна получиться папка <code>WolfichMarket</code>.</span></li>
         <li><span>На экране выбора персонажа → «Модификации» → включите WolfichMarket (и «Загружать устаревшие», если просит).</span></li>
       </ol>
@@ -1152,6 +1152,14 @@ if (APP) {
     $('#' + id).addEventListener('change', (e) => setApp({ [key]: e.target.checked }));
 } else if (S.tab === 'app') S.tab = 'market';
 
+// версия аддона: в имени скачиваемого архива и на кнопке
+fetch('addon/version.json?v=' + Date.now()).then(r => r.ok ? r.json() : null).then(j => {
+  if (!j || !j.version) return;
+  const a = document.getElementById('addonLink');
+  a.href = 'addon/WolfichMarket-' + j.version + '.zip';
+  a.setAttribute('download', 'WolfichMarket-' + j.version + '.zip');
+  document.getElementById('addonLinkText').textContent = 'Скачать WolfichMarket ' + j.version;
+}).catch(() => {});
 setTab(S.tab);
 load();
 </script>

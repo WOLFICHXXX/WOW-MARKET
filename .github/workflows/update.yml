@@ -47,7 +47,9 @@ jobs:
           cp index.html site/index.html
           cp data/categories.json site/data/categories.json
           mkdir -p site/addon
-          cd addon && zip -r ../site/addon/WolfichMarket.zip WolfichMarket && cd ..
+          V=$(sed -n 's/^## Version: *//p' addon/WolfichMarket/WolfichMarket.toc | tr -d '\r')
+          cd addon && zip -r "../site/addon/WolfichMarket-$V.zip" WolfichMarket && cd ..
+          cp "site/addon/WolfichMarket-$V.zip" site/addon/WolfichMarket.zip   # старое имя — для программы
           echo "{\"version\":\"$(sed -n 's/^## Version: *//p' addon/WolfichMarket/WolfichMarket.toc | tr -d '\r')\"}" > site/addon/version.json
           touch site/.nojekyll
           # программа для Windows
