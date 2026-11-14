@@ -217,6 +217,8 @@ function UI.Chart(parent)
     for _, b in ipairs(self.bars) do b:Hide() end
     for _, s in ipairs(self.labels) do s:Hide() end
     for _, g in ipairs(self.grid) do g:Hide() end
+    for _, s in ipairs(self.peakLbl or {}) do s:Hide() end
+    for _, d in ipairs(self.dots or {}) do d:Hide() end
     if not pts or #pts < 2 then msg:SetText(L"Мало данных для графика.\nКаждый снимок аукциона добавляет точку."); msg:Show() return end
     msg:Hide()
     local W, H = plot:GetWidth(), plot:GetHeight()
@@ -247,6 +249,36 @@ function UI.Chart(parent)
       local x1, y1, x2, y2 = X(pts[i - 1][1]), Y(pts[i - 1][2]), X(pts[i][1]), Y(pts[i][2])
       if l.SetStartPoint then l:SetStartPoint("BOTTOMLEFT", plot, x1, y1); l:SetEndPoint("BOTTOMLEFT", plot, x2, y2)
       else l:ClearAllPoints(); l:SetPoint("CENTER", plot, "BOTTOMLEFT", x2, y2) end
+    end
+    -- подписи цен на пиках: максимум, минимум и до 3 самых высоких локальных пиков
+    if self.showPeaks then
+      self.peakLbl = self.peakLbl or {}; self.dots = self.dots or {}
+      for _, s in ipairs(self.peakLbl) do s:Hide() end
+      for _, d in ipairs(self.dots) do d:Hide() end
+      local cand, maxI, minI = {}, 1, 1
+      for i, p in ipairs(pts) do
+        if p[2] > pts[maxI][2] then maxI = i end
+        if p[2] < pts[minI][2] then minI = i end
+        local a, b = pts[i - 1], pts[i + 1]
+        if a and b and p[2] > a[2] and p[2] >= b[2] then cand[#cand + 1] = i end
+      end
+      table.sort(cand, function(a, b) return pts[a][2] > pts[b][2] end)
+      local pick, used = { { maxI, true }, { minI, false } }, { [maxI] = true, [minI] = true }
+      for _, i in ipairs(cand) do
+        if #pick >= 5 then break end
+        local far = true
+        for _, q in ipairs(pick) do if math.abs(X(pts[q[1]][1]) - X(pts[i][1])) < 46 then far = false end end
+        if far and not used[i] then pick[#pick + 1] = { i, true }; used[i] = true end
+      end
+      for k, q in ipairs(pick) do
+        local p, up = pts[q[1]], q[2]
+        local d = self.dots[k] or plot:CreateTexture(nil, "OVERLAY"); self.dots[k] = d
+        d:SetColorTexture(up and 1 or 0.6, up and 0.85 or 0.77, up and 0.4 or 0.92, 1); d:SetSize(5, 5)
+        d:ClearAllPoints(); d:SetPoint("CENTER", plot, "BOTTOMLEFT", X(p[1]), Y(p[2])); d:Show()
+        local s = self.peakLbl[k] or UI.Font(plot, 10, UI.GOLD, "OVERLAY", "OUTLINE"); self.peakLbl[k] = s
+        s:ClearAllPoints(); s:SetPoint(up and "BOTTOM" or "TOP", plot, "BOTTOMLEFT", math.max(24, math.min(W - 24, X(p[1]))), Y(p[2]) + (up and 5 or -5))
+        s:SetText(ns.money(p[2], true)); s:Show()
+      end
     end
     -- подписи времени
     for k, idx in ipairs({ 1, math.floor((#pts + 1) / 2), #pts }) do

@@ -21,6 +21,9 @@ function ns.ScanProfession()
   if not ns.DB or not ns.charKey or not C_TradeSkillUI or isForeign() then return end
   local prof, skill, maxSkill, line = professionInfo()
   if not prof then return end
+  -- чужая профессия (ссылка из чата и т.п.) — не сохраняем персонажу
+  ns.ScanSkills()
+  if not ns.HasProfession(prof) then return end
   local ids = safe(C_TradeSkillUI.GetAllRecipeIDs)
   if not ids or #ids == 0 then return end
   local recipes = {}
@@ -47,6 +50,22 @@ function ns.ScanProfession()
   ns.Fire("RECIPES")
 end
 
+-- есть ли профессия у текущего персонажа (если игра не дала список — считаем, что есть)
+function ns.HasProfession(name)
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  local sk = c and c.skills
+  if not sk or #sk == 0 then return true end
+  for _, s in ipairs(sk) do if s.name == name then return true end end
+  return false
+end
+-- убрать у персонажа профессии, которых у него нет (попали из чужих окон профессий)
+function ns.CleanForeignProfessions()
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  if not c or not c.skills or #c.skills == 0 then return end
+  local removed = {}
+  for name in pairs(c.profs or {}) do if not ns.HasProfession(name) then c.profs[name] = nil; removed[#removed + 1] = name end end
+  if #removed > 0 then ns.say(L"убраны чужие профессии у этого персонажа: " .. table.concat(removed, ", ")); ns.Fire("RECIPES") end
+end
 function ns.ScanSkills()
   if not GetProfessions or not GetProfessionInfo or not ns.charKey then return end
   local list = { safe(GetProfessions) }
@@ -335,7 +354,7 @@ ns.Listen("SCAN_DONE", function()
 end)
 ns.On("MERCHANT_SHOW", scanMerchant)
 ns.On("SKILL_LINES_CHANGED", function() ns.ScanSkills() end)
-ns.Listen("LOGIN", function() ns.ScanSkills() end)
+ns.Listen("LOGIN", function() ns.ScanSkills(); ns.After(3, function() ns.ScanSkills(); ns.CleanForeignProfessions() end) end)
 local function refreshAll() if panel and panel:IsShown() then refreshList(); fillDetail(selected) end; ns.DecorateRecipeRows() end
 ns.Listen("PRICES", function() indexDirty = true; refreshAll() end)
 ns.Listen("MARKS", function() if panel and panel:IsShown() then list:Refresh(); fillDetail(selected) end end)

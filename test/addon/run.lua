@@ -119,6 +119,20 @@ check(#alt == 1 and alt[1].profit, "прибыль по рецептам дру�
 local W = WolfichMarketMainFrame
 local okS, errS = pcall(W.tabs[2].scripts.OnClick, W.tabs[2]); check(okS, "вкладка «Сигналы»" .. (okS and "" or (": " .. tostring(errS))))
 local okC, errC = pcall(W.tabs[1].scripts.OnClick, W.tabs[1]); check(okC, "вкладка «Крафт»" .. (okC and "" or (": " .. tostring(errC))))
+-- карточка: выбор рецепта, график, окно сигналов для рецепта
+local cr = ns._mainCraft
+local row = cr.list.rows[1]
+local okF, errF = pcall(row.scripts.OnClick, row); check(okF, "карточка рецепта в главном окне" .. (okF and "" or (": " .. tostring(errF))))
+advance(1)
+check(cr.card.craft.shown and cr.card.alarm.shown and cr.card.chart.shown, "в карточке «Крафт», «Поставить сигнал» и график")
+local recA = row.data.rec
+local okA, errA = pcall(cr.openAlarms, recA); check(okA and WolfichMarketAlarmDialog and WolfichMarketAlarmDialog.shown, "окно сигналов для рецепта" .. (okA and "" or (": " .. tostring(errA))))
+local D = WolfichMarketAlarmDialog
+for _, r in ipairs(D.rows) do if r.shown then r.chk:SetChecked(true); r.thr:SetText("12") end end
+D.save.scripts.OnClick(D.save)
+local allMarked = true
+for _, r in ipairs(D.rows) do if r.shown and r.id and not (ns.IsMarked(r.id) and ns.DB.alarm[r.id] == 12) then allMarked = false end end
+check(allMarked and not D.shown, "сигналы на предмет и ингредиенты сохранены с порогом")
 SlashCmdList.WOLFICHMARKET("")
 check(not WolfichMarketMainFrame.shown, "/wm закрывает окно")
 ns.DB.alarm[2840] = 5
@@ -128,6 +142,15 @@ ProfessionsFrame.shown = false; openedRecipe, openedLine = nil, nil
 ns.OpenRecipeInGame(recs[2], "Кузнечное дело"); advance(2)
 check(openedLine == 164 and openedRecipe == recs[2].id, "«Крафт» открывает профессию, затем рецепт")
 ProfessionsFrame.shown = true
+-- чужие профессии не попадают персонажу
+local oldInfo = C_TradeSkillUI.GetBaseProfessionInfo
+C_TradeSkillUI.GetBaseProfessionInfo = function() return { professionName = "Алхимия", skillLevel = 225, maxSkillLevel = 225, professionID = 171 } end
+ns.ScanProfession()
+check(ns.DB.chars[ns.charKey].profs["Алхимия"] == nil, "чужая профессия (ссылка из чата) не сохранена")
+C_TradeSkillUI.GetBaseProfessionInfo = oldInfo
+ns.DB.chars[ns.charKey].profs["Травничество"] = { recipes = {} }
+ns.CleanForeignProfessions()
+check(ns.DB.chars[ns.charKey].profs["Травничество"] == nil and ns.DB.chars[ns.charKey].profs["Кузнечное дело"] ~= nil, "чужие профессии убраны, свои остались")
 -- английский язык
 ns.DB.settings.lang = "en"
 check(ns.money(15000):find("g", 1, true) and ns.L("Купить") == "Buy" and ns.ago(time()) == "just now", "английский: деньги, кнопки, время")
