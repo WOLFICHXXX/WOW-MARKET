@@ -285,8 +285,14 @@ do
   local f = ns._ahPages[3]
   startedBuy = nil
   f.qty:SetText("15"); f.qty.scripts.OnTextChanged(f.qty, true)
-  for _ = 1, 3 do advance(1) end
   check(startedBuy and startedBuy[2] == 15, "при изменении количества цена запрашивается сама")
+  check(f.confirm.enabled ~= false, "«Купить» активна сразу после изменения количества")
+  startedBuy, confirmedBuy = nil, nil
+  f.confirm.scripts.OnClick(f.confirm)
+  check(startedBuy and startedBuy[2] == 15 and not confirmedBuy, "первое нажатие без точной цены - узнаёт цену")
+  fire("COMMODITY_PRICE_UPDATED", 101, 1515)
+  f.confirm.scripts.OnClick(f.confirm)
+  check(confirmedBuy and confirmedBuy[2] == 15, "второе нажатие - покупка")
   f.qty:SetText("999"); f.qty.scripts.OnTextChanged(f.qty, true)
   check(f.total.text:find("30", 1, true) ~= nil, "больше, чем есть на аукционе - предупреждение")
 end

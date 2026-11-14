@@ -324,10 +324,19 @@ local function pageBuy(f)
   -- покупка «товара» (стакается): количество → цена → подтверждение
   f.qtyLabel = UI.Font(f, 11); f.qtyLabel:SetPoint("BOTTOMLEFT", 4, 40); f.qtyLabel:SetText(L"Количество:")
   f.qty = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); f.qty:SetSize(60, 20); f.qty:SetPoint("LEFT", f.qtyLabel, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true); f.qty:SetText("1")
-  -- цена считается сама при изменении количества: сразу оценка по списку лотов, через полсекунды - точная цена сервера
+  -- цена считается сама при изменении количества: сразу оценка по списку лотов и запрос точной цены у сервера.
+  -- Кнопка «Купить» активна всегда, когда хватает лотов: если точной цены для этого количества ещё нет,
+  -- первое нажатие узнаёт её (кнопка станет «Купить за ...»), второе - покупает. Игра требует нажатия на каждый шаг.
+  f.reqQty, f.quoteQty = nil, nil
+  local function start(q)
+    if not buyItem or not q or q <= 0 then return end
+    f.reqQty = q
+    pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q)
+  end
   f.estimate = function()
     local q = tonumber(f.qty:GetText()) or 0
-    f.confirm:Disable(); f.confirm:SetLabel(L"Купить")
+    f.quoteQty = nil
+    f.confirm:SetLabel(L"Купить"); f.confirm:Disable()
     if q <= 0 then f.total:SetText(L"Укажите количество.") return end
     local left, sum = q, 0
     for _, d in ipairs(f.list.data or {}) do
@@ -336,26 +345,24 @@ local function pageBuy(f)
     end
     if left > 0 then f.total:SetText(string.format(L"|cffff9966На аукционе только %d шт.|r", q - left)) return end
     f.total:SetText(L"~ Итого: " .. ns.money(sum) .. "  |cffaaaaaa(" .. ns.money(sum / q) .. L" за шт)|r")
+    f.confirm:Enable()
   end
-  local quoteToken = 0
-  f.requestQuote = function()
-    quoteToken = quoteToken + 1
-    local my = quoteToken
-    ns.After(0.5, function()
-      if my ~= quoteToken or not buyItem or not f.qty:IsShown() then return end
-      local q = tonumber(f.qty:GetText()) or 0
-      if q > 0 then pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q) end
-    end)
-  end
+  f.requestQuote = function() start(tonumber(f.qty:GetText()) or 0) end
+  -- запрос прямо при вводе (нажатие клавиши), без таймера - иначе сервер его не принимает
   f.qty:SetScript("OnTextChanged", function(_, user) if user and f.qty:IsShown() then f.estimate(); f.requestQuote() end end)
   f.qty:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
   f.price = UI.Button(f, L"Обновить", 100, 22, function()
     local q = tonumber(f.qty:GetText()) or 0
-    if buyItem and q > 0 then f.confirm:Disable(); f.total:SetText(L"запрос цены..."); pcall(C_AuctionHouse.StartCommoditiesPurchase, buyItem, q) end
+    if buyItem and q > 0 then f.total:SetText(L"запрос цены..."); start(q) end
   end); f.price:SetPoint("LEFT", f.qty, "RIGHT", 10, 0)
   f.confirm = UI.Button(f, L"Купить", 130, 22, function()
     local q = tonumber(f.qty:GetText()) or 0
-    if buyItem and q > 0 then pcall(C_AuctionHouse.ConfirmCommoditiesPurchase, buyItem, q); f.confirm:Disable() end
+    if not buyItem or q <= 0 then return end
+    if f.quoteQty == q then
+      pcall(C_AuctionHouse.ConfirmCommoditiesPurchase, buyItem, q); f.confirm:Disable(); f.quoteQty = nil
+    else
+      f.confirm:SetLabel(L"Узнаю цену..."); start(q)
+    end
   end, true); f.confirm:SetPoint("BOTTOMRIGHT", -4, 8); f.confirm:Disable()
   f.total = UI.Font(f, 11); f.total:SetPoint("BOTTOMLEFT", 4, 12); f.total:SetPoint("RIGHT", f.confirm, "LEFT", -8, 0)
   f.list.empty:SetText(L"На аукционе сейчас нет.")
@@ -459,6 +466,7 @@ ns.On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if not panel then return end
   local f = pages[3]
   f.total:SetText(L"Итого: " .. ns.money(totalPrice) .. "  |cffaaaaaa(" .. ns.money(unitPrice) .. L" за шт)|r")
+  f.quoteQty = f.reqQty -- точная цена получена для этого количества - следующее нажатие покупает
   f.confirm:SetLabel(L"Купить за " .. ns.money(totalPrice, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   f.confirm:Enable()
 end)
