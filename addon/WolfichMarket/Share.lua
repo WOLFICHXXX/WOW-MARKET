@@ -239,9 +239,13 @@ local function finish(sender)
   ns.Fire("NET_DONE", scan, nil)
 end
 
-local function onMessage(prefix, msg, _, sender)
+local function onMessage(prefix, msg, dist, sender)
   if prefix ~= PREFIX or not msg or not ns.DB then return end
   ns.netStats.recv = ns.netStats.recv + 1; ns.netStats.lastFrom = sender
+  -- каким путём пришло: по этому видно, работает ли общий канал (он нужен для игроков вне друзей и гильдии)
+  ns.netStats.by = ns.netStats.by or {}
+  local how = dist or "?"
+  ns.netStats.by[how] = (ns.netStats.by[how] or 0) + 1
   if S().netRecv == false then return end
   local me = UnitName and UnitName("player")
   if sender and me and (sender == me or sender:match("^[^-]+") == me) then return end

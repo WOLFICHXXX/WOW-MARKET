@@ -42,6 +42,9 @@ local function slash(msg)
     print("  " .. L"маршруты" .. ": " .. (#names > 0 and table.concat(names, ", ") or L"|cffff6060нет|r"))
     print("  " .. L"отправлено" .. ": " .. (st.sent or 0) .. "   " .. L"ошибок" .. ": " .. (st.fail or 0) .. (st.lastFail and (" (" .. st.lastFail .. ")") or ""))
     print("  " .. L"получено" .. ": " .. (st.recv or 0) .. (st.lastFrom and ("   " .. L"последнее от" .. " " .. st.lastFrom) or ""))
+    local by = {}
+    for k, v in pairs(st.by or {}) do by[#by + 1] = (k == "CHANNEL" and L"канал" or k == "BN" and "Battle.net" or k == "WHISPER" and L"личные" or k == "GUILD" and L"гильдия" or k) .. " " .. v end
+    if #by > 0 then print("  " .. L"пришло через" .. ": " .. table.concat(by, ", ")) end
     local t, from = ns.NetInfo and ns.NetInfo()
     print("  " .. L"цены игроков" .. ": " .. (t and (ns.ago(t) .. " (" .. tostring(from) .. ")") or L"ещё не приходили"))
     print("  " .. L"делиться" .. ": " .. (ns.DB.settings.netSend ~= false and L"вкл" or L"выкл") .. "   " .. L"принимать" .. ": " .. (ns.DB.settings.netRecv ~= false and L"вкл" or L"выкл"))
