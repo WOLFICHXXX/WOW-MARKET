@@ -199,7 +199,7 @@ async function lookupItems(items, ids) {
   const todo = ids.filter(id => {
     const it = items[id];
     if (!it) return true;
-    if (it.miss) return (Date.now() - Date.parse(it.miss)) / 864e5 >= MISS_RETRY_DAYS;
+    if (it.miss) return it.mv !== 2 || (Date.now() - Date.parse(it.miss)) / 864e5 >= MISS_RETRY_DAYS;
     return false;
   }).slice(0, NEW_ITEM_LOOKUPS);
   if (!todo.length) return 0;
@@ -228,7 +228,7 @@ async function lookupItems(items, ids) {
         };
         found++;
       } else if (r.status === 404) {
-        items[id] = { miss: today };
+        items[id] = { miss: today, mv: 2 }; // mv:2 — искали во всех справочниках
       }
       done++;
     }
