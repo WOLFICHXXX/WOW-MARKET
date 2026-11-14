@@ -198,8 +198,13 @@ local function pageCraft(f)
     r.chg:SetText(d.pr.profit and ((d.pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(d.pr.profit, true) .. "|r") or L"|cffaa8866нет цены|r")
     r.chg:SetWidth(80)
   end)
-  l:SetAllPoints()
+  local chk = UI.Check(f, L"включая неизученные рецепты", function() return ns.DB.settings.showUnlearned end, function(v)
+    ns.DB.settings.showUnlearned = v; ns.Fire("RECIPES"); ns.DecorateRecipeRows()
+  end)
+  chk:SetPoint("TOPLEFT", -2, 2)
+  l:SetPoint("TOPLEFT", 0, -22); l:SetPoint("BOTTOMRIGHT")
   f.refresh = function()
+    chk:SetChecked(ns.DB.settings.showUnlearned)
     local d = {}
     for _, pr in ipairs(ns.AllRecipeProfits(nil, ns.DB.settings.showUnlearned)) do if pr.rec.out then d[#d + 1] = { id = pr.rec.out, pr = pr } end end
     table.sort(d, function(a, b) return (a.pr.profit or -1e12) > (b.pr.profit or -1e12) end)
@@ -413,18 +418,18 @@ local function pageSell(f)
     elseif v.vendor and v.net and v.vendor >= v.net then r.prof:SetText(L"|cffffd060торговцу|r")
     else r.prof:SetText("|cff555555-|r") end
   end)
-  f.list:SetPoint("TOPLEFT", 0, -18); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 214)
+  f.list:SetPoint("TOPLEFT", 0, -18); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 240)
   f.checked = {}
   f.allBtn = UI.Button(f, L"Отметить все", 110, 22, function()
     local any = next(f.checked) ~= nil
     wipe(f.checked)
     if not any then for _, d in ipairs(f.list.data) do if ns.AHPrice(d.id) then f.checked[d.id] = true end end end
     f.list:Refresh(); f.updateBulk()
-  end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 188)
-  f.bulk = UI.Button(f, L"Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 188)
+  end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 212)
+  f.bulk = UI.Button(f, L"Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 212)
   _G.WolfichMarketPostNextButton = f.bulk
   ns.PostNext = function() if f:IsVisible() then f.postNext() else ns.say(L"откройте вкладку «Продать» у аукциониста.") end end
-  f.bulkInfo = UI.Font(f, 10, UI.DIM); f.bulkInfo:SetPoint("LEFT", f.allBtn, "RIGHT", 8, 0); f.bulkInfo:SetPoint("RIGHT", f.bulk, "LEFT", -6, 0); f.bulkInfo:SetWordWrap(true)
+  f.bulkInfo = UI.Font(f, 10, UI.DIM); f.bulkInfo:SetPoint("TOPLEFT", f.allBtn, "BOTTOMLEFT", 2, -3); f.bulkInfo:SetPoint("RIGHT", f, "RIGHT", -2, 0); f.bulkInfo:SetWordWrap(true); f.bulkInfo:SetMaxLines(2)
   f.list.empty:SetText(L"В сумках нет предметов, которые можно выставить.")
   local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(180)
   local bg = box:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.3)

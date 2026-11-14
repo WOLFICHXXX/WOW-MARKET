@@ -27,6 +27,9 @@ local best = ns.BestCraft()
 check(best and best.rec.name == "Железная скоба", "лучший крафт: " .. (best and best.rec.name or "нет") .. " " .. (best and math.floor(best.profit) or ""))
 local pr = ns.Profit(recs[1])
 for _, r in ipairs(recs) do local p = ns.Profit(r); io.write("     ", r.name, ": себест ", p.cost, " доход ", tostring(p.revenue), " прибыль ", tostring(p.profit), "\n") end
+local okAll = true
+for _, r in ipairs(recs) do local ok, err = pcall(ns.FillRecipeDetail, r); if not ok then okAll = false; io.write("     ", tostring(err), "\n") end end
+check(okAll, "карточка рецепта пересчитывается для каждого рецепта")
 -- метки на строках
 ns.DecorateRecipeRows()
 -- отметка + скачок

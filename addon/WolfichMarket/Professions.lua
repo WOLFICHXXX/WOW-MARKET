@@ -200,6 +200,7 @@ local function fillDetail(rec)
   for _, r in ipairs(detail.rows) do r:Hide() end
   if not rec then detail.title:SetText(L"Выберите рецепт"); detail.total:SetText(""); detail.src:SetText("") return end
   local pr = ns.Profit(rec)
+  pr.rec = rec
   local learned = ns.IsLearned(rec)
   detail.title:SetText((learned and (DIFF[rec.diff] or "|cffffffff") or "|cff9d9d9d") .. rec.name .. "|r" .. (learned and "" or L"  |cffff9966(не изучен)|r"))
   if learned then detail.src:SetText("")
@@ -378,5 +379,6 @@ ns.Listen("LOGIN", function() ns.ScanSkills() end)
 local function refreshAll() if panel and panel:IsShown() then refreshList(); fillDetail(selected) end; ns.DecorateRecipeRows() end
 ns.Listen("PRICES", refreshAll)
 ns.Listen("MARKS", refreshAll)
+ns.Listen("RECIPES", function() if panel and panel:IsShown() then refreshList() end end)
 ns.Listen("AH_STATE", function() if panel and panel:IsShown() then fillDetail(selected) end end)
 ns.Listen("NAMES", function() if panel and panel:IsShown() then list:Refresh() end end)
