@@ -24,6 +24,10 @@ local function addLines(tt, id)
     tt:AddLine(head)
   end
   if v then tt:AddDoubleLine(L"|cffaaaaaa  у торговца|r", ns.money(v)) end
+  local where, net, sell
+  if ns.SellWhere then where, net, sell = ns.SellWhere(id) end
+  if where == "ah" then tt:AddDoubleLine(L"  |cff40ff4dВыгоднее: на аукцион|r", sell and ("|cffaaaaaa" .. L"торговец" .. " " .. ns.money(sell, true) .. "|r") or "")
+  elseif where == "vendor" and net then tt:AddDoubleLine(L"  |cffffd919Выгоднее: торговцу|r", ns.money(ns.VendorSell(id))) end
   local rec = findRecipe(id)
   if rec then
     local pr = ns.Profit(rec)

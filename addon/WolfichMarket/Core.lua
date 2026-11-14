@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.2.2"
+ns.VERSION = "2.3.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -128,6 +128,7 @@ local DEFAULTS = {
   showUnlearned = false,  -- показывать неизученные рецепты
   minProfit = 0,
   tooltip = true,
+  bagGlow = true,         -- подсветка в сумках: жёлтый - торговцу, зелёный - аукцион
   debug = false,
 }
 ns.On("ADDON_LOADED", function(name)

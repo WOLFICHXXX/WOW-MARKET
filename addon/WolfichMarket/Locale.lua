@@ -183,4 +183,7 @@ ns.EN = {
   ["Перезагрузить интерфейс"] = "Reload UI",
   ["Язык меняется после перезагрузки интерфейса."] = "The language changes after a UI reload.",
   ["авто"] = "auto",
+  ["Подсветка в сумках: жёлтая - торговцу, зелёная - на аукцион"] = "Bag highlight: yellow - vendor, green - auction house",
+  ["  |cff40ff4dВыгоднее: на аукцион|r"] = "  |cff40ff4dBetter: auction house|r",
+  ["  |cffffd919Выгоднее: торговцу|r"] = "  |cffffd919Better: vendor|r",
 }

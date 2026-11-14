@@ -57,6 +57,11 @@ ns.SearchAH(2835); check(searched == "Грубый камень", "поиск н
 ns.OpenBuy(2840); check(lastQuery and lastQuery.itemID == 2840, "запрос поиска для покупки")
 fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
 fire("COMMODITY_PRICE_UPDATED", 101, 1010)
+-- подсветка в сумках
+ns.UpdateBagGlow(); advance(1)
+local g1, g2 = BAGBTNS[1].wmSellGlow, BAGBTNS[2].wmSellGlow
+check(g1 and g1.shown and g2 and g2.shown, "подсветка в сумках появилась")
+check(ns.SellWhere(2840) == "ah" and ns.SellWhere(2862) == "vendor", "медь - на аукцион (зелёный), точило - торговцу (жёлтый)")
 -- все вкладки панели аукциона
 for i = 1, 6 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
 -- продажа: выбрать предмет и выставить
@@ -99,6 +104,12 @@ ns.OpenChart(2840)
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
 -- закрытие
 fire("AUCTION_HOUSE_CLOSED"); check(not ns.AHIsOpen(), "аукцион закрыт")
+-- рецепты перечитываются только после нового снимка аукциона
+local function profRecs() return ns.DB.chars[ns.charKey].profs["Кузнечное дело"].recipes end
+local r1 = profRecs(); fire("TRADE_SKILL_SHOW"); advance(1)
+check(profRecs() == r1, "без нового снимка рецепты не перечитываются")
+ns.CurrentScan().t = time() + 100; fire("TRADE_SKILL_SHOW"); advance(1)
+check(profRecs() ~= r1, "после нового снимка рецепты перечитаны")
 -- английский язык
 ns.DB.settings.lang = "en"
 check(ns.money(15000):find("g", 1, true) and ns.L("Купить") == "Buy" and ns.ago(time()) == "just now", "английский: деньги, кнопки, время")

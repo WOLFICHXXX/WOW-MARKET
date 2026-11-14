@@ -358,23 +358,36 @@ end
 
 -- ---------- события ----------
 local timer
-local lastScanAt, lastScanProf = 0, nil
-local function onTradeSkill(force)
+-- Рецепты читаются из игры только если профессия ещё не сохранена или с прошлого чтения
+-- был новый снимок аукциона. В остальное время — только пересчёт прибыли по сохранённым рецептам.
+local function recipesStale()
+  local prof = professionInfo()
+  if not prof or not ns.charKey then return false end
+  local p = ns.DB.chars[ns.charKey].profs[prof]
+  if not p or not p.recipes or #p.recipes == 0 then return true end
+  local scan = ns.CurrentScan()
+  return scan and (p.t or 0) < scan.t or false
+end
+local function onTradeSkill()
   if timer then timer:Cancel() end
-  timer = C_Timer and C_Timer.NewTimer and C_Timer.NewTimer(1, function()
+  local run = function()
     local prof = professionInfo()
-    if force == true or prof ~= lastScanProf or GetTime() - lastScanAt > 3 then
-      ns.ScanProfession(); lastScanAt, lastScanProf = GetTime(), prof
-    end
+    if prof then ns.curProf = prof end
+    if recipesStale() then ns.ScanProfession() end
     build(); hookRows()
     if panel and panel:IsShown() then refreshList() end
     ns.DecorateRecipeRows()
-  end)
-  if not timer then ns.ScanProfession(); build(); hookRows() end
+  end
+  timer = C_Timer and C_Timer.NewTimer and C_Timer.NewTimer(0.6, run)
+  if not timer then run() end
 end
-ns.On("TRADE_SKILL_SHOW", function() onTradeSkill(true) end)
-ns.On("TRADE_SKILL_LIST_UPDATE", function() onTradeSkill(false) end)
+ns.On("TRADE_SKILL_SHOW", onTradeSkill)
 ns.On("TRADE_SKILL_DATA_SOURCE_CHANGED", onTradeSkill)
+-- снимок аукциона готов, а окно профессии открыто — перечитать рецепты сразу
+ns.Listen("SCAN_DONE", function()
+  local h = host()
+  if h and h:IsShown() and recipesStale() then ns.ScanProfession() end
+end)
 ns.On("MERCHANT_SHOW", scanMerchant)
 ns.On("SKILL_LINES_CHANGED", function() ns.ScanSkills() end)
 ns.Listen("LOGIN", function() ns.ScanSkills() end)

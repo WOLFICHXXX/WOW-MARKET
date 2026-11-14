@@ -66,7 +66,8 @@ Enum = { TooltipDataType = { Item = 0 }, AuctionHouseSortOrder = { Price = 0 }, 
 local ttcb; TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) ttcb = fn end }
 -- предметы
 local NAMES = { [2840] = "Медный слиток", [2589] = "Льняная ткань", [3470] = "Грубый шлифовальный камень", [2835] = "Грубый камень", [2862] = "Грубое точило", [6217] = "Медный жезл", [10940] = "Странная пыль", [3575] = "Железный слиток", [7071] = "Железная скоба", [2853] = "Медные наручи" }
-C_Item = { GetItemNameByID = function(id) return NAMES[id] end, GetItemIconByID = function() return 1 end, GetItemQualityByID = function() return 1 end }
+local VSELL = { [2840] = 5, [3470] = 10, [2862] = 100 }
+C_Item = { GetItemInfo = function(id) return NAMES[id], nil, 1, 1, 1, "", "", 20, "", 1, VSELL[id] end, GetItemNameByID = function(id) return NAMES[id] end, GetItemIconByID = function() return 1 end, GetItemQualityByID = function() return 1 end }
 ITEM_QUALITY_COLORS = { [1] = { hex = "|cffffffff" } }
 -- профессии
 local RECIPES = {
@@ -110,6 +111,10 @@ C_AuctionHouse = {
 }
 C_Container = { GetContainerNumSlots = function(b) return b == 0 and 2 or 0 end,
   GetContainerItemInfo = function(b, s) if s == 1 then return { itemID = 2840, stackCount = 12 } end; if s == 2 then return { itemID = 3470, stackCount = 5 } end end }
+local bagBtns = {}
+for s = 1, 2 do local b = newObj("Button"); b.GetBagID = function() return 0 end; b.GetID = function() return s end; b.GetWidth = function() return 37 end; bagBtns[#bagBtns + 1] = b end
+ContainerFrameCombinedBags = newObj("Frame"); ContainerFrameCombinedBags.EnumerateValidItems = function() local i = 0; return function() i = i + 1; if bagBtns[i] then return i, bagBtns[i] end end end
+BAGBTNS = bagBtns
 ItemLocation = { CreateFromBagAndSlot = function(_, b, s) return { b, s } end }
 
 function fire(e, ...) for _, f in ipairs(frames) do if f.events and f.events[e] and f.scripts.OnEvent then f.scripts.OnEvent(f, e, ...) end end end
