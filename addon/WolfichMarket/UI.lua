@@ -164,9 +164,10 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local hl = b:CreateTexture(nil, "HIGHLIGHT"); place(hl, k); hl:SetBlendMode("ADD"); hl:SetAlpha(0.35); hls[k] = hl
   end
   local fs = b:CreateFontString(nil, "OVERLAY")
+  local base = math.max(10, math.min(13, math.floor(h * 0.5)))
+  setFont(fs, UI.FONT, base, "OUTLINE") -- шрифт до первого SetText, иначе игра выдаёт ошибку
   fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs
-  local base = math.max(10, math.min(13, math.floor(h * 0.5)))
   -- надпись уменьшается, пока не влезет в кнопку; если и на 8 не влезает - обрезается
   local function fit()
     local maxw = (b:GetWidth() or w) - math.max(8, cap)

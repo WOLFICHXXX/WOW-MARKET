@@ -27,8 +27,13 @@ OBJ_HookScript = function(self, s, fn) local old = self.scripts[s]; self.scripts
 OBJ_RegisterEvent = function(self, e) if not self.events then self.events = {}; frames[#frames + 1] = self end; self.events[e] = true end
 OBJ_CreateTexture = function(self) return newObj("Texture", nil, self) end
 OBJ_CreateLine = function(self) return newObj("Line", nil, self) end
-OBJ_CreateFontString = function(self) return newObj("FontString", nil, self) end
-OBJ_SetText = function(self, t) self.text = t end
+OBJ_CreateFontString = function(self, n, layer, tmpl) local o = newObj("FontString", nil, self); o.font = tmpl; return o end
+OBJ_SetFont = function(self, f, size) self.font = f; self.fontSize = size; return true end
+OBJ_SetFontObject = function(self, f) self.font = f end
+OBJ_SetText = function(self, t)
+  if self.kind == "FontString" and not self.font then error("FontString:SetText(): Font not set", 2) end
+  self.text = t
+end
 OBJ_GetText = function(self) return self.text end
 OBJ_SetSize = function(self, w, h) self.w, self.h = w, h end
 OBJ_SetWidth = function(self, w) self.w = w end
@@ -62,8 +67,8 @@ function IsAltKeyDown() return false end; function IsShiftKeyDown() return false
 local hooks = {}
 function hooksecurefunc(a, b, c) if type(a) == "string" then hooks[a] = b else end end
 function HandleModifiedItemClick(link) if hooks.HandleModifiedItemClick then hooks.HandleModifiedItemClick(link) end end
-printed = {}
-print = function(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring(select(i, ...)) end; local s = table.concat(t, " "); printed[#printed + 1] = s; io.write("CHAT: ", s, "\n") end
+printed = {}; allPrinted = {}
+print = function(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring(select(i, ...)) end; local s = table.concat(t, " "); printed[#printed + 1] = s; allPrinted[#allPrinted + 1] = s; io.write("CHAT: ", s, "\n") end
 PlaySound = function() played = true end
 SOUNDKIT = { RAID_WARNING = 8959 }
 Enum = { TooltipDataType = { Item = 0 }, AuctionHouseSortOrder = { Price = 0 }, ItemCommodityStatus = { Item = 1, Commodity = 2 } }

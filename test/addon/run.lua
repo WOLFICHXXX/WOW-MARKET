@@ -172,3 +172,7 @@ LOCALE = "ruRU"; check(ns.Lang() == "ru", "авто: русский клиент
 SlashCmdList.WOLFICHMARKET("best")
 SlashCmdList.WOLFICHMARKET("marks")
 SlashCmdList.WOLFICHMARKET("")
+-- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
+local bad
+for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
+check(not bad, "нет ошибок при сборке окон" .. (bad and (": " .. bad) or ""))
