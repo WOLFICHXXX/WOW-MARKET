@@ -97,11 +97,29 @@ end
 function ns.RemovePlan(i) local plans = ns.Plans(); if plans[i] then table.remove(plans, i); ns.Fire("PLAN") end end
 function ns.ClearPlans() wipe(ns.Plans()); ns.Fire("PLAN") end
 -- сколько предмета есть у текущего персонажа: сумки + банк (живые данные игры или последняя запись банка)
-function ns.HaveCount(id)
-  local live = (C_Item and C_Item.GetItemCount and safe(C_Item.GetItemCount, id, true)) or (GetItemCount and safe(GetItemCount, id, true)) or 0
-  local rec = ns.Stock(ns.charKey)[id] or 0
-  return math.max(live, rec)
+-- раздельно: сколько в сумках и сколько в банке. Текущий персонаж - живые данные игры, другие - последняя запись
+local function itemCount(id, withBank)
+  return (C_Item and C_Item.GetItemCount and safe(C_Item.GetItemCount, id, withBank)) or (GetItemCount and safe(GetItemCount, id, withBank)) or nil
 end
+function ns.HaveSplit(id, charKey)
+  charKey = charKey or ns.charKey
+  local c = ns.DB.chars[charKey] or {}
+  local bags, bank = (c.bags or {})[id] or 0, (c.bank or {})[id] or 0
+  if charKey == ns.charKey then
+    local b = itemCount(id, false)
+    local all = itemCount(id, true)
+    if b then bags = b end
+    if all and b and all - b > bank then bank = all - b end
+  end
+  return bags, bank
+end
+-- подпись «сумки N / банк M» для строк со своими материалами
+function ns.HaveText(id, charKey, need)
+  local bags, bank = ns.HaveSplit(id, charKey)
+  local col = need and (bags + bank >= need and "|cff78d98a" or "|cffffb060") or "|cffcccccc"
+  return col .. L"сумки" .. " " .. bags .. " / " .. L"банк" .. " " .. bank .. "|r", bags, bank
+end
+function ns.HaveCount(id) local a, b = ns.HaveSplit(id); return a + b end
 -- итог плана: { {id, need, have, buy, unit}, ... } — сначала то, что нужно докупить (по сумме)
 function ns.PlanNeeds()
   local need, order = {}, {}
@@ -112,12 +130,14 @@ function ns.PlanNeeds()
     end
   end
   local out, total = {}, 0
+  local useStock = ns.DB.settings.planUseStock ~= false -- «учитывать свои материалы» во вкладке «План»
   for _, id in ipairs(order) do
-    local have = ns.HaveCount(id)
+    local bags, bank = ns.HaveSplit(id)
+    local have = useStock and (bags + bank) or 0
     local buy = math.max(0, need[id] - have)
     local unit = ns.AHPrice(id) or ns.DB.vendor[id]
     if unit and buy > 0 then total = total + unit * buy end
-    out[#out + 1] = { id = id, need = need[id], have = have, buy = buy, unit = unit }
+    out[#out + 1] = { id = id, need = need[id], have = have, bags = bags, bank = bank, buy = buy, unit = unit }
   end
   table.sort(out, function(a, b)
     if (a.buy > 0) ~= (b.buy > 0) then return a.buy > 0 end

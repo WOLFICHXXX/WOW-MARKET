@@ -98,6 +98,67 @@ ns.On("AUCTION_HOUSE_CLOSED", function()
   if autoTicker then autoTicker:Cancel(); autoTicker = nil end
 end)
 
+-- ---------- «Обновить цены»: свежие цены поиском, без 15-минутного ожидания ----------
+-- что обновлять - зависит от открытой вкладки: выделенные предметы, весь рецепт, план...
+local quick, updateQuick
+local function addAll(ids, seen, id) if id and not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+local function recipeIDs(rec, ids, seen)
+  addAll(ids, seen, rec.out)
+  for _, r in ipairs(rec.reag or {}) do addAll(ids, seen, r[1]) end
+end
+function ns.RecipePriceIDs(rec) local ids, seen = {}, {}; if rec then recipeIDs(rec, ids, seen) end; return ids end
+local function contextIDs()
+  local ids, seen = {}, {}
+  local tab = tabs and tabs.current
+  local p = tab and pages[tab]
+  if tab == 1 then for id in pairs(ns.DB.marked) do addAll(ids, seen, id) end
+  elseif tab == 2 and p and p.list then for k, d in ipairs(p.list.data or {}) do if k > 40 then break end; recipeIDs(d.pr.rec, ids, seen) end
+  elseif tab == 3 then if buyItem then addAll(ids, seen, buyItem) elseif p and p.mats then for _, d in ipairs(p.mats.data or {}) do addAll(ids, seen, d.id) end end
+  elseif tab == 4 and p then
+    for id in pairs(p.checked or {}) do addAll(ids, seen, id) end
+    if #ids == 0 and sellSel then addAll(ids, seen, sellSel.id) end
+  elseif tab == 5 then addAll(ids, seen, chartItem)
+  elseif tab == 7 then for _, pl in ipairs(ns.Plans and ns.Plans() or {}) do recipeIDs(pl, ids, seen) end end
+  if #ids == 0 then
+    for id in pairs(ns.DB.marked) do addAll(ids, seen, id) end
+    for _, pl in ipairs(ns.Plans and ns.Plans() or {}) do recipeIDs(pl, ids, seen) end
+  end
+  return ids
+end
+function ns.QuickRefresh(ids)
+  if not ns.ahOpen then ns.say(L"откройте окно аукциона.") return end
+  if quick then return end
+  ids = ids or contextIDs()
+  if #ids == 0 then ns.say(L"нечего обновлять: выделите предметы, выберите рецепт или добавьте его в план.") return end
+  quick = { ids = ids, i = 0 }
+  local function step()
+    if not quick then return end
+    quick.i = quick.i + 1
+    local id = quick.ids[quick.i]
+    if not id or not ns.ahOpen then
+      quick = nil
+      ns.After(1.5, function() ns.Fire("PRICES") end)
+      if updateQuick then updateQuick() end
+      return
+    end
+    local key = C_AuctionHouse.MakeItemKey and safe(C_AuctionHouse.MakeItemKey, id)
+    if key then
+      local sorts = {}
+      if Enum and Enum.AuctionHouseSortOrder then sorts = { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } } end
+      pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
+    end
+    if updateQuick then updateQuick() end
+    ns.After(0.6, step) -- сервер не любит частые запросы
+  end
+  step()
+end
+function ns.QuickBusy() return quick ~= nil end
+function updateQuick()
+  if not panel or not panel.quickBtn then return end
+  if quick then panel.quickBtn:SetLabel(string.format(L"Цены %d/%d", math.min(quick.i, #quick.ids), #quick.ids)); panel.quickBtn:Disable()
+  else panel.quickBtn:SetLabel(L"Обновить цены"); panel.quickBtn:SetEnabled(ns.ahOpen == true) end
+end
+
 -- цены из обычных поисков на аукционе
 ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
   local first = itemID and safe(C_AuctionHouse.GetCommoditySearchResultInfo, itemID, 1)
@@ -126,11 +187,20 @@ local function header()
   local S = ns.DB.settings
   panel.scanBtn = UI.Button(panel, L"Сканировать", 120, 22, function() ns.StartScan() end, true)
   panel.scanBtn:SetPoint("TOPRIGHT", -62, -19)
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -62); panel.state:SetPoint("RIGHT", -24, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
+  panel.quickBtn = UI.Button(panel, L"Обновить цены", 128, 22, function() ns.QuickRefresh() end, true)
+  panel.quickBtn:SetPoint("TOPRIGHT", -24, -56)
+  panel.quickBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine(L"Свежие цены прямо сейчас, без 15-минутного ожидания. Что обновляется - зависит от вкладки: «Продать» - отмеченные галочками (или выбранный), «План» - все рецепты плана целиком, «Крафт» - рецепты из списка, «Отмеченные» - отмеченные, «Купить» и «График» - открытый предмет.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  panel.quickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -58); panel.state:SetPoint("RIGHT", panel.quickBtn, "LEFT", -6, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
 local function updateHeader()
   if not panel then return end
+  updateQuick()
   local scan = ns.CurrentScan()
   local left = (ns.DB.ahLastReq or 0) + COOLDOWN - time()
   if busy then
@@ -203,6 +273,7 @@ local function pageCraft(f)
   end)
   chk:SetPoint("TOPLEFT", -2, 2)
   l:SetPoint("TOPLEFT", 0, -22); l:SetPoint("BOTTOMRIGHT")
+  f.list = l
   f.refresh = function()
     chk:SetChecked(ns.DB.settings.showUnlearned)
     local d = {}
@@ -688,27 +759,31 @@ local function pagePlan(f)
   end)
   f.recs:SetPoint("TOPLEFT", 0, -24); f.recs:SetPoint("RIGHT"); f.recs:SetHeight(84)
   f.recs.empty:SetText(L"План пуст. В главном окне (/wm) выберите рецепт, задайте порции и нажмите «Запланировать».")
-  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -114); hdr:SetPoint("TOPRIGHT", 0, -114); hdr:SetHeight(14)
-  local function col(t, x) local s = UI.Font(hdr, 10, UI.DIM); s:SetPoint("RIGHT", hdr, "RIGHT", x, 0); s:SetText(t) end
+  -- «учитывать свои материалы»: вычитать то, что уже есть в сумках и банке
+  f.useStock = UI.Check(f, L"учитывать свои материалы", function() return ns.DB.settings.planUseStock ~= false end, function(v) ns.DB.settings.planUseStock = v; f.refresh() end)
+  f.useStock:SetPoint("TOPLEFT", 0, -112)
+  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -136); hdr:SetPoint("TOPRIGHT", 0, -136); hdr:SetHeight(14)
   local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 24, 0); h1:SetText(L"Материал")
-  col(L"Докупить", -70); col(L"Нужно / есть", -160)
-  f.items = UI.List(f, 22, function(r)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 2, 0)
+  local h2 = UI.Font(hdr, 10, UI.DIM); h2:SetPoint("RIGHT", hdr, "RIGHT", -70, 0); h2:SetText(L"Докупить")
+  f.items = UI.List(f, 32, function(r)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(22, 22); r.icon:SetPoint("LEFT", 2, 0)
     r.buyBtn = UI.Button(r, L"Купить", 62, 20, function(self) local d = self:GetParent().data; if d then ns.OpenBuy(d.id, d.buy, true) end end); r.buyBtn:SetPoint("RIGHT", -2, 0)
     r.buy = UI.Font(r, 11); r.buy:SetPoint("RIGHT", r.buyBtn, "LEFT", -6, 0); r.buy:SetWidth(96); r.buy:SetJustifyH("RIGHT")
-    r.cnt = UI.Font(r, 11, UI.DIM); r.cnt:SetPoint("RIGHT", r.buy, "LEFT", -4, 0); r.cnt:SetWidth(70); r.cnt:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.cnt, "LEFT", -4, 0)
+    r.name = UI.Font(r, 11); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, 2); r.name:SetPoint("RIGHT", r.buy, "LEFT", -4, 0)
+    -- вторая строка: нужно, сколько в сумках и сколько в банке
+    r.cnt = UI.Font(r, 10, UI.DIM); r.cnt:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 6, -2); r.cnt:SetPoint("RIGHT", r.buy, "LEFT", -4, 0)
     r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
     r:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end, function(r, d)
     r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
-    r.cnt:SetText(d.need .. " / " .. (d.have >= d.need and "|cff78d98a" or "|cffffb060") .. d.have .. "|r")
+    local col = (d.bags + d.bank) >= d.need and "|cff78d98a" or "|cffffb060"
+    r.cnt:SetText(L"нужно" .. " " .. d.need .. "   " .. col .. L"сумки" .. " " .. d.bags .. " / " .. L"банк" .. " " .. d.bank .. "|r")
     if d.buy > 0 then
       r.buy:SetText(d.buy .. (d.unit and (" |cffaaaaaa" .. ns.money(d.unit * d.buy, true) .. "|r") or L" |cffaa8866нет цены|r"))
       r.buyBtn:Show()
     else r.buy:SetText(L"|cff78d98aготово|r"); r.buyBtn:Hide() end
   end)
-  f.items:SetPoint("TOPLEFT", 0, -130); f.items:SetPoint("RIGHT"); f.items:SetPoint("BOTTOM", 0, 26)
+  f.items:SetPoint("TOPLEFT", 0, -152); f.items:SetPoint("RIGHT"); f.items:SetPoint("BOTTOM", 0, 26)
   f.items.empty:SetText(L"Нечего докупать.")
   f.total = UI.Font(f, 12, UI.TEXT); f.total:SetPoint("BOTTOMLEFT", 2, 6); f.total:SetPoint("RIGHT", -2, 0)
   f.refresh = function()

@@ -60,10 +60,10 @@ local function fillCard(rec)
   local card = craft.card
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
-    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.craft:Hide(); card.alarm:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
+    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.prices:Hide(); card.craft:Hide(); card.alarm:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
     return
   end
-  card.craft:Show(); card.alarm:Show(); card.chart:Show(); card.portRow:Show()
+  card.craft:Show(); card.alarm:Show(); card.chart:Show(); card.portRow:Show(); card.prices:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
   if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
@@ -87,9 +87,8 @@ local function fillCard(rec)
     r.icon:SetTexture(ns.itemIcon(it.id))
     -- с «Учитывать банк»: сколько есть в банке и сумках; покупать только недостающее
     local haveTxt = ""
-    if not it.out and it.have then
-      haveTxt = it.have >= it.n and (" |cff78d98a" .. L"есть" .. " " .. it.have .. "|r") or (" |cffffb060" .. L"есть" .. " " .. it.have .. "|r")
-    end
+    if not it.out and it.have then haveTxt = "  " .. ns.HaveText(it.id, charKey, it.n) end
+    r.need = (not it.out and it.have) and it.n or nil
     r.name:SetText((it.out and "|cffe6b450> |r" or "") .. ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or "") .. haveTxt)
     local qty = it.out and 1 or (it.buy or it.n)
     r.price:SetText(it.unit and (qty > 0 and ns.money(it.unit * qty, true) or L"|cff78d98aсвоё|r") or (qty > 0 and L"|cffaa8866нет цены|r" or L"|cff78d98aсвоё|r"))
@@ -219,7 +218,7 @@ local function buildCraft(f)
   local S = ns.DB.settings
   local c1 = UI.Check(f, L"только прибыльные", function() return S.profitOnly end, function(v) S.profitOnly = v; refreshCraft(); ns.Fire("RECIPES") end); c1:SetPoint("TOPLEFT", 0, -48)
   local c2 = UI.Check(f, L"включая неизученные рецепты", function() return S.showUnlearned end, function(v) S.showUnlearned = v; refreshCraft(); ns.Fire("RECIPES"); if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end end); c2:SetPoint("TOPLEFT", 170, -48)
-  local c3 = UI.Check(f, L"учитывать банк", function() return S.useBank end, function(v) S.useBank = v; if ns.MarkProfitDirty then ns.MarkProfitDirty() end; refreshCraft(); ns.Fire("RECIPES") end); c3:SetPoint("TOPLEFT", 400, -48)
+  local c3 = UI.Check(f, L"учитывать свои материалы", function() return S.useBank end, function(v) S.useBank = v; if ns.MarkProfitDirty then ns.MarkProfitDirty() end; refreshCraft(); ns.Fire("RECIPES") end); c3:SetPoint("TOPLEFT", 400, -48)
   c3:HookScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Материалы из банка и сумок этого персонажа считаются своими: в себестоимость идёт только то, что нужно докупить. Банк запоминается, когда вы открываете его этим персонажем.", 1, 1, 1, true); GameTooltip:Show() end)
   c3:HookScript("OnLeave", function() GameTooltip:Hide() end)
   local bM = UI.Button(f, L"по марже", 96, 22, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("TOPRIGHT", 0, -48)
@@ -251,7 +250,16 @@ local function buildCraft(f)
     card:ClearAllPoints(); card:SetPoint("TOPLEFT", f, "TOP", 10, -78 - dy); card:SetPoint("BOTTOMRIGHT")
   end
   UI.Skin(card, { theme = "mcard" })
-  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 16, -30); card.title:SetPoint("RIGHT", -16, 0)
+  -- «Цены» - обновить цены всего рецепта (результат и материалы) поиском у аукциониста
+  card.prices = UI.Button(card, L"Цены", 64, 20, function()
+    if not sel then return end
+    if not ns.AHIsOpen() then ns.say(L"цены обновляются у аукциониста - откройте аукцион.") return end
+    ns.QuickRefresh(ns.RecipePriceIDs(sel))
+  end)
+  card.prices:SetPoint("TOPRIGHT", -16, -26)
+  card.prices:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Обновить цены всего рецепта (результат и все материалы) - когда открыт аукцион, без 15-минутного ожидания.", 1, 1, 1, true); GameTooltip:Show() end)
+  card.prices:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 16, -30); card.title:SetPoint("RIGHT", card.prices, "LEFT", -8, 0)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(20)
@@ -262,7 +270,13 @@ local function buildCraft(f)
     r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.star, "LEFT", -8, 0); r.price:SetJustifyH("RIGHT")
     r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
     r:EnableMouse(true)
-    r:SetScript("OnEnter", function(self) if self.id then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id); GameTooltip:AddLine(L"Клик - график цены этого предмета", 0.9, 0.7, 0.3); GameTooltip:Show() end end)
+    r:SetScript("OnEnter", function(self)
+      if not self.id then return end
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id)
+      local bags, bank = ns.HaveSplit(self.id, charKey)
+      GameTooltip:AddLine(L"В сумках" .. ": " .. bags .. "   " .. L"В банке" .. ": " .. bank, 1, 1, 1)
+      GameTooltip:AddLine(L"Клик - график цены этого предмета", 0.9, 0.7, 0.3); GameTooltip:Show()
+    end)
     r:SetScript("OnLeave", function() GameTooltip:Hide() end)
     r:SetScript("OnMouseUp", function(self) if self.id then craft.chartId = self.id; craft.drawChart() end end)
     local hl = r:CreateTexture(nil, "BACKGROUND"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.8, 0.4, 0.12); hl:Hide(); r.hl = hl

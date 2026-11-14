@@ -290,6 +290,31 @@ do
   f.qty:SetText("999"); f.qty.scripts.OnTextChanged(f.qty, true)
   check(f.total.text:find("30", 1, true) ~= nil, "больше, чем есть на аукционе - предупреждение")
 end
+-- «Обновить цены» по вкладке; «План»: свои материалы - отдельно сумки и банк, галочка
+do
+  ns.ahOpen = true
+  local rec = { id = 9002, name = "Тест", out = 2841, reag = { { 2840, 3 }, { 3470, 2 } } }
+  ns.ClearPlans(); ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 2)
+  ns.AHSelectTab(7)
+  local asked = {}
+  local oldQ = C_AuctionHouse.SendSearchQuery
+  C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
+  ns.QuickRefresh()
+  for _ = 1, 20 do advance(1) end
+  check(#asked == 3 and not ns.QuickBusy(), "«Обновить цены» на «Плане» - весь рецепт (результат и материалы)")
+  asked = {}
+  ns.QuickRefresh(ns.RecipePriceIDs(rec))
+  for _ = 1, 20 do advance(1) end
+  C_AuctionHouse.SendSearchQuery = oldQ
+  check(#asked == 3, "цены рецепта из карточки")
+  local d = ns.PlanNeeds()[1]
+  check(d.bags ~= nil and d.bank ~= nil, "план: отдельно в сумках и в банке")
+  ns.DB.settings.planUseStock = false
+  local all = true; for _, x in ipairs(ns.PlanNeeds()) do if x.buy ~= x.need then all = false end end
+  check(all, "план без своих материалов - докупить всё")
+  ns.DB.settings.planUseStock = nil
+  ns.ClearPlans()
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
