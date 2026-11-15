@@ -13,54 +13,61 @@ local chartItem, buyItem, sellSel
 
 local function setStatus() ns.Fire("SCAN_STATE") end
 
--- ---------- чёрный рынок или обычный аукцион ----------
--- Чёрный рынок открывается тем же окном аукциона, поэтому определяем по аукционисту: имя или подпись
--- («<Чёрный рынок>»), а если не угадали - кнопкой «Чёрный рынок» на панели (запоминается для этого аукциониста).
--- Цены чёрного рынка хранятся отдельно и не заменяют цены обычного аукциона.
--- string.lower не меняет русские буквы - поэтому оба варианта написания
-local BM_WORDS = { "чёрн", "черн", "Чёрн", "Черн", "ЧЁРН", "ЧЕРН", "black market", "blackmarket", "контрабанд", "Контрабанд", "smuggl", "goya", "гойя", "Гойя",
-  "Леонус", "Leonus" } -- Аукционер Леонус - чёрный рынок на WoW Forever
-local function npcInfo()
+-- ---------- какой это аукцион: фракционный (основной), общий (межфракционный) или чёрный рынок ----------
+-- Определяется по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий.
+-- Если где-то не угадали - кнопками на панели (запоминается для этого аукциониста).
+-- Цены общего аукциона и чёрного рынка хранятся отдельно, не заменяют основные и между игроками не рассылаются.
+local ZONES = {
+  ["Лесоречье"] = "bm", ["Riverglades"] = "bm",
+  ["Остров Зефрис"] = "neutral", ["Тернистая долина"] = "neutral", ["Северная Тернистая долина"] = "neutral",
+  ["Мыс Тернистой долины"] = "neutral", ["Танарис"] = "neutral",
+  ["Stranglethorn Vale"] = "neutral", ["Northern Stranglethorn"] = "neutral", ["The Cape of Stranglethorn"] = "neutral", ["Tanaris"] = "neutral",
+}
+ns.AH_KINDS = { "main", "neutral", "bm" }
+local KIND_LAST = { main = "ahLastReq", neutral = "ntLastReq", bm = "bmLastReq" }
+local function npcId()
   local guid = UnitGUID and UnitGUID("npc")
-  local id = guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
-  local texts = { (UnitName and UnitName("npc")) or "" }
-  local tip = C_TooltipInfo and C_TooltipInfo.GetUnit and safe(C_TooltipInfo.GetUnit, "npc")
-  -- только имя и подпись (вторая строка): в остальных строках бывает что угодно (гильдия, зона, задания)
-  local l2 = tip and tip.lines and tip.lines[2]
-  if l2 and l2.leftText then texts[#texts + 1] = l2.leftText end
-  return id, texts
+  return guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
 end
--- зоны, где любой аукцион - чёрный рынок (WoW Forever)
-local BM_ZONES = { ["Лесоречье"] = true, ["Riverglades"] = true }
-function ns.InBMZone()
+function ns.ZoneKind()
   local names = { GetRealZoneText and GetRealZoneText(), GetZoneText and GetZoneText(), GetSubZoneText and GetSubZoneText() }
   local m = C_Map and C_Map.GetBestMapForUnit and safe(C_Map.GetBestMapForUnit, "player")
   local info = m and C_Map.GetMapInfo and safe(C_Map.GetMapInfo, m)
-  -- зона и все её «родители» на карте (если аукцион в подзоне Лесоречья)
+  -- зона и её «родители» на карте (аукцион может стоять в подзоне)
   local guard = 0
   while info and guard < 6 do names[#names + 1] = info.name; info = info.parentMapID and info.parentMapID > 0 and safe(C_Map.GetMapInfo, info.parentMapID) or nil; guard = guard + 1 end
-  for _, n in pairs(names) do if n and BM_ZONES[n] then return true end end
-  return false
+  for _, n in pairs(names) do if n and ZONES[n] then return ZONES[n] end end
 end
-local function detectBM()
-  local id, texts = npcInfo()
+local function detectKind()
+  local id = npcId()
   ns.ahNpc = id
-  if ns.InBMZone() then return true end -- в Лесоречье аукцион - всегда чёрный рынок
-  ns.DB.bmNpcs = ns.DB.bmNpcs or {}
-  if id and ns.DB.bmNpcs[id] ~= nil then return ns.DB.bmNpcs[id] end
-  for _, t in ipairs(texts) do
-    local low = t:lower()
-    for _, w in ipairs(BM_WORDS) do if low:find(w, 1, true) or t:find(w, 1, true) then return true end end
-  end
-  return false
+  local z = ns.ZoneKind()
+  if z then return z end
+  ns.DB.ahNpcKind = ns.DB.ahNpcKind or {}
+  return (id and ns.DB.ahNpcKind[id]) or "main"
 end
-function ns.SetAHIsBM(v)
-  ns.ahIsBM = v and true or false
-  if ns.ahNpc then ns.DB.bmNpcs = ns.DB.bmNpcs or {}; ns.DB.bmNpcs[ns.ahNpc] = ns.ahIsBM end
-  ns.say(ns.ahIsBM and L"этот аукцион - чёрный рынок: его цены хранятся отдельно и не заменяют цены обычного аукциона." or L"этот аукцион - обычный.")
+local function applyKind(k)
+  ns.ahKind = k or "main"
+  ns.ahIsBM = ns.ahKind ~= "main" -- «отдельный» аукцион: цены хранятся отдельно и не рассылаются
+end
+function ns.SetAHKind(k)
+  applyKind(k)
+  if ns.ahNpc then ns.DB.ahNpcKind = ns.DB.ahNpcKind or {}; ns.DB.ahNpcKind[ns.ahNpc] = ns.ahKind end
+  ns.say(ns.ahKind == "bm" and L"этот аукцион - чёрный рынок: его цены хранятся отдельно и не заменяют цены основного аукциона."
+    or ns.ahKind == "neutral" and L"этот аукцион - общий (межфракционный): его цены хранятся отдельно и не заменяют цены основного аукциона."
+    or L"этот аукцион - фракционный (основной).")
   ns.Fire("SCAN_STATE"); ns.Fire("AH_STATE"); ns.Fire("PRICES")
 end
-local function cdKey() return ns.ahIsBM and "bmLastReq" or "ahLastReq" end
+function ns.SetAHIsBM(v) ns.SetAHKind(v and "bm" or "main") end -- для старых вызовов
+local function cdKey() return KIND_LAST[ns.ahKind or "main"] or "ahLastReq" end
+-- снимок отдельного аукциона (общего или чёрного рынка)
+function ns.AltData(kind, rk)
+  local t = kind == "bm" and "bmah" or "ntah"
+  ns.DB[t] = ns.DB[t] or {}
+  return ns.DB[t][rk or ns.priceRealm or ns.realmKey or ""], ns.DB[t]
+end
+function ns.AltName(kind) return kind == "bm" and L"Чёрный рынок" or kind == "neutral" and L"Общий аукцион" or L"Фракционный аукцион" end
+ns.ALT_COLOR = { bm = "|cffc080ff", neutral = "|cff66d9cc", main = "|cffffd100" }
 
 local function finishScan()
   if processing then return end
@@ -88,14 +95,14 @@ local function finishScan()
     setStatus()
     if i < n then ns.After(0, step) return end
     if ns.ahIsBM then
-      -- снимок чёрного рынка - отдельно: без истории, сигналов и общего рынка
+      -- снимок общего аукциона или чёрного рынка - отдельно: без истории, сигналов и общего рынка (личный)
       local bm = {}
       for id, r in pairs(items) do if r[1] > 0 then bm[id] = { p = r[1], bids = 0, q = r[2], lots = r[3] } end end
-      ns.DB.bmah = ns.DB.bmah or {}
-      ns.DB.bmah[ns.realmKey] = { t = time(), lots = n, items = bm }
+      local _, tbl = ns.AltData(ns.ahKind)
+      tbl[ns.realmKey] = { t = time(), lots = n, items = bm }
       busy, processing, ns.progress = false, false, nil
       local cnt = 0; for _ in pairs(bm) do cnt = cnt + 1 end
-      ns.say(string.format(L"|cffc080ffснимок чёрного рынка готов|r: %d лотов, %d предметов. Цены обычного аукциона не тронуты.", n, cnt))
+      ns.say(string.format(L"%sснимок: %s|r - %d лотов, %d предметов. Цены основного аукциона не тронуты.", ns.ALT_COLOR[ns.ahKind], ns.AltName(ns.ahKind), n, cnt))
       setStatus(); ns.Fire("BLACKMARKET")
       return
     end
@@ -162,7 +169,7 @@ end
 
 ns.On("AUCTION_HOUSE_SHOW", function()
   ns.ahOpen = true
-  ns.ahIsBM = detectBM()
+  applyKind(detectKind())
   ns.Fire("AH_STATE"); if ns.ahIsBM then ns.Fire("PRICES") end
   if panel == nil then ns.BuildAHPanel() elseif panel then panel:Show() end -- крестик скрывает панель только до следующего открытия
   if wanted then ns.After(1, function() ns.StartScan() end) else ns.After(2, autoTick) end
@@ -171,7 +178,7 @@ end)
 ns.On("AUCTION_HOUSE_CLOSED", function()
   ns.ahOpen = false
   local wasBM = ns.ahIsBM
-  ns.ahIsBM = false
+  applyKind("main")
   ns.Fire("AH_STATE"); if wasBM then ns.Fire("PRICES") end
   if autoTicker then autoTicker:Cancel(); autoTicker = nil end
 end)
@@ -293,26 +300,32 @@ local function header()
     GameTooltip:Show()
   end)
   panel.quickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  -- маленькая кнопка «ЧР», чтобы строке состояния хватало места
-  panel.bmBtn = UI.Button(panel, L"ЧР", 36, 22, function() ns.SetAHIsBM(not ns.ahIsBM) end)
-  panel.bmBtn:SetPoint("RIGHT", panel.quickBtn, "LEFT", -4, 0)
-  panel.bmBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-    GameTooltip:AddLine(L"Чёрный рынок", 0.75, 0.5, 1)
-    GameTooltip:AddLine(L"Горит - этот аукцион считается чёрным рынком: снимки и цены поиска сохраняются отдельно (вкладка «Чёрный рынок» главного окна) и не заменяют цены обычного аукциона. Нажмите, если аддон ошибся - запомнит для этого аукциониста.", 1, 1, 1, true)
-    GameTooltip:Show()
-  end)
-  panel.bmBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -58); panel.state:SetPoint("RIGHT", panel.bmBtn, "LEFT", -6, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
+  -- какой это аукцион: три кнопки (горит текущий); нажатие - исправить, запоминается для аукциониста
+  panel.kindBtn = {}
+  local KB = { { "main", L"Фракционный", 104 }, { "neutral", L"Общий", 72 }, { "bm", L"ЧР", 46 } }
+  local x = 20
+  for _, k in ipairs(KB) do
+    local b = UI.Button(panel, k[2], k[3], 22, function() ns.SetAHKind(k[1]) end)
+    b:SetPoint("TOPLEFT", x, -56); x = x + k[3] + 4
+    b:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      GameTooltip:AddLine(ns.AltName(k[1]), 1, 0.82, 0)
+      GameTooltip:AddLine(L"Горит - этот аукцион такого вида. Определяется по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий; остальное - фракционный. Снимки общего аукциона и чёрного рынка личные: хранятся отдельно, не заменяют цены фракционного и не рассылаются. Нажмите, если аддон ошибся - запомнит для этого аукциониста.", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    panel.kindBtn[k[1]] = b
+  end
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -142); panel.state:SetPoint("RIGHT", -24, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
 local function updateHeader()
   if not panel then return end
   updateQuick()
   local scan = ns.CurrentScan()
-  panel.bmBtn:SetGold(ns.ahIsBM == true)
+  for k, b in pairs(panel.kindBtn) do b:SetGold((ns.ahKind or "main") == k) end
   if ns.ahIsBM then
-    local d = ns.DB.bmah and ns.DB.bmah[ns.realmKey or ""]
+    local d = ns.AltData(ns.ahKind, ns.realmKey)
     scan = d and { t = d.t, lots = d.lots or 0 } or nil
   end
   local left = (ns.DB[cdKey()] or 0) + COOLDOWN - time()
@@ -324,7 +337,7 @@ local function updateHeader()
     panel.scanBtn:SetLabel(L"Сканировать"); panel.scanBtn:Enable()
   end
   local S = ns.DB.settings
-  panel.state:SetText((ns.ahIsBM and L"|cffc080ffЧёрный рынок|r  " or "") .. (scan and (L"Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. L" лотов") or L"|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
+  panel.state:SetText((ns.ahIsBM and (ns.ALT_COLOR[ns.ahKind] .. ns.AltName(ns.ahKind) .. "|r  ") or "") .. (scan and (L"Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. L" лотов") or L"|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
     .. (S.autoScan and (L"  /  авто раз в " .. S.autoScanMin .. L" мин") or "")
     .. ((ns.NetInfo and ns.NetInfo()) and ("\n" .. L"цены игроков" .. ": " .. ns.ago((ns.NetInfo())) .. " |cff888888(" .. ((select(2, ns.NetInfo()) or ""):match("^[^-]+") or "") .. ")|r") or ""))
 end
@@ -973,7 +986,7 @@ function ns.BuildAHPanel()
   end
   for i, build in ipairs(BUILDERS) do
     local f = CreateFrame("Frame", nil, panel)
-    f:SetPoint("TOPLEFT", 20, -146); f:SetPoint("BOTTOMRIGHT", -24, 16)
+    f:SetPoint("TOPLEFT", 20, -170); f:SetPoint("BOTTOMRIGHT", -24, 16)
     build(f); f:Hide()
     pages[i] = f
   end

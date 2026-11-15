@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.35.2"
+ns.VERSION = "2.36.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -276,7 +276,7 @@ ns.On("PLAYER_LOGIN", function()
   -- до 2.34 снимок чёрного рынка (несколько сотен лотов) мог записаться вместо обычного аукциона (сотни тысяч лотов):
   -- такой маленький «снимок аукциона» переносим в чёрный рынок, а его точки убираем из графиков
   if not ns.DB.bmFixV then ns.FixBMScans() end
-  -- 2.35.2 ошибочно переносил большой снимок чёрного рынка в обычный аукцион (у такого снимка нет отметки персонажа) - вернуть
+  -- 2.36.0 ошибочно переносил большой снимок чёрного рынка в обычный аукцион (у такого снимка нет отметки персонажа) - вернуть
   if ns.DB.bmFixV == 2 then
     for rk, sc in pairs(ns.DB.ahScans) do
       if not sc.char and sc.items and (not ns.DB.bmah or not ns.DB.bmah[rk] or (ns.DB.bmah[rk].t or 0) < (sc.t or 0)) then
@@ -329,14 +329,49 @@ end
 -- У окна чёрного рынка все цены аддона (списки, прибыль крафта, продажа) берутся из снимка чёрного рынка -
 -- так видно, что выгоднее продать там, а что на обычном аукционе. Подсказка и вкладка «Чёрный рынок» показывают оба.
 function ns.BMView() return ns.ahIsBM and ns.ahOpen and not ns._regularOnly end
+-- цена отдельного аукциона: kind = "neutral" (общий) или "bm" (чёрный рынок)
+function ns.AltPrice(kind, id)
+  local d = ns.AltData and ns.AltData(kind)
+  local r = d and d.items[id]
+  if r and r.p and r.p > 0 then return r, d.t end
+end
 function ns.AHPrice(id)
   if ns.BMView() then
-    local d = ns.DB.bmah and ns.DB.bmah[ns.priceRealm or ns.realmKey or ""]
+    local d = ns.AltData(ns.ahKind)
     local r = d and d.items[id]
     if r and r.p and r.p > 0 then return r.p, d.t, r.q end
     return nil
   end
   return ns.RegularPrice(id)
+end
+-- цена на конкретном аукционе: "main" - фракционный (основной), "neutral" - общий, "bm" - чёрный рынок
+function ns.PriceIn(kind, id)
+  if kind == "main" then return (ns.RegularPrice(id)) end
+  local r = ns.AltPrice(kind, id)
+  return r and r.p
+end
+-- где дешевле купить: торговец или любой из трёх аукционов
+function ns.BestBuy(id)
+  local best, where = ns.DB.vendor[id], "vendor"
+  for _, k in ipairs({ "main", "neutral", "bm" }) do
+    local p = ns.PriceIn(k, id)
+    if p and (not best or p < best) then best, where = p, k end
+  end
+  if best then return best, where end
+end
+-- прибыль рецепта при продаже на аукционе kind, материалы - там, где дешевле
+function ns.ProfitIn(rec, kind)
+  if not rec or not rec.out then return nil end
+  local cost = 0
+  for _, r in ipairs(rec.reag or {}) do
+    local p = ns.BestBuy(r[1])
+    if not p then return nil end
+    cost = cost + p * r[2]
+  end
+  local sell = ns.PriceIn(kind, rec.out)
+  if not sell then return nil end
+  local q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2
+  return sell * q * (1 - ns.AH_CUT) - cost, sell, cost
 end
 -- цена обычного аукциона (всегда, даже у окна чёрного рынка)
 function ns.RegularPrice(id)
@@ -364,11 +399,11 @@ end
 -- запомнить цену, увиденную при поиске на аукционе
 function ns.SeenPrice(id, unit, qty)
   if not id or not unit or unit <= 0 then return end
-  -- поиск на чёрном рынке - в его отдельные цены, обычный аукцион не трогаем
+  -- поиск на общем аукционе или чёрном рынке - в их отдельные цены, основной аукцион не трогаем
   if ns.ahIsBM and ns.ahOpen then
-    ns.DB.bmah = ns.DB.bmah or {}
-    local d = ns.DB.bmah[ns.realmKey or ""] or { t = time(), items = {} }
-    ns.DB.bmah[ns.realmKey or ""] = d
+    local d, tbl = ns.AltData(ns.ahKind, ns.realmKey)
+    d = d or { t = time(), items = {} }
+    tbl[ns.realmKey or ""] = d
     d.items[id] = { p = unit, bids = 0, q = qty or 1 }
     ns.Fire("BLACKMARKET")
     return

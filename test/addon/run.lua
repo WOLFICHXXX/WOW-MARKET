@@ -161,11 +161,11 @@ do
   -- вкладка «Чёрный рынок»: медь дешевле на чёрном? нет - 50000 против цены аукциона; редкость без цены аукциона
   ns.DB.bmah[ns.realmKey].items[2862] = { p = 1, bids = 2, q = 1 }   -- точило за 1 медь: выгодно купить на чёрном
   ns.ToggleMain()
-  local okT = pcall(WolfichMarketMainFrame.tabs[3].scripts.OnClick, WolfichMarketMainFrame.tabs[3])
+  local okT = pcall(WolfichMarketMainFrame.tabs[4].scripts.OnClick, WolfichMarketMainFrame.tabs[4])
   local B = ns._mainBM
   local function has(list, id) for _, d in ipairs(list.data or {}) do if d.id == id then return d end end end
   local cheap, dear = B.buy and has(B.buy.list, 2862), B.dear and has(B.dear.list, 2840)
-  check(okT and WolfichMarketMainFrame.pages[3]:IsShown(), "вкладка «Чёрный рынок» открывается")
+  check(okT and WolfichMarketMainFrame.pages[4]:IsShown(), "вкладка «Чёрный рынок» открывается")
   check(cheap and cheap.gain > 0, "чёрный рынок: дешёвый лот - в колонке «купить на чёрном, продать на аукционе»")
   check(dear and not has(B.buy.list, 2840), "чёрный рынок: дорогой лот - в колонке «на чёрном дороже»")
   -- поиск в колонке: по части названия, без учёта регистра (и для русских букв)
@@ -179,51 +179,79 @@ do
   check(B.status.text:find("19019", 1, true) == nil and (B.status.text:find("без цены", 1, true) or B.status.text:find("without", 1, true)), "чёрный рынок: лоты без цены аукциона посчитаны отдельно")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
   C_BlackMarket = nil
-  -- чёрный рынок открывается окном аукциона: аукционист определяется, снимок и поиск - отдельно от обычного аукциона
-  local oldUN, oldGUID, oldTI = UnitName, UnitGUID, C_TooltipInfo
-  UnitName = function(u) if u == "npc" then return "Торговка" end return "Вульфыч" end
+  -- вид аукциона - по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий; иначе - фракционный
+  local oldUN, oldGUID, oldZ = UnitName, UnitGUID, GetRealZoneText
+  UnitName = function(u) if u == "npc" then return "Аукционер Леонус" end return "Вульфыч" end
   UnitGUID = function(u) if u == "npc" then return "Creature-0-1-2-3-99999-00001" end return "Player-1-0001" end
-  C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Торговка" }, { leftText = "<Чёрный рынок>" } } } end }
   local scanRef, ahP = ns.DB.ahScans[ns.realmKey], ns.AHPrice(2840)
-  fire("AUCTION_HOUSE_SHOW"); advance(3)
-  check(ns.ahIsBM == true, "аукционист чёрного рынка определён по подписи")
-  do
-    local un, ti = UnitName, C_TooltipInfo
-    UnitName = function(u) if u == "npc" then return "Аукционер Леонус" end return "Вульфыч" end
-    C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Аукционер Леонус" }, { leftText = "<Аукционист>" } } } end }
-    local oldG = UnitGUID; UnitGUID = function(u) if u == "npc" then return "Creature-0-1-2-3-88888-00001" end return "Player-1-0001" end
-    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-    check(ns.ahIsBM == true, "Аукционер Леонус - чёрный рынок")
-    UnitName = function(u) if u == "npc" then return "Аукционер Фитч" end return "Вульфыч" end
-    C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Аукционер Фитч" }, { leftText = "<Аукционист>" } } } end }
-    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-    check(ns.ahIsBM == false, "обычный аукционист - обычный аукцион")
-    local oldZ = GetRealZoneText
-    GetRealZoneText = function() return "Лесоречье" end
-    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-    check(ns.ahIsBM == true, "аукцион в Лесоречье - всегда чёрный рынок")
-    GetRealZoneText = function() return "Riverglades" end
-    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-    check(ns.ahIsBM == true, "Riverglades - чёрный рынок")
-    GetRealZoneText = oldZ
-    UnitName, C_TooltipInfo, UnitGUID = un, ti, oldG
-    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-  end
+  local zone = "Штормград"
+  GetRealZoneText = function() return zone end
+  local function reopen() fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1) end
+  reopen()
+  check(ns.ahKind == "main" and not ns.ahIsBM, "Аукционер Леонус в городе - фракционный (по имени больше не определяем)")
+  for _, z in ipairs({ "Лесоречье", "Riverglades" }) do zone = z; reopen(); check(ns.ahKind == "bm", z .. " - чёрный рынок") end
+  for _, z in ipairs({ "Остров Зефрис", "Тернистая долина", "Танарис", "Tanaris" }) do zone = z; reopen(); check(ns.ahKind == "neutral", z .. " - общий аукцион") end
+  -- общий аукцион: снимок и поиск - отдельно, цены у его окна - его
+  ns.DB.ntLastReq = 0
+  ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
+  check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.RegularPrice(2840) == ahP, "снимок общего аукциона не заменил основные цены")
+  check(ns.DB.ntah[ns.realmKey] and ns.DB.ntah[ns.realmKey].items[2840] ~= nil, "снимок общего аукциона сохранён отдельно")
+  ns.SeenPrice(2840, 9, 1)
+  check(ns.AHPrice(2840) == 9 and ns.RegularPrice(2840) == ahP, "у общего аукциона цены аддона - его, основные не тронуты")
+  -- чёрный рынок
+  zone = "Лесоречье"; reopen()
   ns.DB.bmLastReq = 0
   ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
-  check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) == ahP, "снимок чёрного рынка не заменил цены обычного аукциона")
+  check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) ~= 9, "снимок чёрного рынка не заменил цены основного аукциона")
   check(ns.DB.bmah[ns.realmKey].items[2840] ~= nil, "снимок чёрного рынка сохранён отдельно")
   ns.SeenPrice(2840, 7, 1)
   check(ns.RegularPrice(2840) == ahP and ns.DB.bmah[ns.realmKey].items[2840].p == 7, "поиск на чёрном рынке - в его цены, не в обычные")
   check(ns.AHPrice(2840) == 7, "у окна чёрного рынка цены аддона - по снимку чёрного рынка")
   local tt = table.concat(tooltip(2840), "\n")
-  check(tt:find(ns.money(ahP), 1, true) ~= nil, "подсказка у чёрного рынка по-прежнему показывает и обычную цену")
-  ns.SetAHIsBM(false)
-  check(ns.DB.bmNpcs[99999] == false, "ручное исправление запоминается для аукциониста")
-  fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-  check(ns.ahIsBM == false and ns.AHPrice(2840) == ahP, "при следующем открытии - как исправили, цены обычные")
-  fire("AUCTION_HOUSE_CLOSED"); ns.DB.bmNpcs[99999] = nil
-  UnitName, UnitGUID, C_TooltipInfo = oldUN, oldGUID, oldTI
+  check(tt:find(ns.money(ahP), 1, true) ~= nil and (tt:find("Общий аукцион", 1, true) or tt:find("Neutral", 1, true)), "подсказка: основная цена и строка общего аукциона")
+  -- ручной выбор вне известных зон запоминается для аукциониста
+  zone = "Штормград"; reopen()
+  ns.SetAHKind("neutral")
+  check(ns.DB.ahNpcKind[99999] == "neutral", "ручной выбор запоминается для аукциониста")
+  reopen()
+  check(ns.ahKind == "neutral", "при следующем открытии - как выбрали")
+  ns.SetAHKind("main"); ns.DB.ahNpcKind[99999] = nil
+  fire("AUCTION_HOUSE_CLOSED")
+  check(ns.AHPrice(2840) == ahP, "аукцион закрыт - цены основные")
+  -- выгода крафта на трёх аукционах и таблица «где купить, где продать»
+  do
+    local rec = { id = 777001, name = "Тест-рецепт", out = 3470, qmin = 1, qmax = 1, reag = { { 2840, 2 } } }
+    local nt = ns.DB.ntah[ns.realmKey]; local bm = ns.DB.bmah[ns.realmKey]
+    nt.items[3470] = { p = 50000, q = 1 }; bm.items[3470] = { p = 90000, q = 1 }
+    nt.items[2840] = { p = 1, q = 9 }        -- медь на общем почти даром
+    local by, best = ns.ProfitByKind(rec)
+    check(by.main and by.neutral and by.bm and best == "bm", "выгода по аукционам: лучший - чёрный рынок (" .. tostring(best) .. ")")
+    local _, where = ns.BestBuy(2840)
+    check(where == "neutral", "материал дешевле на общем аукционе")
+    local M = ns.RecipeMarket(rec)
+    check(#M.rows == 1 and M.rows[1].bestKind == "neutral" and M.out.p.bm == 90000, "таблица: материалы и продажа по аукционам")
+    -- окно профессии игры: столбики на строках и таблица под реагентами
+    local oldPF = ProfessionsFrame
+    ProfessionsFrame = CreateFrame("Frame"); ProfessionsFrame.CraftingPage = CreateFrame("Frame")
+    local rl = CreateFrame("Frame"); rl.ScrollBox = CreateFrame("Frame"); ProfessionsFrame.CraftingPage.RecipeList = rl
+    local form = CreateFrame("Frame"); form.Init = function() end; ProfessionsFrame.CraftingPage.SchematicForm = form
+    local okH = pcall(ns._hookRows)
+    check(okH, "окно профессии: столбики и таблица подключаются без ошибок")
+    local okF = pcall(ns._fillMarketTable, rec)
+    check(okF, "таблица «где купить, где продать» заполняется без ошибок")
+    local row = CreateFrame("Frame")
+    row.GetElementData = function() return { GetData = function() return { recipeInfo = { recipeID = 777001 } } end } end
+    local okD, errD = pcall(ns._decorateRow, row)
+    check(okD and row.wmCols and row.wmCols.main, "строка рецепта: столбики Ф / Общ / ЧР")
+    nt.items[3470], bm.items[3470], nt.items[2840] = nil, nil, nil
+    ProfessionsFrame = oldPF
+  end
+  -- вкладка «Общий аук.» в главном окне
+  ns.ToggleMain()
+  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
+  check(WolfichMarketMainFrame.pages[3]:IsShown() and ns._mainNT.status.text ~= "", "вкладка «Общий аук.» открывается")
+  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
+  UnitName, UnitGUID, GetRealZoneText = oldUN, oldGUID, oldZ
   -- старый случай: снимок чёрного рынка записался вместо обычного - переносится при входе
   local savedScans = ns.DB.ahScans
   ns.DB.ahScans = { ["Тест~PvE|Horde"] = { t = 12345, lots = 300, items = { [2840] = { 99, 3, 1 } } } }
@@ -366,8 +394,8 @@ do
   check(own.cost < full.cost and own.crafts == 0 and own.parts[1].buy == 0 and own.parts[2].buy == 5, "свои материалы не идут в себестоимость, недостающее - докупить")
   C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo = oldN, oldI
   ns.DB.settings.useBank = true
-  WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
-  check(WolfichMarketMainFrame.pages[4]:IsShown(), "вкладка «Банк» открывается")
+  WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
+  check(WolfichMarketMainFrame.pages[5]:IsShown(), "вкладка «Банк» открывается")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
   local row = recRow(ns._mainCraft.list)
   if row and row.data then row.scripts.OnClick(row) end
@@ -905,8 +933,8 @@ do
   C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
 end
 -- вкладка «Настройки» в главном окне
-WolfichMarketMainFrame.tabs[6].scripts.OnClick(WolfichMarketMainFrame.tabs[6])
-check(WolfichMarketMainFrame.pages[6]:IsShown(), "вкладка «Настройки» в главном окне")
+WolfichMarketMainFrame.tabs[7].scripts.OnClick(WolfichMarketMainFrame.tabs[7])
+check(WolfichMarketMainFrame.pages[7]:IsShown(), "вкладка «Настройки» в главном окне")
 WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 -- весь аукцион: сначала важное; отправитель вышел - сообщение, сколько успело прийти
 do
@@ -937,6 +965,6 @@ for _, e in ipairs(ns.log) do if e.msg:find("ошибка в") or e.msg:find("er
 -- сообщения аддона по умолчанию не идут в чат, а только в журнал главного окна
 local leaked; for _, s in ipairs(allPrinted) do if s:find("общий рынок: отправляю", 1, true) then leaked = s end end
 check(not leaked, "сообщения аддона не засоряют чат (только журнал окна)")
-WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
-check(WolfichMarketMainFrame.pages[5]:IsShown() and #ns.log > 0, "вкладка «Журнал» с сообщениями аддона (" .. #ns.log .. ")")
+WolfichMarketMainFrame.tabs[6].scripts.OnClick(WolfichMarketMainFrame.tabs[6])
+check(WolfichMarketMainFrame.pages[6]:IsShown() and #ns.log > 0, "вкладка «Журнал» с сообщениями аддона (" .. #ns.log .. ")")
 check(not bad, "нет ошибок при сборке окон" .. (bad and (": " .. bad) or ""))

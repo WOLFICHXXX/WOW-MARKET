@@ -585,87 +585,98 @@ function refreshBank()
   bank.total:SetText(L"Стоимость по аукциону: " .. ns.money(total))
 end
 
--- ---------- вкладка «Чёрный рынок»: сравнение с обычным аукционом ----------
--- слева - дешевле на чёрном рынке, чем продать на аукционе (купить там, выставить здесь);
--- справа - на чёрном рынке дороже, чем на аукционе (выгоднее купить на обычном аукционе)
-local bmp = {}
-local refreshBM
-local function buildBM(f)
-  bmp.status = UI.Font(f, 11, UI.DIM); bmp.status:SetPoint("TOPLEFT", 4, 0); bmp.status:SetPoint("RIGHT", -4, 0); bmp.status:SetWordWrap(true)
-  local function panel(left, title, color)
-    local p = CreateFrame("Frame", nil, f)
-    if left then p:SetPoint("TOPLEFT", 0, -44); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
-    else p:SetPoint("TOPLEFT", f, "TOP", 6, -44); p:SetPoint("BOTTOMRIGHT", 0, 0) end
-    UI.Skin(p, { theme = "acard", scale = 0.25 }) -- та же рамка, что у панелей сигналов
-    local t = UI.Font(p, 13, color); t:SetPoint("TOPLEFT", 12, -10); t:SetPoint("RIGHT", -12, 0); t:SetText(title)
-    -- поиск по названию
-    p.search = CreateFrame("EditBox", nil, p, "InputBoxTemplate"); p.search:SetHeight(20); p.search:SetPoint("TOPLEFT", 18, -30); p.search:SetPoint("RIGHT", -12, 0); p.search:SetAutoFocus(false)
-    p.hint = UI.Font(p.search, 10, UI.DIM); p.hint:SetPoint("LEFT", 2, 0); p.hint:SetText(L"поиск по названию...")
-    p.search:SetScript("OnTextChanged", function(self) p.hint:SetShown(self:GetText() == ""); refreshBM() end)
-    p.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
-    p.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    p.sum = UI.Font(p, 10, UI.DIM); p.sum:SetPoint("TOPLEFT", 12, -54); p.sum:SetPoint("RIGHT", -12, 0)
-    p.list = UI.List(p, 36, function(r)
-      r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(24, 24); r.icon:SetPoint("LEFT", 4, 0)
-      r.gain = UI.Font(r, 12); r.gain:SetPoint("TOPRIGHT", -4, -4); r.gain:SetJustifyH("RIGHT"); r.gain:SetWidth(90)
-      r.name = UI.Font(r, 11); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, 2); r.name:SetPoint("RIGHT", r.gain, "LEFT", -4, 0)
-      r.sub = UI.Font(r, 10, UI.DIM); r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 6, -3); r.sub:SetPoint("RIGHT", -4, 0)
-      r:SetScript("OnClick", function(self) if self.data then ns.ShowChartDialog(self.data.id) end end)
-      r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:AddLine(L"Клик - график цены", 0.9, 0.7, 0.3); GameTooltip:Show() end end)
-      r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    end, function(r, d)
-      r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
-      r.gain:SetText((d.gain >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(d.gain), true) .. "|r")
-      r.sub:SetText(L"чёрный: " .. ns.money(d.bm, true) .. " |cffaaaaaa(" .. (d.lots and (L"лотов: " .. d.lots) or d.bids > 0 and (L"ставок: " .. d.bids) or L"без ставок") .. ")|r   " .. L"аукцион: " .. ns.money(d.ah, true))
-    end)
-    p.list:SetPoint("TOPLEFT", 8, -70); p.list:SetPoint("BOTTOMRIGHT", -8, 8)
-    return p
-  end
-  bmp.buy = panel(true, L"Купить на чёрном - продать на аукционе", UI.GOLD)
-  bmp.dear = panel(false, L"На чёрном дороже - купить на аукционе", { 0.75, 0.5, 1 })
-end
-function refreshBM()
-  if not bmp.status then return end
-  local c = ns.DB.chars[charKey] or {}
-  local rk = c.realmKey or ns.realmKey or ""
-  local d = ns.DB.bmah and ns.DB.bmah[rk]
-  local buy, dear, noAH = {}, {}, 0
-  ns.WithRealm(rk, function()
-    for id, r in pairs(d and d.items or {}) do
-      local ah = ns.RegularPrice(id)
-      if not ah then noAH = noAH + 1
-      else
-        local net = ah * (1 - ns.AH_CUT) -- что получите, продав на аукционе (минус 5%)
-        local row = { id = id, bm = r.p, bids = r.bids or 0, lots = r.lots, ah = ah }
-        if r.p < net then row.gain = net - r.p; buy[#buy + 1] = row
-        else row.gain = r.p - ah; dear[#dear + 1] = row end
+-- ---------- вкладки «Общий аукцион» и «Чёрный рынок»: сравнение с фракционным (основным) аукционом ----------
+-- слева - там дешевле, чем продать на фракционном (купить там, выставить здесь);
+-- справа - там дороже, чем на фракционном (выгоднее купить на фракционном)
+local ALT = {
+  neutral = { short = L"общий: ", buy = L"Купить на общем - продать на фракционном", dear = L"На общем дороже - купить на фракционном",
+    color = { 0.4, 0.85, 0.8 }, gain = L"выгода = цена фракционного минус 5% минус цена на общем", diff = L"разница = цена на общем минус цена фракционного",
+    status = L"Общий аукцион: снимок %s, предметов: %d, без цены на фракционном: %d. Обновляется сканированием на общем аукционе (личное, не рассылается).",
+    none = L"|cffff9966Общий аукцион ещё не записан - отсканируйте аукцион на Острове Зефрис, в Тернистой долине или Танарисе.|r" },
+  bm = { short = L"чёрный: ", buy = L"Купить на чёрном - продать на аукционе", dear = L"На чёрном дороже - купить на аукционе",
+    color = { 0.75, 0.5, 1 }, gain = L"выгода = цена на аукционе минус 5% минус ставка на чёрном", diff = L"разница = ставка на чёрном минус цена на аукционе",
+    status = L"Чёрный рынок: снимок %s, предметов: %d, без цены на аукционе: %d. Обновляется сканированием у аукциониста чёрного рынка (между игроками не рассылается).",
+    none = L"|cffff9966Чёрный рынок ещё не записан - отсканируйте аукцион в Лесоречье.|r" },
+}
+local altPages = {}
+local function makeAlt(kind)
+  local P = { kind = kind }
+  altPages[kind] = P
+  local A = ALT[kind]
+  local function refreshAlt()
+    if not P.status then return end
+    local c = ns.DB.chars[charKey] or {}
+    local rk = c.realmKey or ns.realmKey or ""
+    local d = ns.AltData(kind, rk)
+    local buy, dear, noAH = {}, {}, 0
+    ns.WithRealm(rk, function()
+      for id, r in pairs(d and d.items or {}) do
+        local ah = ns.RegularPrice(id)
+        if not ah then noAH = noAH + 1
+        else
+          local net = ah * (1 - ns.AH_CUT) -- что получите, продав на фракционном аукционе (минус 5%)
+          local row = { id = id, bm = r.p, bids = r.bids or 0, lots = r.lots, ah = ah }
+          if r.p < net then row.gain = net - r.p; buy[#buy + 1] = row
+          else row.gain = r.p - ah; dear[#dear + 1] = row end
+        end
       end
+    end)
+    -- поиск в каждой колонке - свой
+    local function filter(list, box)
+      local q = ns.lower(box and box:GetText() or "")
+      if q == "" then return list end
+      local out = {}
+      for _, x in ipairs(list) do if ns.lower(ns.itemName(x.id) or ""):find(q, 1, true) then out[#out + 1] = x end end
+      return out
     end
-  end)
-  -- поиск в каждой колонке - свой
-  local function filter(list, box)
-    local q = ns.lower(box and box:GetText() or "")
-    if q == "" then return list end
-    local out = {}
-    for _, d in ipairs(list) do if ns.lower(ns.itemName(d.id) or ""):find(q, 1, true) then out[#out + 1] = d end end
-    return out
+    local total = #buy + #dear + noAH
+    buy, dear = filter(buy, P.buy.search), filter(dear, P.dear.search)
+    table.sort(buy, function(a, b) return a.gain > b.gain end)
+    table.sort(dear, function(a, b) return a.gain > b.gain end)
+    P.buy.list:SetData(buy); P.dear.list:SetData(dear)
+    P.buy.list.empty:SetText(d and L"Выгодных лотов нет." or "")
+    P.dear.list.empty:SetText(d and L"Таких лотов нет." or "")
+    P.buy.sum:SetText(A.gain); P.dear.sum:SetText(A.diff)
+    P.status:SetText(d and string.format(A.status, ns.ago(d.t), total, noAH) or A.none)
   end
-  local total = #buy + #dear + noAH
-  buy, dear = filter(buy, bmp.buy.search), filter(dear, bmp.dear.search)
-  table.sort(buy, function(a, b) return a.gain > b.gain end)
-  table.sort(dear, function(a, b) return a.gain > b.gain end)
-  bmp.buy.list:SetData(buy); bmp.dear.list:SetData(dear)
-  bmp.buy.list.empty:SetText(d and L"Выгодных лотов нет." or "")
-  bmp.dear.list.empty:SetText(d and L"Таких лотов нет." or "")
-  bmp.buy.sum:SetText(L"выгода = цена на аукционе минус 5% минус ставка на чёрном")
-  bmp.dear.sum:SetText(L"разница = ставка на чёрном минус цена на аукционе")
-  if d then
-    bmp.status:SetText(string.format(L"Чёрный рынок: снимок %s, предметов: %d, без цены на аукционе: %d. Обновляется сканированием у аукциониста чёрного рынка (между игроками не рассылается).",
-      ns.ago(d.t), total, noAH))
-  else
-    bmp.status:SetText(L"|cffff9966Чёрный рынок ещё не записан - откройте окно чёрного рынка у его аукциониста.|r")
+  P.refresh = refreshAlt
+  function P.build(f)
+    P.status = UI.Font(f, 11, UI.DIM); P.status:SetPoint("TOPLEFT", 4, 0); P.status:SetPoint("RIGHT", -4, 0); P.status:SetWordWrap(true)
+    local function panel(left, title, color)
+      local p = CreateFrame("Frame", nil, f)
+      if left then p:SetPoint("TOPLEFT", 0, -44); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
+      else p:SetPoint("TOPLEFT", f, "TOP", 6, -44); p:SetPoint("BOTTOMRIGHT", 0, 0) end
+      UI.Skin(p, { theme = "acard", scale = 0.25 }) -- та же рамка, что у панелей сигналов
+      local t = UI.Font(p, 13, color); t:SetPoint("TOPLEFT", 12, -10); t:SetPoint("RIGHT", -12, 0); t:SetText(title)
+      -- поиск по названию
+      p.search = CreateFrame("EditBox", nil, p, "InputBoxTemplate"); p.search:SetHeight(20); p.search:SetPoint("TOPLEFT", 18, -30); p.search:SetPoint("RIGHT", -12, 0); p.search:SetAutoFocus(false)
+      p.hint = UI.Font(p.search, 10, UI.DIM); p.hint:SetPoint("LEFT", 2, 0); p.hint:SetText(L"поиск по названию...")
+      p.search:SetScript("OnTextChanged", function(self) p.hint:SetShown(self:GetText() == ""); refreshAlt() end)
+      p.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+      p.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+      p.sum = UI.Font(p, 10, UI.DIM); p.sum:SetPoint("TOPLEFT", 12, -54); p.sum:SetPoint("RIGHT", -12, 0)
+      p.list = UI.List(p, 36, function(r)
+        r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(24, 24); r.icon:SetPoint("LEFT", 4, 0)
+        r.gain = UI.Font(r, 12); r.gain:SetPoint("TOPRIGHT", -4, -4); r.gain:SetJustifyH("RIGHT"); r.gain:SetWidth(90)
+        r.name = UI.Font(r, 11); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, 2); r.name:SetPoint("RIGHT", r.gain, "LEFT", -4, 0)
+        r.sub = UI.Font(r, 10, UI.DIM); r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 6, -3); r.sub:SetPoint("RIGHT", -4, 0)
+        r:SetScript("OnClick", function(self) if self.data then ns.ShowChartDialog(self.data.id) end end)
+        r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:AddLine(L"Клик - график цены", 0.9, 0.7, 0.3); GameTooltip:Show() end end)
+        r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      end, function(r, x)
+        r.icon:SetTexture(ns.itemIcon(x.id)); r.name:SetText(ns.itemLinkText(x.id))
+        r.gain:SetText((x.gain >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(x.gain), true) .. "|r")
+        r.sub:SetText(A.short .. ns.money(x.bm, true) .. " |cffaaaaaa(" .. (x.lots and (L"лотов: " .. x.lots) or x.bids > 0 and (L"ставок: " .. x.bids) or L"без ставок") .. ")|r   " .. L"аукцион: " .. ns.money(x.ah, true))
+      end)
+      p.list:SetPoint("TOPLEFT", 8, -70); p.list:SetPoint("BOTTOMRIGHT", -8, 8)
+      return p
+    end
+    P.buy = panel(true, A.buy, UI.GOLD)
+    P.dear = panel(false, A.dear, A.color)
   end
+  return P
 end
+local ntp, bmp = makeAlt("neutral"), makeAlt("bm")
 
 -- ---------- окно ----------
 -- ---------- вкладка «Журнал»: сообщения аддона вместо чата ----------
@@ -741,8 +752,8 @@ local function buildSettings(f)
   setp.refresh = function() rAuto(); rChat(); rLang() end
 end
 local function refreshSettings() if setp.refresh then setp.refresh() end end
-local VIEW_BANK, VIEW_LOG = 4, 5
-local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() elseif view == 3 then refreshBM() elseif view == 4 then refreshBank() elseif view == 5 then refreshLog() else refreshSettings() end end
+local VIEW_NT, VIEW_BM, VIEW_BANK, VIEW_LOG = 3, 4, 5, 6
+local function refresh() if not win or not win:IsShown() then return end; if view == 1 then refreshCraft() elseif view == 2 then refreshSignals() elseif view == 3 then ntp.refresh() elseif view == 4 then bmp.refresh() elseif view == 5 then refreshBank() elseif view == 6 then refreshLog() else refreshSettings() end end
 local function selectView(i)
   view = i
   for k, b in ipairs(win.tabs) do
@@ -766,20 +777,20 @@ local function build()
   -- персонаж
   local prev = UI.Icon(win, "skin\\mi-left", 24, nil, function() local l = chars(); for i, ck in ipairs(l) do if ck == charKey then setChar(l[(i - 2) % #l + 1]); return end end end)
   prev:SetPoint("TOPLEFT", 24, -64)
-  win.charName = UI.Font(win, 13, nil, "OVERLAY", "OUTLINE"); win.charName:SetPoint("LEFT", prev, "RIGHT", 8, 0); win.charName:SetWidth(190)
+  win.charName = UI.Font(win, 13, nil, "OVERLAY", "OUTLINE"); win.charName:SetPoint("LEFT", prev, "RIGHT", 8, 0); win.charName:SetWidth(150)
   local nextB = UI.Icon(win, "skin\\mi-right", 24, nil, function() local l = chars(); for i, ck in ipairs(l) do if ck == charKey then setChar(l[i % #l + 1]); return end end end)
   nextB:SetPoint("LEFT", win.charName, "RIGHT", 4, 0)
   -- вкладки
   win.tabs = {}
-  local names = { L"Крафт", L"Сигналы", L"Чёрный рынок", L"Банк", L"Журнал", L"Настройки" }
-  local widths = { 80, 88, 112, 72, 82, 98 }
+  local names = { L"Крафт", L"Сигналы", L"Общий аук.", L"Чёрный рынок", L"Банк", L"Журнал", L"Настройки" }
+  local widths = { 68, 80, 92, 108, 58, 72, 90 }
   local x = -24
   for i = #names, 1, -1 do
     local b = UI.Button(win, names[i], widths[i], 26, function() selectView(i) end)
     b:SetPoint("TOPRIGHT", x, -63); win.tabs[i] = b; x = x - widths[i] - 4
   end
   win.pages = {}
-  for i, builder in ipairs({ buildCraft, buildSignals, buildBM, buildBank, buildLog, buildSettings }) do
+  for i, builder in ipairs({ buildCraft, buildSignals, ntp.build, bmp.build, buildBank, buildLog, buildSettings }) do
     local f = CreateFrame("Frame", nil, win); f:SetPoint("TOPLEFT", 24, -100); f:SetPoint("BOTTOMRIGHT", -24, 22)
     builder(f); f:Hide(); win.pages[i] = f
   end
@@ -803,8 +814,9 @@ ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
 ns.Listen("LOG", function() if win and win:IsShown() and view == VIEW_LOG then refreshLog() end end)
 ns.Listen("INVENTORY", function() if view == VIEW_BANK or ns.DB.settings.useBank then refresh() end end)
-ns.Listen("BLACKMARKET", function() if view == 3 then refresh() end end)
+ns.Listen("BLACKMARKET", function() if view == VIEW_NT or view == VIEW_BM then refresh() end end)
 ns._mainBM = bmp
+ns._mainNT = ntp
 
 -- ---------- кнопка у миникарты ----------
 local function placeMini(b)

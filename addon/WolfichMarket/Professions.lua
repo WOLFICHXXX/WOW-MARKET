@@ -344,23 +344,206 @@ local function indexRecipes()
   wipe(recipeIndex)
   for _, pr in ipairs(ns.AllRecipeProfits(ns.curProf, ns.DB.settings.showUnlearned)) do recipeIndex[pr.rec.id] = pr end
 end
+-- ---------- три аукциона: Ф - фракционный, Общ - общий, ЧР - чёрный рынок ----------
+local KINDS = { "main", "neutral", "bm" }
+local KSHORT = { main = L"Ф", neutral = L"Общ", bm = L"ЧР" }
+local COLW = 46
+-- короткая сумма: золото, а меньше золотого - серебро
+local function short(c)
+  local a = math.abs(c)
+  local t = a >= 10000 and (math.floor(a / 10000) .. L"з") or a >= 100 and (math.floor(a / 100) .. L"с") or (math.floor(a) .. L"м")
+  return (c >= 0 and "+" or "-") .. t
+end
+-- выгода рецепта на каждом аукционе: { main = прибыль, neutral = ..., bm = ... }, лучший аукцион
+function ns.ProfitByKind(rec)
+  local res, best = {}, nil
+  for _, k in ipairs(KINDS) do
+    local p = ns.ProfitIn(rec, k)
+    res[k] = p
+    if p and (not best or p > res[best]) then best = k end
+  end
+  return res, best
+end
 local function decorate(frame)
   if not frame or not frame.GetElementData then return end
   local node = frame:GetElementData()
   local data = node and node.GetData and node:GetData()
   local ri = data and data.recipeInfo
-  if not frame.wmProfit then
-    frame.wmProfit = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    frame.wmProfit:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
+  if not frame.wmCols then
+    frame.wmCols = {}
+    for i, k in ipairs(KINDS) do
+      local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+      fs:SetPoint("RIGHT", frame, "RIGHT", -6 - (3 - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
+      frame.wmCols[k] = fs
+    end
+    -- название рецепта не должно залезать под столбики
+    if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", -6 - 3 * COLW, 0) end
   end
   local pr = ri and recipeIndex[ri.recipeID]
   if pr and pr.rec.out then
-    frame.wmProfit:SetText(profitText(pr)); frame.wmProfit:Show()
+    local by, best = ns.ProfitByKind(pr.rec)
+    for _, k in ipairs(KINDS) do
+      local v = by[k]
+      local fs = frame.wmCols[k]
+      if v then
+        -- лучший аукцион - ярко, остальные - приглушённо
+        local col = v >= 0 and (k == best and "|cff5dff7a" or "|cff4f9a5c") or (k == best and "|cffff7a66" or "|cff9a5a52")
+        fs:SetText(col .. short(v) .. "|r")
+      else fs:SetText("|cff555555-|r") end
+      fs:Show()
+    end
     frame:SetAlpha(ns.DB.settings.profitOnly and not (pr.profit and pr.profit > 0) and 0.35 or 1)
   else
-    frame.wmProfit:Hide(); frame:SetAlpha(ri and ns.DB.settings.profitOnly and 0.35 or 1)
+    for _, fs in pairs(frame.wmCols) do fs:Hide() end
+    frame:SetAlpha(ri and ns.DB.settings.profitOnly and 0.35 or 1)
   end
 end
+ns._decorateRow = decorate
+
+-- заголовки столбиков над списком рецептов
+local colHead
+local function headers()
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local rl = page and page.RecipeList
+  if colHead or not rl or not rl.ScrollBox then return end
+  colHead = CreateFrame("Frame", nil, rl); colHead:SetSize(3 * COLW + 6, 12)
+  colHead:SetPoint("BOTTOMRIGHT", rl.ScrollBox, "TOPRIGHT", -6, 1); colHead:SetFrameLevel(rl.ScrollBox:GetFrameLevel() + 5)
+  for i, k in ipairs(KINDS) do
+    local fs = colHead:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    fs:SetPoint("RIGHT", colHead, "RIGHT", -(3 - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
+    fs:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
+  end
+  colHead:EnableMouse(true)
+  colHead:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(L"Выгода крафта на каждом аукционе", 1, 0.82, 0)
+    GameTooltip:AddLine(L"Ф - фракционный, Общ - общий (межфракционный), ЧР - чёрный рынок. Материалы - там, где дешевле; продажа - на этом аукционе, минус 5%. Ярко - лучший вариант.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  colHead:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+-- ---------- таблица цен под реагентами в окне профессии ----------
+-- для каждого материала - цена на трёх аукционах и у торговца (дешевле - зелёным),
+-- для результата - продажа на трёх аукционах (дороже - золотым), внизу - где купить и где продать
+function ns.RecipeMarket(rec)
+  local rows = {}
+  for _, r in ipairs(rec.reag or {}) do
+    local row = { id = r[1], n = r[2], p = {} }
+    for _, k in ipairs(KINDS) do row.p[k] = ns.PriceIn(k, r[1]) end
+    row.vendor = ns.DB.vendor[r[1]]
+    row.best, row.bestKind = ns.BestBuy(r[1])
+    rows[#rows + 1] = row
+  end
+  local out
+  if rec.out then
+    out = { id = rec.out, q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2, p = {} }
+    for _, k in ipairs(KINDS) do out.p[k] = ns.PriceIn(k, rec.out) end
+  end
+  local by, best = ns.ProfitByKind(rec)
+  return { rows = rows, out = out, profit = by, best = best }
+end
+local mt
+local function buildMarketTable(form)
+  mt = CreateFrame("Frame", nil, form)
+  mt:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 26, 46); mt:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -26, 46); mt:SetHeight(196)
+  mt.bg = mt:CreateTexture(nil, "BACKGROUND"); mt.bg:SetAllPoints(); mt.bg:SetColorTexture(0, 0, 0, 0.45)
+  mt.title = mt:CreateFontString(nil, "OVERLAY", "GameFontNormal"); mt.title:SetPoint("TOPLEFT", 8, -6); mt.title:SetText(L"Где купить и где продать")
+  mt.cols = {}
+  local colX = { main = -130, neutral = -72, bm = -14 }
+  mt.colX = colX
+  for _, k in ipairs(KINDS) do
+    local h = mt:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", colX[k], -8); h:SetWidth(56); h:SetJustifyH("RIGHT")
+    h:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
+  end
+  mt.lines = {}
+  for i = 1, 9 do
+    local ln = {}
+    ln.icon = mt:CreateTexture(nil, "ARTWORK"); ln.icon:SetSize(14, 14); ln.icon:SetPoint("TOPLEFT", 8, -10 - i * 17)
+    ln.name = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); ln.name:SetPoint("LEFT", ln.icon, "RIGHT", 4, 0); ln.name:SetPoint("RIGHT", mt, "RIGHT", -196, 0); ln.name:SetJustifyH("LEFT"); ln.name:SetWordWrap(false)
+    ln.p = {}
+    for _, k in ipairs(KINDS) do
+      local fs = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetPoint("RIGHT", mt, "TOPRIGHT", colX[k], -17 - i * 17); fs:SetWidth(56); fs:SetJustifyH("RIGHT")
+      ln.p[k] = fs
+    end
+    mt.lines[i] = ln
+  end
+  mt.foot = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); mt.foot:SetPoint("BOTTOMLEFT", 8, 6); mt.foot:SetPoint("BOTTOMRIGHT", -8, 6); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
+end
+local function sm(c) return c and ns.money(c, true) or nil end
+local function fillMarketTable(rec)
+  if not mt then return end
+  for _, ln in ipairs(mt.lines) do ln.icon:Hide(); ln.name:SetText(""); for _, fs in pairs(ln.p) do fs:SetText("") end end
+  if not rec then mt:Hide() return end
+  local M = ns.RecipeMarket(rec)
+  local i = 0
+  for _, r in ipairs(M.rows) do
+    i = i + 1; local ln = mt.lines[i]; if not ln then break end
+    ln.icon:SetTexture(ns.itemIcon(r.id)); ln.icon:Show()
+    ln.name:SetText(ns.itemName(r.id) .. (r.n ~= 1 and (" |cffaaaaaa×" .. r.n .. "|r") or "") .. (r.bestKind == "vendor" and L" |cffaaaaaa(торговец " .. sm(r.vendor * r.n) .. ")|r" or ""))
+    for _, k in ipairs(KINDS) do
+      local p = r.p[k]
+      ln.p[k]:SetText(p and ((r.bestKind == k and "|cff5dff7a" or "|cff9a9a9a") .. sm(p * r.n) .. "|r") or "|cff555555-|r")
+    end
+  end
+  if M.out then
+    i = i + 1; local ln = mt.lines[i]
+    if ln then
+      ln.icon:SetTexture(ns.itemIcon(M.out.id)); ln.icon:Show()
+      ln.name:SetText("|cffe6b450" .. L"Продажа: " .. "|r" .. ns.itemName(M.out.id) .. (M.out.q ~= 1 and (" |cffaaaaaa×" .. M.out.q .. "|r") or ""))
+      local bestSell
+      for _, k in ipairs(KINDS) do local p = M.out.p[k]; if p and (not bestSell or p > M.out.p[bestSell]) then bestSell = k end end
+      for _, k in ipairs(KINDS) do
+        local p = M.out.p[k]
+        ln.p[k]:SetText(p and ((k == bestSell and "|cffffd100" or "|cff9a9a9a") .. sm(p * M.out.q) .. "|r") or "|cff555555-|r")
+      end
+    end
+    i = i + 1; local pl = mt.lines[i]
+    if pl then
+      pl.name:SetText("|cffe6b450" .. L"Прибыль (-5%)" .. "|r")
+      for _, k in ipairs(KINDS) do
+        local v = M.profit[k]
+        pl.p[k]:SetText(v and ((v >= 0 and (k == M.best and "|cff5dff7a" or "|cff4f9a5c") or "|cffff7a66") .. short(v) .. "|r") or "|cff555555-|r")
+      end
+    end
+  end
+  -- итог словами
+  local buyAt = {}
+  for _, r in ipairs(M.rows) do
+    local w = r.bestKind == "vendor" and L"торговец" or r.bestKind and KSHORT[r.bestKind]
+    if w then buyAt[w] = (buyAt[w] or 0) + 1 end
+  end
+  local parts = {}
+  for w, n in pairs(buyAt) do parts[#parts + 1] = w .. (n > 1 and (" ×" .. n) or "") end
+  table.sort(parts)
+  mt.foot:SetText((#parts > 0 and (L"Материалы дешевле: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
+    .. (M.best and ("\n" .. L"Продать выгоднее: " .. ns.ALT_COLOR[M.best] .. ns.AltName(M.best) .. "|r, " .. L"прибыль " .. short(M.profit[M.best])) or ""))
+  mt:Show()
+end
+ns._fillMarketTable = fillMarketTable
+local function recFromInfo(ri)
+  if not ri then return end
+  indexRecipes()
+  local pr = recipeIndex[ri.recipeID]
+  if pr then return pr.rec end
+  for _, c in pairs(ns.DB.chars or {}) do for _, p in pairs(c.profs or {}) do for _, r in ipairs(p.recipes or {}) do if r.id == ri.recipeID then return r end end end end
+end
+local formHooked = false
+local function hookForm()
+  if formHooked then return end
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local form = page and page.SchematicForm
+  if not form or not form.Init then return end
+  formHooked = true
+  buildMarketTable(form)
+  pcall(hooksecurefunc, form, "Init", function(self, recipeInfo) fillMarketTable(recFromInfo(recipeInfo)) end)
+  if form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) end
+end
+ns.Listen("PRICES", function()
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local form = page and page.SchematicForm
+  if mt and mt:IsVisible() and form and form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) end
+end)
 function ns.DecorateRecipeRows()
   local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
   local sb = page and page.RecipeList and page.RecipeList.ScrollBox
@@ -370,6 +553,7 @@ function ns.DecorateRecipeRows()
 end
 local hooked = false
 local function hookRows()
+  ns._hookRowsCalled = true
   if hooked then return end
   local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
   local sb = page and page.RecipeList and page.RecipeList.ScrollBox
@@ -379,7 +563,10 @@ local function hookRows()
     pcall(ScrollUtil.AddInitializedFrameCallback, sb, function(_, frame) decorate(frame) end, panel or sb, true)
   end
   if sb.Update then pcall(hooksecurefunc, sb, "Update", function() ns.DecorateRecipeRows() end) end
+  headers()
+  hookForm()
 end
+ns._hookRows = hookRows
 
 -- ---------- события ----------
 local timer
