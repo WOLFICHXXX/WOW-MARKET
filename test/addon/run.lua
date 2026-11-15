@@ -171,6 +171,36 @@ do
   check(B.status.text:find("19019", 1, true) == nil and (B.status.text:find("без цены", 1, true) or B.status.text:find("without", 1, true)), "чёрный рынок: лоты без цены аукциона посчитаны отдельно")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
   C_BlackMarket = nil
+  -- чёрный рынок открывается окном аукциона: аукционист определяется, снимок и поиск - отдельно от обычного аукциона
+  local oldUN, oldGUID, oldTI = UnitName, UnitGUID, C_TooltipInfo
+  UnitName = function(u) if u == "npc" then return "Торговка" end return "Вульфыч" end
+  UnitGUID = function(u) if u == "npc" then return "Creature-0-1-2-3-99999-00001" end return "Player-1-0001" end
+  C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Торговка" }, { leftText = "<Чёрный рынок>" } } } end }
+  local scanRef, ahP = ns.DB.ahScans[ns.realmKey], ns.AHPrice(2840)
+  fire("AUCTION_HOUSE_SHOW"); advance(3)
+  check(ns.ahIsBM == true, "аукционист чёрного рынка определён по подписи")
+  ns.DB.bmLastReq = 0
+  ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
+  check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) == ahP, "снимок чёрного рынка не заменил цены обычного аукциона")
+  check(ns.DB.bmah[ns.realmKey].items[2840] ~= nil, "снимок чёрного рынка сохранён отдельно")
+  ns.SeenPrice(2840, 7, 1)
+  check(ns.AHPrice(2840) == ahP and ns.DB.bmah[ns.realmKey].items[2840].p == 7, "поиск на чёрном рынке - в его цены, не в обычные")
+  ns.SetAHIsBM(false)
+  check(ns.DB.bmNpcs[99999] == false, "ручное исправление запоминается для аукциониста")
+  fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+  check(ns.ahIsBM == false, "при следующем открытии - как исправили")
+  fire("AUCTION_HOUSE_CLOSED"); ns.DB.bmNpcs[99999] = nil
+  UnitName, UnitGUID, C_TooltipInfo = oldUN, oldGUID, oldTI
+  -- старый случай: снимок чёрного рынка записался вместо обычного - переносится при входе
+  local savedScans = ns.DB.ahScans
+  ns.DB.ahScans = { ["Тест~PvE|Horde"] = { t = 12345, lots = 300, items = { [2840] = { 99, 3, 1 } } } }
+  ns.DB.hist[2840] = ns.DB.hist[2840] or {}; table.insert(ns.DB.hist[2840], { 12345, 99, 3, "Тест~PvE|Horde" })
+  ns.FixBMScans()
+  local leftOver = ns.DB.ahScans["Тест~PvE|Horde"]
+  ns.DB.ahScans = savedScans
+  local moved = ns.DB.bmah["Тест~PvE|Horde"]
+  local pt = false; for _, p in ipairs(ns.DB.hist[2840]) do if p[1] == 12345 then pt = true end end
+  check(leftOver == nil and moved and moved.items[2840].p == 99 and not pt, "старый снимок чёрного рынка перенесён из обычного аукциона")
 end
 do
   local outId

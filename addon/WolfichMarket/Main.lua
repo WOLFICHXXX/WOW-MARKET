@@ -609,7 +609,7 @@ local function buildBM(f)
     end, function(r, d)
       r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
       r.gain:SetText((d.gain >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(d.gain), true) .. "|r")
-      r.sub:SetText(L"чёрный: " .. ns.money(d.bm, true) .. " |cffaaaaaa(" .. (d.bids > 0 and (L"ставок: " .. d.bids) or L"без ставок") .. ")|r   " .. L"аукцион: " .. ns.money(d.ah, true))
+      r.sub:SetText(L"чёрный: " .. ns.money(d.bm, true) .. " |cffaaaaaa(" .. (d.lots and (L"лотов: " .. d.lots) or d.bids > 0 and (L"ставок: " .. d.bids) or L"без ставок") .. ")|r   " .. L"аукцион: " .. ns.money(d.ah, true))
     end)
     p.list:SetPoint("TOPLEFT", 4, -42); p.list:SetPoint("BOTTOMRIGHT", -4, 4)
     return p
@@ -629,7 +629,7 @@ local function refreshBM()
       if not ah then noAH = noAH + 1
       else
         local net = ah * (1 - ns.AH_CUT) -- что получите, продав на аукционе (минус 5%)
-        local row = { id = id, bm = r.p, bids = r.bids or 0, ah = ah }
+        local row = { id = id, bm = r.p, bids = r.bids or 0, lots = r.lots, ah = ah }
         if r.p < net then row.gain = net - r.p; buy[#buy + 1] = row
         else row.gain = r.p - ah; dear[#dear + 1] = row end
       end
@@ -643,7 +643,7 @@ local function refreshBM()
   bmp.buy.sum:SetText(L"выгода = цена на аукционе минус 5% минус ставка на чёрном")
   bmp.dear.sum:SetText(L"разница = ставка на чёрном минус цена на аукционе")
   if d then
-    bmp.status:SetText(string.format(L"Чёрный рынок: снимок %s, лотов: %d, без цены на аукционе: %d. Обновляется, когда вы открываете окно чёрного рынка (между игроками не рассылается).",
+    bmp.status:SetText(string.format(L"Чёрный рынок: снимок %s, предметов: %d, без цены на аукционе: %d. Обновляется сканированием у аукциониста чёрного рынка (между игроками не рассылается).",
       ns.ago(d.t), #buy + #dear + noAH, noAH))
   else
     bmp.status:SetText(L"|cffff9966Чёрный рынок ещё не записан - откройте окно чёрного рынка у его аукциониста.|r")

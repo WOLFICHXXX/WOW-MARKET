@@ -37,7 +37,7 @@ local function addLines(tt, id)
   if v then tt:AddDoubleLine(L"|cffaaaaaa  у торговца|r", ns.money(v)) end
   -- чёрный рынок - отдельно от аукциона
   if bm then
-    tt:AddDoubleLine(L"  |cffc080ffЧёрный рынок|r" .. " |cffaaaaaa(" .. (bm.bids > 0 and (L"ставок: " .. bm.bids) or L"без ставок") .. ", " .. ns.ago(bmT) .. ")|r", ns.money(bm.p))
+    tt:AddDoubleLine(L"  |cffc080ffЧёрный рынок|r" .. " |cffaaaaaa(" .. (bm.lots and (L"лотов: " .. bm.lots) or bm.bids > 0 and (L"ставок: " .. bm.bids) or L"без ставок") .. ", " .. ns.ago(bmT) .. ")|r", ns.money(bm.p))
   end
   local where, net, sell
   if ns.SellWhere then where, net, sell = ns.SellWhere(id) end

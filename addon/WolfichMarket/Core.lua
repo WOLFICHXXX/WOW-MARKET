@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.33.0"
+ns.VERSION = "2.34.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -237,6 +237,18 @@ function ns.MigrateRealmKeys()
   DB.realmKeysV = 1
 end
 
+function ns.FixBMScans()
+  for rk, sc in pairs(ns.DB.ahScans) do
+    if sc.lots and sc.lots < 1000 and sc.items then
+      ns.DB.bmah = ns.DB.bmah or {}
+      local bm = {}
+      for id, r in pairs(sc.items) do if r[1] and r[1] > 0 then bm[id] = { p = r[1], bids = 0, q = r[2], lots = r[3] } end end
+      if not ns.DB.bmah[rk] or (ns.DB.bmah[rk].t or 0) < sc.t then ns.DB.bmah[rk] = { t = sc.t, lots = sc.lots, items = bm } end
+      ns.DB.ahScans[rk] = nil
+      for _, h in pairs(ns.DB.hist) do for i = #h, 1, -1 do if h[i][1] == sc.t then table.remove(h, i) end end end
+    end
+  end
+end
 ns.On("PLAYER_LOGIN", function()
   local name = UnitName("player") or "?"
   local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName and GetRealmName()) or ""
@@ -247,6 +259,9 @@ ns.On("PLAYER_LOGIN", function()
   if guid and old and old.guid and old.guid ~= guid then ns.charKey = ns.charKey .. "~" .. guid:sub(-6) end
   ns.realmKey = ns.NormRealmKey((realm ~= "" and realm or "?") .. "|" .. ((UnitFactionGroup and UnitFactionGroup("player")) or "?"))
   ns.MigrateRealmKeys()
+  -- до 2.34 снимок чёрного рынка (несколько сотен лотов) мог записаться вместо обычного аукциона (сотни тысяч лотов):
+  -- такой маленький «снимок аукциона» переносим в чёрный рынок, а его точки убираем из графиков
+  if not ns.DB.bmFixV then ns.DB.bmFixV = 1; ns.FixBMScans() end
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   local c = DB.chars[ns.charKey]
@@ -309,6 +324,15 @@ end
 -- запомнить цену, увиденную при поиске на аукционе
 function ns.SeenPrice(id, unit, qty)
   if not id or not unit or unit <= 0 then return end
+  -- поиск на чёрном рынке - в его отдельные цены, обычный аукцион не трогаем
+  if ns.ahIsBM and ns.ahOpen then
+    ns.DB.bmah = ns.DB.bmah or {}
+    local d = ns.DB.bmah[ns.realmKey or ""] or { t = time(), items = {} }
+    ns.DB.bmah[ns.realmKey or ""] = d
+    d.items[id] = { p = unit, bids = 0, q = qty or 1 }
+    ns.Fire("BLACKMARKET")
+    return
+  end
   ns.DB.seen[id] = { p = unit, t = time(), q = qty, r = ns.realmKey }
   ns.AddHistory(id, unit, qty or 0, time()) -- каждая свежая цена - точка на графике
 end

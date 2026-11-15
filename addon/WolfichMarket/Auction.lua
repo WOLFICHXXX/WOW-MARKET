@@ -13,6 +13,39 @@ local chartItem, buyItem, sellSel
 
 local function setStatus() ns.Fire("SCAN_STATE") end
 
+-- ---------- чёрный рынок или обычный аукцион ----------
+-- Чёрный рынок открывается тем же окном аукциона, поэтому определяем по аукционисту: имя или подпись
+-- («<Чёрный рынок>»), а если не угадали - кнопкой «Чёрный рынок» на панели (запоминается для этого аукциониста).
+-- Цены чёрного рынка хранятся отдельно и не заменяют цены обычного аукциона.
+-- string.lower не меняет русские буквы - поэтому оба варианта написания
+local BM_WORDS = { "чёрн", "черн", "Чёрн", "Черн", "ЧЁРН", "ЧЕРН", "black market", "blackmarket", "контрабанд", "Контрабанд", "smuggl", "goya", "гойя", "Гойя" }
+local function npcInfo()
+  local guid = UnitGUID and UnitGUID("npc")
+  local id = guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+  local texts = { (UnitName and UnitName("npc")) or "" }
+  local tip = C_TooltipInfo and C_TooltipInfo.GetUnit and safe(C_TooltipInfo.GetUnit, "npc")
+  for _, line in ipairs(tip and tip.lines or {}) do texts[#texts + 1] = line.leftText or "" end
+  return id, texts
+end
+local function detectBM()
+  local id, texts = npcInfo()
+  ns.ahNpc = id
+  ns.DB.bmNpcs = ns.DB.bmNpcs or {}
+  if id and ns.DB.bmNpcs[id] ~= nil then return ns.DB.bmNpcs[id] end
+  for _, t in ipairs(texts) do
+    local low = t:lower()
+    for _, w in ipairs(BM_WORDS) do if low:find(w, 1, true) or t:find(w, 1, true) then return true end end
+  end
+  return false
+end
+function ns.SetAHIsBM(v)
+  ns.ahIsBM = v and true or false
+  if ns.ahNpc then ns.DB.bmNpcs = ns.DB.bmNpcs or {}; ns.DB.bmNpcs[ns.ahNpc] = ns.ahIsBM end
+  ns.say(ns.ahIsBM and L"этот аукцион - чёрный рынок: его цены хранятся отдельно и не заменяют цены обычного аукциона." or L"этот аукцион - обычный.")
+  ns.Fire("SCAN_STATE"); ns.Fire("AH_STATE")
+end
+local function cdKey() return ns.ahIsBM and "bmLastReq" or "ahLastReq" end
+
 local function finishScan()
   if processing then return end
   local n = safe(C_AuctionHouse.GetNumReplicateItems) or 0
@@ -38,6 +71,18 @@ local function finishScan()
     ns.progress = math.floor(i / n * 100)
     setStatus()
     if i < n then ns.After(0, step) return end
+    if ns.ahIsBM then
+      -- снимок чёрного рынка - отдельно: без истории, сигналов и общего рынка
+      local bm = {}
+      for id, r in pairs(items) do if r[1] > 0 then bm[id] = { p = r[1], bids = 0, q = r[2], lots = r[3] } end end
+      ns.DB.bmah = ns.DB.bmah or {}
+      ns.DB.bmah[ns.realmKey] = { t = time(), lots = n, items = bm }
+      busy, processing, ns.progress = false, false, nil
+      local cnt = 0; for _ in pairs(bm) do cnt = cnt + 1 end
+      ns.say(string.format(L"|cffc080ffснимок чёрного рынка готов|r: %d лотов, %d предметов. Цены обычного аукциона не тронуты.", n, cnt))
+      setStatus(); ns.Fire("BLACKMARKET")
+      return
+    end
     local prev = ns.CurrentScan()
     local scan = { t = time(), lots = n, char = ns.charKey, realm = ns.realmKey, items = items }
     ns.DB.ahScans[ns.realmKey] = scan
@@ -59,10 +104,10 @@ function ns.StartScan(auto)
   if not (C_AuctionHouse and C_AuctionHouse.ReplicateItems) then ns.say(L"в этой версии игры нет полного скана аукциона.") return end
   if not ns.ahOpen then wanted = true; ns.say(L"откройте окно аукциона - скан начнётся сам.") return end
   if busy then return end
-  local left = (ns.DB.ahLastReq or 0) + COOLDOWN - time()
+  local left = (ns.DB[cdKey()] or 0) + COOLDOWN - time()
   if left > 0 then if not auto then ns.say(string.format(L"следующий снимок можно через %d:%02d.", math.floor(left / 60), left % 60)) end return end
   busy, wanted = true, false
-  ns.DB.ahLastReq = time()
+  ns.DB[cdKey()] = time()
   setStatus()
   local ok = pcall(C_AuctionHouse.ReplicateItems)
   if not ok then busy = false; setStatus(); ns.say(L"сервер отказал - подождите 15 минут.") return end
@@ -96,11 +141,12 @@ local function autoTick()
   local S = ns.DB.settings
   if not ns.ahOpen or not S.autoScan or busy then return end
   local every = math.max(15, S.autoScanMin or 15) * 60
-  if time() - (ns.DB.ahLastReq or 0) >= every then ns.StartScan(true) end
+  if time() - (ns.DB[cdKey()] or 0) >= every then ns.StartScan(true) end
 end
 
 ns.On("AUCTION_HOUSE_SHOW", function()
   ns.ahOpen = true
+  ns.ahIsBM = detectBM()
   ns.Fire("AH_STATE")
   if panel == nil then ns.BuildAHPanel() elseif panel then panel:Show() end -- крестик скрывает панель только до следующего открытия
   if wanted then ns.After(1, function() ns.StartScan() end) else ns.After(2, autoTick) end
@@ -108,6 +154,7 @@ ns.On("AUCTION_HOUSE_SHOW", function()
 end)
 ns.On("AUCTION_HOUSE_CLOSED", function()
   ns.ahOpen = false
+  ns.ahIsBM = false
   ns.Fire("AH_STATE")
   if autoTicker then autoTicker:Cancel(); autoTicker = nil end
 end)
@@ -229,14 +276,27 @@ local function header()
     GameTooltip:Show()
   end)
   panel.quickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -58); panel.state:SetPoint("RIGHT", panel.quickBtn, "LEFT", -6, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
+  panel.bmBtn = UI.Button(panel, L"Чёрный рынок", 104, 22, function() ns.SetAHIsBM(not ns.ahIsBM) end)
+  panel.bmBtn:SetPoint("RIGHT", panel.quickBtn, "LEFT", -4, 0)
+  panel.bmBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine(L"Горит - этот аукцион считается чёрным рынком: снимки и цены поиска сохраняются отдельно (вкладка «Чёрный рынок» главного окна) и не заменяют цены обычного аукциона. Нажмите, если аддон ошибся - запомнит для этого аукциониста.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  panel.bmBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -58); panel.state:SetPoint("RIGHT", panel.bmBtn, "LEFT", -6, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
 local function updateHeader()
   if not panel then return end
   updateQuick()
   local scan = ns.CurrentScan()
-  local left = (ns.DB.ahLastReq or 0) + COOLDOWN - time()
+  panel.bmBtn:SetGold(ns.ahIsBM == true)
+  if ns.ahIsBM then
+    local d = ns.DB.bmah and ns.DB.bmah[ns.realmKey or ""]
+    scan = d and { t = d.t, lots = d.lots or 0 } or nil
+  end
+  local left = (ns.DB[cdKey()] or 0) + COOLDOWN - time()
   if busy then
     panel.scanBtn:SetLabel(ns.progress and (L"Обработка " .. ns.progress .. "%") or L"Сканирую..."); panel.scanBtn:Disable()
   elseif left > 0 then
@@ -245,7 +305,7 @@ local function updateHeader()
     panel.scanBtn:SetLabel(L"Сканировать"); panel.scanBtn:Enable()
   end
   local S = ns.DB.settings
-  panel.state:SetText((scan and (L"Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. L" лотов") or L"|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
+  panel.state:SetText((ns.ahIsBM and L"|cffc080ffЧёрный рынок|r  " or "") .. (scan and (L"Снимок: " .. ns.ago(scan.t) .. " / " .. scan.lots .. L" лотов") or L"|cffff9966Снимка ещё нет - нажмите «Сканировать».|r")
     .. (S.autoScan and (L"  /  авто раз в " .. S.autoScanMin .. L" мин") or "")
     .. ((ns.NetInfo and ns.NetInfo()) and ("\n" .. L"цены игроков" .. ": " .. ns.ago((ns.NetInfo())) .. " |cff888888(" .. ((select(2, ns.NetInfo()) or ""):match("^[^-]+") or "") .. ")|r") or ""))
 end
