@@ -311,6 +311,40 @@ do
     end
     local okF = pcall(ns._fillMarketTable, rec)
     check(okF, "таблица «где купить, где продать» заполняется без ошибок")
+    -- сортировка списка рецептов игры по прибыли: фиктивное дерево как у игры
+    do
+      local function node(data, kids) local n = { data = data, nodes = kids or {} }
+        function n:GetData() return self.data end
+        function n:GetNodes() return self.nodes end
+        function n:SetSortComparator(c) self.cmp = c; for _, ch in ipairs(self.nodes) do ch.cmp = c end end
+        function n:Sort() local function srt(x) if x.cmp then table.sort(x.nodes, x.cmp) end; for _, ch in ipairs(x.nodes) do srt(ch) end end; srt(self) end
+        return n end
+      ns.DB.chars[ns.charKey].profs["ТестПроф"] = { recipes = {
+        { id = 9001, name = "A", out = 3470, reag = { { 2840, 1 } }, qmin = 1, qmax = 1 },
+        { id = 9002, name = "B", out = 2862, reag = { { 2840, 1 } }, qmin = 1, qmax = 1 } }, line = 1, skill = 1, max = 1 }
+      local saveProf = ns.curProf; ns.curProf = "ТестПроф"; ns.MarkProfitDirty()
+      local cat = node({ categoryInfo = {} }, { node({ recipeInfo = { recipeID = 9002 } }), node({ recipeInfo = { recipeID = 9001 } }) })
+      local root = node({}, { cat })
+      local dp = { GetRootNode = function() return root end }
+      ProfessionsFrame.CraftingPage.RecipeList.ScrollBox.GetDataProvider = function() return dp end
+      local nt = ns.DB.ntah[ns.realmKey]
+      nt.items[3470] = { p = 90000000, q = 1 }; nt.items[2862] = { p = 1, q = 1 }
+      ns.DB.settings.profSort = "neutral"; ns.ApplyRecipeSort()
+      check(cat.nodes[1].data.recipeInfo.recipeID == 9001, "окно профессии: сортировка по прибыли на общем")
+      ns.DB.settings.profSort = nil; ns.ApplyRecipeSort()
+      check(cat.nodes[1].data.recipeInfo.recipeID == 9002, "окно профессии: без галочки - исходный порядок игры")
+      local mtb = ns._marketTable
+      check(mtb and mtb.sortMain and mtb.sortNt, "окно профессии: галочки «по прибыли Ф» и «по прибыли Общ»")
+      ns.ToggleMain()
+      local C = ns._mainCraft
+      local okS = C and C.sortNt and pcall(C.sortNt.scripts.OnClick, (function() C.sortNt:SetChecked(true); return C.sortNt end)())
+      check(okS and ns.DB.settings.craftSort == "neutral", "главное окно: галочка «прибыль по общему»")
+      C.sortMain:SetChecked(true); C.sortMain.scripts.OnClick(C.sortMain)
+      check(ns.DB.settings.craftSort == "main" and not C.sortNt:GetChecked(), "главное окно: галочки взаимоисключающие")
+      ns.DB.settings.craftSort = nil; ns.ToggleMain()
+      nt.items[2862] = nil
+      ns.DB.chars[ns.charKey].profs["ТестПроф"] = nil; ns.curProf = saveProf; ns.MarkProfitDirty()
+    end
     -- «В план» из окна профессии: каждый клик +1 порция
     do
       local mtPlan

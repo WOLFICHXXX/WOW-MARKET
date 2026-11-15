@@ -406,6 +406,51 @@ local function decorate(frame)
 end
 ns._decorateRow = decorate
 
+-- ---------- сортировка списка рецептов игры по прибыли (Ф или Общ) ----------
+-- Внутри каждой группы рецепты встают по убыванию прибыли на выбранном аукционе; без галочки - исходный порядок игры.
+local function recipeSortList()
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local sb = page and page.RecipeList and page.RecipeList.ScrollBox
+  return sb, sb and sb.GetDataProvider and sb:GetDataProvider()
+end
+function ns.ApplyRecipeSort()
+  local sb, dp = recipeSortList()
+  if not dp or not dp.GetRootNode then return end
+  local root = dp:GetRootNode()
+  if not root or not root.SetSortComparator then return end
+  -- запомнить исходный порядок игры (один раз для каждого списка)
+  if not dp.wmIndexed then
+    local i = 0
+    local function walk(node)
+      for _, ch in ipairs((node.GetNodes and node:GetNodes()) or node.nodes or {}) do i = i + 1; ch.wmIdx = i; walk(ch) end
+    end
+    walk(root); dp.wmIndexed = true
+  end
+  local mode = ns.DB.settings.profSort
+  local val = {}
+  if mode then
+    indexRecipes()
+    for rid, pr in pairs(recipeIndex) do if pr.rec.out then val[rid] = ns.ProfitIn(pr.rec, mode) end end
+  end
+  local function key(node)
+    local d = node.GetData and node:GetData()
+    local ri = d and d.recipeInfo
+    return ri and ri.recipeID
+  end
+  local cmp = function(a, b)
+    local ra, rb = key(a), key(b)
+    if mode and ra and rb then
+      local x, y = val[ra], val[rb]
+      if x and y and x ~= y then return x > y end
+      if (x ~= nil) ~= (y ~= nil) then return x ~= nil end
+    end
+    return (a.wmIdx or 0) < (b.wmIdx or 0)
+  end
+  pcall(root.SetSortComparator, root, cmp, true)
+  if root.Sort then pcall(root.Sort, root) end
+  if dp.Invalidate then pcall(dp.Invalidate, dp) end
+end
+
 -- ---------- таблица цен под реагентами в окне профессии ----------
 -- для каждого материала - цена на обоих аукционах и у торговца (дешевле - зелёным),
 -- для результата - продажа на обоих аукционах (дороже - золотым), внизу - где купить и где продать
@@ -473,7 +518,18 @@ local function buildMarketTable(form)
     end
     mt.lines[i] = ln
   end
-  mt.foot = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); mt.foot:SetPoint("BOTTOMLEFT", 8, 6); mt.foot:SetPoint("BOTTOMRIGHT", -8, 6); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
+  mt.foot = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); mt.foot:SetPoint("BOTTOMLEFT", 8, 28); mt.foot:SetPoint("BOTTOMRIGHT", -8, 28); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
+  -- галочки: упорядочить список рецептов по прибыли на фракционном или на общем аукционе
+  local S = ns.DB.settings
+  local function setSort(k, v)
+    S.profSort = v and k or nil
+    mt.sortMain:SetChecked(S.profSort == "main"); mt.sortNt:SetChecked(S.profSort == "neutral")
+    ns.ApplyRecipeSort()
+  end
+  mt.sortMain = UI.Check(mt, L"по прибыли Ф", function() return S.profSort == "main" end, function(v) setSort("main", v) end)
+  mt.sortMain:SetPoint("BOTTOMLEFT", 6, 4)
+  mt.sortNt = UI.Check(mt, L"по прибыли Общ", function() return S.profSort == "neutral" end, function(v) setSort("neutral", v) end)
+  mt.sortNt:SetPoint("LEFT", mt.sortMain.label, "RIGHT", 14, 0)
 end
 local function sm(c) return c and ns.money(c, true) or nil end
 local function fillMarketTable(rec)
@@ -525,7 +581,7 @@ local function fillMarketTable(rec)
   local parts = {}
   for w, n in pairs(buyAt) do parts[#parts + 1] = w .. (n > 1 and (" ×" .. n) or "") end
   table.sort(parts)
-  mt:SetHeight(26 + i * 15 + 34)
+  mt:SetHeight(26 + i * 15 + 56)
   mt.foot:SetText((#parts > 0 and (L"Материалы дешевле: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
     .. (M.best and ("\n" .. L"Продать выгоднее: " .. ns.ALT_COLOR[M.best] .. ns.AltName(M.best) .. "|r, " .. L"прибыль " .. short(M.profit[M.best])) or ""))
   mt:Show()
@@ -575,6 +631,8 @@ local function hookRows()
     pcall(ScrollUtil.AddInitializedFrameCallback, sb, function(_, frame) decorate(frame) end, panel or sb, true)
   end
   if sb.Update then pcall(hooksecurefunc, sb, "Update", function() ns.DecorateRecipeRows() end) end
+  -- игра пересобрала список (поиск, фильтр, другая профессия) - снова отсортировать
+  if sb.SetDataProvider then pcall(hooksecurefunc, sb, "SetDataProvider", function() if ns.DB.settings.profSort then ns.After(0, ns.ApplyRecipeSort) end end) end
   hookForm()
 end
 ns._hookRows = hookRows

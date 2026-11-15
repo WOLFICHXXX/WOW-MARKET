@@ -23,6 +23,11 @@ local function charLabel(ck)
 end
 local function profitStr(pr)
   if not pr.rec.out then return L"|cff888888чары|r" end
+  if ns.DB.settings.craftSort == "neutral" then
+    local v = pr.nprofit
+    if v then return "|cff66d9cc" .. L"Общ" .. "|r " .. (v >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v, true) .. "|r" end
+    return "|cff66d9cc" .. L"Общ" .. "|r |cff777777-|r"
+  end
   if pr.profit then return (pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(pr.profit, true) .. "|r" end
   if pr.missing > 0 then return L"|cffaa8866нет цены|r" end
   return "|cff777777-|r"
@@ -197,7 +202,12 @@ local function refreshCraft()
   local rows = prof and ns.AllRecipeProfits(prof, S.showUnlearned, charKey) or {}
   local data = {}
   for _, pr in ipairs(rows) do if not S.profitOnly or (pr.profit and pr.profit > 0) then data[#data + 1] = pr end end
+  -- сортировка: прибыль на фракционном (Ф), на общем (Общ) или маржа
   local key = craft.sortKey or "profit"
+  if S.craftSort == "neutral" then
+    for _, pr in ipairs(data) do pr.nprofit = pr.rec.out and ns.ProfitIn(pr.rec, "neutral") or nil end
+    key = "nprofit"
+  elseif S.craftSort == "main" then key = "profit" end
   table.sort(data, function(a, b) local x, y = a[key] or -1e12, b[key] or -1e12; if x == y then return a.rec.name < b.rec.name end return x > y end)
   -- группы по требуемому навыку: Ученик 1-74, Подмастерье 75-149, Умелец 150-224, Искусник 225-299, 300+
   local groups, order = {}, {}
@@ -225,7 +235,21 @@ local function refreshCraft()
 end
 
 local function buildCraft(f)
-  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("TOPLEFT", 4, 0); craft.status:SetPoint("RIGHT", -4, 0)
+  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("TOPLEFT", 4, 0); craft.status:SetPoint("RIGHT", f, "CENTER", 0, 0)
+  -- галочки сортировки: по прибыли на фракционном или на общем аукционе
+  do
+    local S = ns.DB.settings
+    local function setSort(k, v)
+      S.craftSort = v and k or nil
+      if v then craft.sortKey = "profit" end
+      craft.sortNt:SetChecked(S.craftSort == "neutral"); craft.sortMain:SetChecked(S.craftSort == "main")
+      refreshCraft()
+    end
+    craft.sortNt = UI.Check(f, L"прибыль по общему", function() return S.craftSort == "neutral" end, function(v) setSort("neutral", v) end)
+    craft.sortNt:SetPoint("TOPRIGHT", -120, 4)
+    craft.sortMain = UI.Check(f, L"прибыль по фракционному", function() return S.craftSort == "main" end, function(v) setSort("main", v) end)
+    craft.sortMain:SetPoint("RIGHT", craft.sortNt, "LEFT", -170, 0)
+  end
   craft.profBtns = {}
   craft.page = f
   for i = 1, 10 do
@@ -283,8 +307,9 @@ local function buildCraft(f)
   local c3 = UI.Check(f, L"учитывать свои материалы", function() return S.useBank end, function(v) S.useBank = v; if ns.MarkProfitDirty then ns.MarkProfitDirty() end; refreshCraft(); ns.Fire("RECIPES") end); c3:SetPoint("TOPLEFT", 400, -48)
   c3:HookScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Материалы из банка и сумок этого персонажа считаются своими: в себестоимость идёт только то, что нужно докупить. Банк запоминается, когда вы открываете его этим персонажем.", 1, 1, 1, true); GameTooltip:Show() end)
   c3:HookScript("OnLeave", function() GameTooltip:Hide() end)
-  local bM = UI.Button(f, L"по марже", 96, 22, function() craft.sortKey = "margin"; refreshCraft() end); bM:SetPoint("TOPRIGHT", 0, -48)
-  local bP = UI.Button(f, L"по прибыли", 104, 22, function() craft.sortKey = "profit"; refreshCraft() end); bP:SetPoint("RIGHT", bM, "LEFT", -6, 0)
+  local function plainSort(k) craft.sortKey = k; S.craftSort = nil; craft.sortNt:SetChecked(false); craft.sortMain:SetChecked(false); refreshCraft() end
+  local bM = UI.Button(f, L"по марже", 96, 22, function() plainSort("margin") end); bM:SetPoint("TOPRIGHT", 0, -48)
+  local bP = UI.Button(f, L"по прибыли", 104, 22, function() plainSort("profit") end); bP:SetPoint("RIGHT", bM, "LEFT", -6, 0)
   craft.list = UI.List(f, 22, function(r)
     -- заголовок группы по требуемому навыку (клик - свернуть/развернуть)
     r.hdr = UI.Font(r, 12, UI.GOLD); r.hdr:SetPoint("LEFT", 6, 0); r.hdr:SetPoint("RIGHT", -6, 0)
