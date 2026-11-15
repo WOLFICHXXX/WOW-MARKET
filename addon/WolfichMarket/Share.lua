@@ -117,11 +117,12 @@ local function pump()
   ns.After(wait, pump)
 end
 -- msg - для обычных путей (до 255 символов), big - то же крупной пачкой для Battle.net (если есть)
-local function send(msg, big, onlyBig)
+-- t - время снимка: новая рассылка выбрасывает из очереди недосланную старую
+local function send(msg, big, onlyBig, t)
   for _, r in ipairs(routes()) do
     if r[1] == "BN" then
-      if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3] } end
-    elseif not onlyBig then queue[#queue + 1] = { msg, r[1], r[2], r[3] } end
+      if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3], t = t } end
+    elseif not onlyBig then queue[#queue + 1] = { msg, r[1], r[2], r[3], t = t } end
   end
   if not sending and (#queue > 0 or #bnQueue > 0) then sending = true; ns.After(0, pump) end
 end
@@ -149,6 +150,10 @@ function ns.ShareScan(scan)
   for id in pairs(ns.NetWanted()) do add(id) end -- сначала то, на что другие игроки поставили сигналы
   for id in pairs(ns.DB.marked) do add(id) end
   for id in pairs(sharedIDs()) do add(id) end -- затем материалы и результаты всех рецептов игры - от профессий сканирующего не зависит
+  local pri = #order                                -- сколько «важных» (сигналы и рецепты) - они уходят первыми
+  for id in pairs(scan.items) do add(id) end       -- потом весь остальной аукцион
+  -- новая рассылка отменяет недосланную старую
+  for _, q in ipairs({ queue, bnQueue }) do for k = #q, 1, -1 do if q[k].t and q[k].t < scan.t then table.remove(q, k) end end end
   local parts, n = {}, 0
   local head = "P^" .. RK() .. "^" .. enc(scan.t) .. "^"
   local cur = head
@@ -168,14 +173,16 @@ function ns.ShareScan(scan)
     bcur = bcur .. body
   end
   if bcur ~= head then bigParts[#bigParts + 1] = bcur end
-  send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or ""))
-  for _, p in ipairs(parts) do send(p, false) end  -- обычные пути: мелкими сообщениями
-  for _, p in ipairs(bigParts) do send(p, p, true) end -- Battle.net: крупными
-  send("E^" .. RK() .. "^" .. enc(scan.t))
+  send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or "") .. "^" .. enc(pri), nil, nil, scan.t)
+  for _, p in ipairs(parts) do send(p, false, nil, scan.t) end  -- обычные пути: мелкими сообщениями
+  for _, p in ipairs(bigParts) do send(p, p, true, scan.t) end -- Battle.net: крупными
+  send("E^" .. RK() .. "^" .. enc(scan.t), nil, nil, scan.t)
   local rs = routes()
   local names = {}
   for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or r[1] == "BN" and r[3] or L"группа" end
   ns.say(string.format(L"общий рынок: отправляю %d цен (%s)", n, #names > 0 and table.concat(names, ", ") or L"|cffff6060некому - нет канала, гильдии, группы и друзей онлайн|r"))
+  local small = 0; for _, r in ipairs(rs) do if r[1] ~= "BN" then small = small + 1 end end
+  if small > 0 then ns.say(string.format(L"общий рынок: сначала сигналы и рецепты (%d), потом остальной аукцион - около %d мин. Не выходите из игры, пока идёт рассылка.", pri, math.ceil(#parts * small * 1.05 / 60))) end
 end
 
 -- ---------- «что нужно»: каждый сообщает в канал свои предметы с сигналами ----------
@@ -238,29 +245,48 @@ local function plausible(id, p)
   if not mine or mine <= 0 then return true end
   return p < mine * 30 and p > mine / 30
 end
-local function finish(sender)
-  local inc = incoming[sender]; incoming[sender] = nil
-  if not inc or not next(inc.items) then return end
+-- применить пришедшие цены (по ходу рассылки - частями, чтобы сигналы и рецепты работали сразу)
+local function apply(inc, sender)
   local net = netTable(ns.realmKey)
   local scan = { t = inc.t, items = {}, net = true, from = sender }
   local cnt = 0
+  inc.applied = inc.applied or {}
   for id, r in pairs(inc.items) do
-    local old = net.items[id]
-    if (not old or old[3] < inc.t) and plausible(id, r[1]) then
-      net.items[id] = { r[1], r[2], inc.t }
-      scan.items[id] = { r[1], r[2], 1 }
-      cnt = cnt + 1
+    if not inc.applied[id] then
+      inc.applied[id] = true
+      local old = net.items[id]
+      if (not old or old[3] < inc.t) and plausible(id, r[1]) then
+        net.items[id] = { r[1], r[2], inc.t }
+        scan.items[id] = { r[1], r[2], 1 }
+        cnt = cnt + 1
+      end
     end
   end
-  if cnt == 0 then return end
+  if cnt == 0 then return 0 end
   net.t, net.from = math.max(net.t or 0, inc.t), sender
   -- точки на графиках для отмеченных и предметов рецептов
   local want = ns.RecipeItems and ns.RecipeItems() or {}
   for id in pairs(ns.DB.marked) do want[id] = true end
   for id in pairs(want) do local r = scan.items[id]; if r then ns.AddHistory(id, r[1], r[2], inc.t) end end
-  ns.say(string.format(L"общий рынок: %d свежих цен от %s (%s)", cnt, (sender:match("^[^-]+") or sender), ns.ago(inc.t)))
+  inc.newCount = (inc.newCount or 0) + cnt
   ns.Fire("PRICES")
   ns.Fire("NET_DONE", scan, nil)
+  return cnt
+end
+-- конец рассылки: lost = отправитель замолчал раньше, чем пришёл весь аукцион
+local function finish(sender, lost)
+  local inc = incoming[sender]; incoming[sender] = nil
+  if not inc then return end
+  apply(inc, sender)
+  local got = 0; for _ in pairs(inc.items) do got = got + 1 end
+  local who = sender:match("^[^-]+") or sender
+  if lost and inc.n and got < inc.n then
+    local priGot = math.min(got, inc.pri or got)
+    ns.say(string.format(L"общий рынок: %s вышел из игры (или пропал из сети) раньше, чем к вам попал весь аукцион. Пришло %d из %d цен: сигналы и рецепты - %d из %d, остальной аукцион - %d из %d.",
+      who, got, inc.n, priGot, inc.pri or inc.n, math.max(0, got - (inc.pri or 0)), math.max(0, inc.n - (inc.pri or 0))), true)
+  else
+    ns.say(string.format(L"общий рынок: весь аукцион от %s (%s) - %d цен, из них свежее ваших: %d.", who, ns.ago(inc.t), got, inc.newCount or 0))
+  end
 end
 
 local function onMessage(prefix, msg, dist, sender)
@@ -324,8 +350,16 @@ local function onMessage(prefix, msg, dist, sender)
     -- один и тот же снимок мог прийти несколькими путями (канал, гильдия, Battle.net) - берём один раз
     if lastFrom[sender .. t] then return end
     lastFrom[sender .. t] = time()
-    incoming[sender] = { t = t, items = {} }
-    ns.After(600, function() if incoming[sender] and incoming[sender].t == t then finish(sender) end end) -- конец потерялся - берём что пришло
+    local parts = {}; for x in (rest .. "^"):gmatch("([^%^]*)%^") do parts[#parts + 1] = x end
+    incoming[sender] = { t = t, items = {}, n = dec(parts[2] or ""), pri = dec(parts[4] or ""), last = (GetTime and GetTime() or time()), msgs = 0 }
+    -- сторож: если сообщения перестали приходить на 90 секунд - отправитель вышел, сообщаем, что успело прийти
+    local function watch()
+      local inc = incoming[sender]
+      if not inc or inc.t ~= t then return end
+      if (GetTime and GetTime() or time()) - inc.last > 90 then finish(sender, true) return end
+      ns.After(15, watch)
+    end
+    ns.After(15, watch)
   elseif kind == "P" then
     local inc = incoming[sender]
     if not inc then return end
@@ -335,6 +369,9 @@ local function onMessage(prefix, msg, dist, sender)
       local id, p, q = dec(a), dec(b), dec(c)
       if id and p and p > 0 then inc.items[id] = { p, q or 0 } end
     end
+    inc.last = (GetTime and GetTime() or time()); inc.msgs = inc.msgs + 1
+    -- по ходу: каждые 20 сообщений применяем пришедшее - важное (сигналы, рецепты) идёт первым и работает сразу
+    if inc.msgs % 20 == 0 then apply(inc, sender) end
   elseif kind == "E" then
     if incoming[sender] and dec(rest) == incoming[sender].t then finish(sender) end
   end

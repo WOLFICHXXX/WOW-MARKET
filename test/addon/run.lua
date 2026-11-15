@@ -556,6 +556,28 @@ end
 WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
 check(WolfichMarketMainFrame.pages[5]:IsShown(), "вкладка «Настройки» в главном окне")
 WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
+-- весь аукцион: сначала важное; отправитель вышел - сообщение, сколько успело прийти
+do
+  local enc = function(x) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; x = math.floor(x); repeat local d = x % 36; s2 = D:sub(d + 1, d + 1) .. s2; x = math.floor(x / 36) until x == 0; return s2 end
+  local sent = {}
+  local oldS, oldG = C_ChatInfo.SendAddonMessage, GetChannelName
+  GetChannelName = function() return 6 end
+  C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m; return 0 end
+  ns.ShareScan({ t = time() + 50000, items = { [2840] = { 150, 30, 2 }, [910001] = { 7, 1, 1 } } })
+  for _ = 1, 30 do advance(1) end
+  local order = {}
+  for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then for a in m:gmatch("%^(%w+),%w+,%w+;") do order[#order + 1] = a end; for a in m:gmatch(";(%w+),%w+,%w+;") do order[#order + 1] = a end end end
+  local all = table.concat(sent, "\n")
+  check(all:find(enc(910001) .. ",", 1, true) and all:find(enc(2840) .. ",", 1, true) and all:find(enc(2840) .. ",", 1, true) < all:find(enc(910001) .. ",", 1, true), "общий рынок: весь аукцион, рецепты раньше остального")
+  C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
+  local rk = ns.NetKey(); local t = time() + 60000
+  ns._netReceive("WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^" .. enc(3) .. "^2.23^" .. enc(1), "CHANNEL", "Ушедший-Realm")
+  ns._netReceive("WolfMkt1", "P^" .. rk .. "^" .. enc(t) .. "^" .. enc(2840) .. "," .. enc(175) .. ",3;", "CHANNEL", "Ушедший-Realm")
+  for _ = 1, 140 do advance(1) end
+  local msg; for _, e in ipairs(ns.log) do if e.msg:find("Ушедший", 1, true) and (e.msg:find("1 из 3", 1, true) or e.msg:find("1 of 3", 1, true)) then msg = e.msg end end
+  check(msg and ns.AHPrice(2840) == 175, "общий рынок: отправитель вышел - пришедшее применено и есть сообщение: " .. tostring(msg))
+  ns.DB.net = nil
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

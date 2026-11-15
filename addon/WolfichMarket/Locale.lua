@@ -439,4 +439,7 @@ ns.EN = {
   ["  -  обновление: WolfichMarket-Updater.bat с сайта или CurseForge.  Команды: /wm help"] = "  -  updates: WolfichMarket-Updater.bat from the site or CurseForge.  Commands: /wm help",
   ["Рассылать весь аукцион, а не только рецепты"] = "Send the whole auction, not just recipes",
   ["Турбо: рассылка в 4 раза быстрее"] = "Turbo: 4x faster sending",
+  ["общий рынок: сначала сигналы и рецепты (%d), потом остальной аукцион - около %d мин. Не выходите из игры, пока идёт рассылка."] = "shared market: alerts and recipes first (%d), then the rest of the auction - about %d min. Stay in the game while sending.",
+  ["общий рынок: %s вышел из игры (или пропал из сети) раньше, чем к вам попал весь аукцион. Пришло %d из %d цен: сигналы и рецепты - %d из %d, остальной аукцион - %d из %d."] = "shared market: %s left the game (or lost connection) before the whole auction reached you. Received %d of %d prices: alerts and recipes - %d of %d, rest of the auction - %d of %d.",
+  ["общий рынок: весь аукцион от %s (%s) - %d цен, из них свежее ваших: %d."] = "shared market: whole auction from %s (%s) - %d prices, fresher than yours: %d.",
 }
