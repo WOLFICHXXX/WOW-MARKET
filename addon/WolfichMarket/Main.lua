@@ -645,7 +645,7 @@ local function buildSettings(f)
 
   local b = column(410, L"Интерфейс")
   chk(b, L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() S.minimapHidden = not S.minimapShown end)
-  chk(b, L"Подсветка в сумках: жёлтая - торговцу, зелёная - на аукцион", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
+  chk(b, L"Значки в сумках: молоток - на аукцион, мешочек - торговцу", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
   chk(b, L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end, true)
   local rChat = buttons(b, L"Сообщения:", { { "window", L"в журнал", 80 }, { "main", L"в чат", 64 }, { "off", L"никуда", 70 } }, function() return S.chatMode or "window" end, function(v) S.chatMode = v end)
   local rLang = buttons(b, L"Язык:", { { "auto", L"Авто", 64 }, { "ru", "Русский", 74 }, { "en", "English", 74 } }, function() return S.lang or "auto" end, function(v) S.lang = v; setp.reload:Show(); setp.note:Show() end)

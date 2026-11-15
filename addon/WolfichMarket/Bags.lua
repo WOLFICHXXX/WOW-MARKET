@@ -1,10 +1,8 @@
--- WolfichMarket: подсветка в сумках — жёлтым, если выгоднее продать торговцу, зелёным — если на аукцион
+-- WolfichMarket: значки в сумках — мешочек с монетой, если выгоднее продать торговцу, молоток — если на аукцион
 local _, ns = ...
 local L = ns.L
 local safe = ns.safe
 
-local YELLOW = { 1, 0.85, 0.1 }
-local GREEN = { 0.25, 1, 0.3 }
 
 -- куда выгоднее продать предмет: "vendor", "ah" или nil
 function ns.SellWhere(id, bound)
@@ -18,19 +16,20 @@ function ns.SellWhere(id, bound)
   return nil
 end
 
-local function glow(btn, color)
-  local g = btn.wmSellGlow
-  if not color then if g then g:Hide() end return end
+-- значок в правом верхнем углу предмета: молоток - на аукцион, мешочек с монетой - торговцу
+local BADGE = { ah = "Interface\\AddOns\\WolfichMarket\\media\\badge-ah", vendor = "Interface\\AddOns\\WolfichMarket\\media\\badge-vendor" }
+local function glow(btn, where)
+  local g = btn.wmSellBadge
+  if btn.wmSellGlow then btn.wmSellGlow:Hide() end -- старая рамка (до 2.26)
+  if not where then if g then g:Hide() end return end
   if not g then
     g = btn:CreateTexture(nil, "OVERLAY", nil, 7)
-    g:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    g:SetBlendMode("ADD")
-    g:SetPoint("CENTER")
-    btn.wmSellGlow = g
+    g:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 3, 3)
+    btn.wmSellBadge = g
   end
-  local w = (btn:GetWidth() or 37) * 1.85
+  local w = math.floor((btn:GetWidth() or 37) * 0.48 + 0.5)
   g:SetSize(w, w)
-  g:SetVertexColor(color[1], color[2], color[3], 1)
+  g:SetTexture(BADGE[where])
   g:Show()
 end
 
@@ -41,7 +40,7 @@ local function paint(btn, bag, slot)
   local id = info and info.itemID
   if not id then glow(btn, nil) return end
   local where = ns.SellWhere(id, info.isBound)
-  glow(btn, where == "ah" and GREEN or where == "vendor" and YELLOW or nil)
+  glow(btn, (where == "ah" or where == "vendor") and where or nil)
 end
 
 local function eachButton(fn)

@@ -26,6 +26,7 @@ OBJ_GetScript = function(self, s) return self.scripts[s] end
 OBJ_HookScript = function(self, s, fn) local old = self.scripts[s]; self.scripts[s] = function(...) if old then old(...) end fn(...) end end
 OBJ_RegisterEvent = function(self, e) if not self.events then self.events = {}; frames[#frames + 1] = self end; self.events[e] = true end
 OBJ_CreateTexture = function(self) return newObj("Texture", nil, self) end
+OBJ_SetTexture = function(self, t) self.tex = t end
 OBJ_CreateLine = function(self) return newObj("Line", nil, self) end
 OBJ_CreateFontString = function(self, n, layer, tmpl) local o = newObj("FontString", nil, self); o.font = tmpl; return o end
 OBJ_SetFont = function(self, f, size) self.font = f; self.fontSize = size; return true end

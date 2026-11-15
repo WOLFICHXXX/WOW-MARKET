@@ -60,8 +60,17 @@ fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
 fire("COMMODITY_PRICE_UPDATED", 101, 1010)
 -- подсветка в сумках
 ns.UpdateBagGlow(); advance(1)
-local g1, g2 = BAGBTNS[1].wmSellGlow, BAGBTNS[2].wmSellGlow
-check(g1 and g1.shown and g2 and g2.shown, "подсветка в сумках появилась")
+local g1, g2 = BAGBTNS[1].wmSellBadge, BAGBTNS[2].wmSellBadge
+check(g1 and g1.shown and g2 and g2.shown, "значки на предметах в сумках появились")
+local function bt(g) return g and g.tex or "" end
+do
+  local old = C_Container.GetContainerItemInfo
+  C_Container.GetContainerItemInfo = function(b, s) if s == 2 then return { itemID = 2862, stackCount = 1 } end return old(b, s) end
+  ns.UpdateBagGlow(); advance(1)
+  C_Container.GetContainerItemInfo = old
+  check(bt(g1):find("badge%-ah") and bt(g2):find("badge%-vendor"), "значки: молоток (аукцион) и мешочек (торговец): " .. bt(g1) .. " / " .. bt(g2))
+  ns.UpdateBagGlow(); advance(1)
+end
 check(ns.SellWhere(2840) == "ah" and ns.SellWhere(2862) == "vendor", "медь - на аукцион (зелёный), точило - торговцу (жёлтый)")
 -- все вкладки панели аукциона
 for i = 1, 6 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
