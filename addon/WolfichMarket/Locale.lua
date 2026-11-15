@@ -486,6 +486,7 @@ ns.EN = {
   ["|cffc080ffснимок чёрного рынка готов|r: %d лотов, %d предметов. Цены обычного аукциона не тронуты."] = "|cffc080ffBlack Market snapshot ready|r: %d lots, %d items. Regular auction prices untouched.",
   ["Горит - этот аукцион считается чёрным рынком: снимки и цены поиска сохраняются отдельно (вкладка «Чёрный рынок» главного окна) и не заменяют цены обычного аукциона. Нажмите, если аддон ошибся - запомнит для этого аукциониста."] = "Lit - this auction house is treated as the Black Market: snapshots and search prices are saved separately (Black Market tab of the main window) and do not replace regular auction prices. Click if the addon guessed wrong - it remembers this auctioneer.",
   ["|cffc080ffЧёрный рынок|r  "] = "|cffc080ffBlack Market|r  ",
+  ["ЧР"] = "BM",
   ["Цена сейчас"] = "Price now",
   ["Ваша цена"] = "Your price",
   ["ваша цена продажи"] = "your sell price",
