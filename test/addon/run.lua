@@ -125,6 +125,22 @@ check(q1 and q1.unit == math.floor((ns.AHPrice(q1.d.id) - 1) * 1.10 + 0.5), "«�
 sell.mulBtns[1].scripts.OnClick(sell.mulBtns[1])
 postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
 check(postedLot ~= nil, "продажа: «Выставить отмеченные» выставил первый лот")
+-- второй клик до подтверждения игрой - не выставляет ещё раз; после подтверждения - следующий лот
+do
+  local firstId = postedLot and postedLot[1]
+  local n0 = 0; for _ in pairs(sell.checked) do n0 = n0 + 1 end
+  postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+  check(postedLot == nil, "массовое выставление: пока игра не подтвердила лот - второй не уходит")
+  fire("AUCTION_HOUSE_AUCTION_CREATED"); advance(1)
+  local n1 = 0; for _ in pairs(sell.checked) do n1 = n1 + 1 end
+  check(n1 == n0 - 1 and sell.bulk.enabled, "после подтверждения - отметка снята, кнопка снова активна")
+  postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+  check(postedLot ~= nil, "массовое выставление: третий клик - следующий лот")
+  -- игра не подтвердила - через несколько секунд можно нажать снова, лот остаётся в очереди
+  advance(5)
+  local n2 = 0; for _ in pairs(sell.checked) do n2 = n2 + 1 end
+  check(sell.pending == nil and n2 == n1, "без подтверждения - лот остаётся в очереди, кнопку можно нажать снова")
+end
 check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
 local buy = P[3]
 ns.OpenBuy(2840); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)

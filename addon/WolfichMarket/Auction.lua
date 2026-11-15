@@ -595,7 +595,7 @@ local function bagItems()
   for bag = 0, (NUM_BAG_SLOTS or 4) do
     for slot = 1, (safe(C_Container.GetContainerNumSlots, bag) or 0) do
       local info = safe(C_Container.GetContainerItemInfo, bag, slot)
-      if info and info.itemID and not info.isBound then
+      if info and info.itemID and not info.isBound and not info.isLocked then -- заблокированный (уже выставляется) - пропускаем
         local loc = ItemLocation and ItemLocation:CreateFromBagAndSlot(bag, slot)
         local valid = not (C_AuctionHouse.IsSellItemValid and loc) or safe(C_AuctionHouse.IsSellItemValid, loc, false)
         if valid then
@@ -789,6 +789,12 @@ local function pageSell(f)
     end
   end
   f.postNext = function()
+    if f.pending then return end -- прошлый лот ещё не подтверждён игрой
+    -- аукцион принимает следующий лот только когда освободится (иначе молча отказывает)
+    if C_AuctionHouse.IsThrottledMessageSystemReady and not safe(C_AuctionHouse.IsThrottledMessageSystemReady) then
+      f.bulkInfo:SetText(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r")
+      return
+    end
     local q = f.queue()
     local it = q[1]; if not it then f.updateBulk() return end
     local d = it.d
@@ -799,16 +805,41 @@ local function pageSell(f)
     if d.commodity then ok, err = pcall(C_AuctionHouse.PostCommodity, d.loc, f.dur, qty, it.unit)
     else ok, err = pcall(C_AuctionHouse.PostItem, d.loc, f.dur, qty, nil, it.unit) end
     if ok then
-      if d.commodity or d.count <= 1 then f.checked[d.id] = nil end
-      ns.say(string.format(L"выставлено: %s ×%d по %s", ns.itemLinkText(d.id), qty, ns.money(it.unit)))
-    else ns.say(L"не удалось выставить: " .. tostring(err)) end
-    f.bulk:Disable()
-    ns.After(1, function() f.list:SetData(bagItems()); f.updateBulk() end)
+      -- отметку снимаем, когда игра подтвердит лот (AUCTION_HOUSE_AUCTION_CREATED); если не подтвердит - лот остаётся в очереди
+      f.pending = { id = d.id, done = d.commodity or d.count <= 1, qty = qty, unit = it.unit, t = GetTime() }
+      f.bulk:Disable()
+      local my = f.pending
+      ns.After(4, function()
+        if f.pending == my then
+          f.pending = nil
+          f.list:SetData(bagItems()); f.updateBulk()
+          f.bulkInfo:SetText(L"|cffffb060Игра не подтвердила лот - нажмите ещё раз.|r")
+        end
+      end)
+    else
+      ns.say(L"не удалось выставить: " .. tostring(err))
+      f.list:SetData(bagItems()); f.updateBulk()
+    end
+  end
+  -- игра подтвердила лот
+  f.onCreated = function()
+    local pd = f.pending
+    if not pd then return end
+    f.pending = nil
+    if pd.done then f.checked[pd.id] = nil end
+    ns.say(string.format(L"выставлено: %s ×%d по %s", ns.itemLinkText(pd.id), pd.qty, ns.money(pd.unit)))
+    ns.After(0.3, function() f.list:SetData(bagItems()); f.updateBulk() end)
   end
   f.refresh = function() f.list:SetData(bagItems()); f.calc(); f.updateBulk() end
 end
-local function posted() ns.say(L"|cff78d98aлот выставлен.|r"); sellSel = nil; if pages[4] and pages[4]:IsShown() then pages[4].sel:SetText(""); pages[4].refresh() end end
+local function posted()
+  local pg = pages[4]
+  if pg and pg.pending then pg.onCreated() return end -- массовое выставление
+  ns.say(L"|cff78d98aлот выставлен.|r"); sellSel = nil
+  if pg and pg:IsShown() then pg.sel:SetText(""); pg.refresh() end
+end
 ns.On("AUCTION_HOUSE_AUCTION_CREATED", posted)
+ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() local pg = pages[4]; if pg and pg:IsShown() and not pg.pending then pg.updateBulk() end end)
 ns.On("BAG_UPDATE_DELAYED", function() if pages[4] and pages[4]:IsShown() then pages[4].refresh() end end)
 
 -- вкладка: график
