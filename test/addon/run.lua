@@ -204,21 +204,16 @@ do
   ns.DB.bmLastReq = 0
   ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
   check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) == ahP, "снимок чёрного рынка не заменил цены обычного аукциона")
-  do
-    local oldMax = ns.BM_MAX_LOTS; ns.BM_MAX_LOTS = 1 -- любой снимок «слишком большой» для чёрного рынка
-    ns.DB.bmLastReq = 0; ns.ahIsBM = true
-    ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
-    check(ns.DB.ahScans[ns.realmKey] ~= scanRef and ns.ahIsBM == false and ns.DB.bmNpcs[99999] == false, "огромный «чёрный рынок» - на самом деле обычный аукцион: сохранён как обычный")
-    ns.BM_MAX_LOTS = oldMax; ns.DB.bmNpcs[99999] = nil; scanRef = ns.DB.ahScans[ns.realmKey]; ahP = ns.AHPrice(2840)
-    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-  end
   check(ns.DB.bmah[ns.realmKey].items[2840] ~= nil, "снимок чёрного рынка сохранён отдельно")
   ns.SeenPrice(2840, 7, 1)
-  check(ns.AHPrice(2840) == ahP and ns.DB.bmah[ns.realmKey].items[2840].p == 7, "поиск на чёрном рынке - в его цены, не в обычные")
+  check(ns.RegularPrice(2840) == ahP and ns.DB.bmah[ns.realmKey].items[2840].p == 7, "поиск на чёрном рынке - в его цены, не в обычные")
+  check(ns.AHPrice(2840) == 7, "у окна чёрного рынка цены аддона - по снимку чёрного рынка")
+  local tt = table.concat(tooltip(2840), "\n")
+  check(tt:find(ns.money(ahP), 1, true) ~= nil, "подсказка у чёрного рынка по-прежнему показывает и обычную цену")
   ns.SetAHIsBM(false)
   check(ns.DB.bmNpcs[99999] == false, "ручное исправление запоминается для аукциониста")
   fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
-  check(ns.ahIsBM == false, "при следующем открытии - как исправили")
+  check(ns.ahIsBM == false and ns.AHPrice(2840) == ahP, "при следующем открытии - как исправили, цены обычные")
   fire("AUCTION_HOUSE_CLOSED"); ns.DB.bmNpcs[99999] = nil
   UnitName, UnitGUID, C_TooltipInfo = oldUN, oldGUID, oldTI
   -- старый случай: снимок чёрного рынка записался вместо обычного - переносится при входе
@@ -230,15 +225,14 @@ do
   ns.DB.ahScans = savedScans
   local moved = ns.DB.bmah["Тест~PvE|Horde"]
   local pt = false; for _, p in ipairs(ns.DB.hist[2840]) do if p[1] == 12345 then pt = true end end
-  -- и наоборот: «чёрный рынок» с десятками тысяч лотов возвращается в обычный аукцион
+  -- исправление ошибки 2.35.0: большой снимок чёрного рынка без отметки персонажа возвращается в чёрный рынок
   do
-    local sv, bv = ns.DB.ahScans, ns.DB.bmah["Тест2~PvE|Horde"]
-    ns.DB.ahScans = {}
-    ns.DB.bmah["Тест2~PvE|Horde"] = { t = 999, lots = 250000, items = { [2840] = { p = 77, q = 5, lots = 2 } } }
-    ns.FixBMScans()
-    local back = ns.DB.ahScans["Тест2~PvE|Horde"]
-    check(back and back.items[2840][1] == 77 and ns.DB.bmah["Тест2~PvE|Horde"] == nil, "огромный «чёрный рынок» вернулся в обычный аукцион")
+    local sv = ns.DB.ahScans
+    ns.DB.ahScans = { ["Тест2~PvE|Horde"] = { t = 999, lots = 300000, items = { [2840] = { 77, 5, 2 } } } }
+    ns.DB.bmFixV = 2; fire("PLAYER_LOGIN"); advance(3)
+    local left2, bmb = ns.DB.ahScans["Тест2~PvE|Horde"], ns.DB.bmah["Тест2~PvE|Horde"]
     ns.DB.ahScans = sv
+    check(left2 == nil and bmb and bmb.items[2840].p == 77 and ns.DB.bmFixV == 3, "снимок чёрного рынка, ошибочно перенесённый в 2.35.0, вернулся")
   end
   check(leftOver == nil and moved and moved.items[2840].p == 99 and not pt, "старый снимок чёрного рынка перенесён из обычного аукциона")
 end

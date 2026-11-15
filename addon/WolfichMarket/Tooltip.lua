@@ -21,7 +21,7 @@ end
 local function addLines(tt, id)
   if not id or not ns.DB or not ns.DB.settings.tooltip or tt.wmDone == id then return end
   tt.wmDone = id
-  local p, t = ns.AHPrice(id)
+  local p, t = ns.RegularPrice(id)
   local v = ns.DB.vendor[id]
   local rec = findRecipe(id)
   local bm, bmT = ns.BlackMarketPrice and ns.BlackMarketPrice(id)

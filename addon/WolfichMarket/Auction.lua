@@ -45,7 +45,7 @@ function ns.SetAHIsBM(v)
   ns.ahIsBM = v and true or false
   if ns.ahNpc then ns.DB.bmNpcs = ns.DB.bmNpcs or {}; ns.DB.bmNpcs[ns.ahNpc] = ns.ahIsBM end
   ns.say(ns.ahIsBM and L"этот аукцион - чёрный рынок: его цены хранятся отдельно и не заменяют цены обычного аукциона." or L"этот аукцион - обычный.")
-  ns.Fire("SCAN_STATE"); ns.Fire("AH_STATE")
+  ns.Fire("SCAN_STATE"); ns.Fire("AH_STATE"); ns.Fire("PRICES")
 end
 local function cdKey() return ns.ahIsBM and "bmLastReq" or "ahLastReq" end
 
@@ -74,12 +74,6 @@ local function finishScan()
     ns.progress = math.floor(i / n * 100)
     setStatus()
     if i < n then ns.After(0, step) return end
-    if ns.ahIsBM and n >= ns.BM_MAX_LOTS then
-      -- столько лотов на чёрном рынке не бывает - значит, аукционист обычный: исправляем и сохраняем как обычный снимок
-      ns.ahIsBM = false
-      if ns.ahNpc then ns.DB.bmNpcs = ns.DB.bmNpcs or {}; ns.DB.bmNpcs[ns.ahNpc] = false end
-      ns.say(string.format(L"в снимке %d лотов - это обычный аукцион, а не чёрный рынок: сохраняю как обычный и запоминаю этого аукциониста.", n))
-    end
     if ns.ahIsBM then
       -- снимок чёрного рынка - отдельно: без истории, сигналов и общего рынка
       local bm = {}
@@ -156,15 +150,16 @@ end
 ns.On("AUCTION_HOUSE_SHOW", function()
   ns.ahOpen = true
   ns.ahIsBM = detectBM()
-  ns.Fire("AH_STATE")
+  ns.Fire("AH_STATE"); if ns.ahIsBM then ns.Fire("PRICES") end
   if panel == nil then ns.BuildAHPanel() elseif panel then panel:Show() end -- крестик скрывает панель только до следующего открытия
   if wanted then ns.After(1, function() ns.StartScan() end) else ns.After(2, autoTick) end
   if not autoTicker and C_Timer and C_Timer.NewTicker then autoTicker = C_Timer.NewTicker(30, autoTick) end
 end)
 ns.On("AUCTION_HOUSE_CLOSED", function()
   ns.ahOpen = false
+  local wasBM = ns.ahIsBM
   ns.ahIsBM = false
-  ns.Fire("AH_STATE")
+  ns.Fire("AH_STATE"); if wasBM then ns.Fire("PRICES") end
   if autoTicker then autoTicker:Cancel(); autoTicker = nil end
 end)
 

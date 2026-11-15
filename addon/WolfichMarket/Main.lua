@@ -632,7 +632,7 @@ function refreshBM()
   local buy, dear, noAH = {}, {}, 0
   ns.WithRealm(rk, function()
     for id, r in pairs(d and d.items or {}) do
-      local ah = ns.AHPrice(id)
+      local ah = ns.RegularPrice(id)
       if not ah then noAH = noAH + 1
       else
         local net = ah * (1 - ns.AH_CUT) -- что получите, продав на аукционе (минус 5%)

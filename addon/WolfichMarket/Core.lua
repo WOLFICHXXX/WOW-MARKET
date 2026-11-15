@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.35.0"
+ns.VERSION = "2.35.1"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -247,24 +247,11 @@ do
   for ch in RU_LO:gmatch("[%z\1-\127\194-\244][\128-\191]*") do lo[#lo + 1] = ch end
   for i, ch in ipairs(up) do RU_MAP[ch] = lo[i] end
 end
-ns.BM_MAX_LOTS = 20000 -- у чёрного рынка сотни лотов, у обычного аукциона - сотни тысяч
 function ns.lower(s)
   if not s then return "" end
   return (s:lower():gsub("[\208\209][\128-\191]", function(ch) return RU_MAP[ch] or ch end))
 end
 function ns.FixBMScans()
-  -- обычный аукцион, по ошибке записанный как чёрный рынок (десятки тысяч лотов) - вернуть на место
-  for rk, d in pairs(ns.DB.bmah or {}) do
-    if d.lots and d.lots >= ns.BM_MAX_LOTS then
-      local cur = ns.DB.ahScans[rk]
-      if not cur or (cur.t or 0) < (d.t or 0) then
-        local items = {}
-        for id, r in pairs(d.items or {}) do items[id] = { r.p, r.q or 0, r.lots or 1 } end
-        ns.DB.ahScans[rk] = { t = d.t, lots = d.lots, items = items, realm = rk }
-      end
-      ns.DB.bmah[rk] = nil
-    end
-  end
   for rk, sc in pairs(ns.DB.ahScans) do
     if sc.lots and sc.lots < 1000 and sc.items then
       ns.DB.bmah = ns.DB.bmah or {}
@@ -288,7 +275,20 @@ ns.On("PLAYER_LOGIN", function()
   ns.MigrateRealmKeys()
   -- до 2.34 снимок чёрного рынка (несколько сотен лотов) мог записаться вместо обычного аукциона (сотни тысяч лотов):
   -- такой маленький «снимок аукциона» переносим в чёрный рынок, а его точки убираем из графиков
-  if (ns.DB.bmFixV or 0) < 2 then ns.DB.bmFixV = 2; ns.FixBMScans() end
+  if not ns.DB.bmFixV then ns.FixBMScans() end
+  -- 2.35.1 ошибочно переносил большой снимок чёрного рынка в обычный аукцион (у такого снимка нет отметки персонажа) - вернуть
+  if ns.DB.bmFixV == 2 then
+    for rk, sc in pairs(ns.DB.ahScans) do
+      if not sc.char and sc.items and (not ns.DB.bmah or not ns.DB.bmah[rk] or (ns.DB.bmah[rk].t or 0) < (sc.t or 0)) then
+        local bm = {}
+        for id, r in pairs(sc.items) do if r[1] and r[1] > 0 then bm[id] = { p = r[1], bids = 0, q = r[2], lots = r[3] } end end
+        ns.DB.bmah = ns.DB.bmah or {}
+        ns.DB.bmah[rk] = { t = sc.t, lots = sc.lots, items = bm }
+        ns.DB.ahScans[rk] = nil
+      end
+    end
+  end
+  ns.DB.bmFixV = 3
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   local c = DB.chars[ns.charKey]
@@ -326,7 +326,20 @@ function ns.WithRealm(rk, fn, ...)
   return a, b
 end
 -- цена за штуку на аукционе: самая свежая из снимка и поисков. Возвращает цена, время, количество
+-- У окна чёрного рынка все цены аддона (списки, прибыль крафта, продажа) берутся из снимка чёрного рынка -
+-- так видно, что выгоднее продать там, а что на обычном аукционе. Подсказка и вкладка «Чёрный рынок» показывают оба.
+function ns.BMView() return ns.ahIsBM and ns.ahOpen and not ns._regularOnly end
 function ns.AHPrice(id)
+  if ns.BMView() then
+    local d = ns.DB.bmah and ns.DB.bmah[ns.priceRealm or ns.realmKey or ""]
+    local r = d and d.items[id]
+    if r and r.p and r.p > 0 then return r.p, d.t, r.q end
+    return nil
+  end
+  return ns.RegularPrice(id)
+end
+-- цена обычного аукциона (всегда, даже у окна чёрного рынка)
+function ns.RegularPrice(id)
   local scan = ns.CurrentScan()
   local p, t, q
   local rec = scan and scan.items and scan.items[id]
@@ -393,6 +406,7 @@ function ns.History(id)
 end
 -- средняя цена за последние N часов (без последней точки)
 function ns.AvgPrice(id, hours)
+  if ns.BMView() then return nil end -- история - цены обычного аукциона, с чёрным рынком не сравниваем
   local h = ns.History(id)
   if not h or #h < 2 then return nil end
   local from = time() - hours * 3600
