@@ -198,6 +198,14 @@ do
     C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Аукционер Фитч" }, { leftText = "<Аукционист>" } } } end }
     fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
     check(ns.ahIsBM == false, "обычный аукционист - обычный аукцион")
+    local oldZ = GetRealZoneText
+    GetRealZoneText = function() return "Лесоречье" end
+    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+    check(ns.ahIsBM == true, "аукцион в Лесоречье - всегда чёрный рынок")
+    GetRealZoneText = function() return "Riverglades" end
+    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+    check(ns.ahIsBM == true, "Riverglades - чёрный рынок")
+    GetRealZoneText = oldZ
     UnitName, C_TooltipInfo, UnitGUID = un, ti, oldG
     fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
   end

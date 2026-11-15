@@ -30,9 +30,22 @@ local function npcInfo()
   if l2 and l2.leftText then texts[#texts + 1] = l2.leftText end
   return id, texts
 end
+-- зоны, где любой аукцион - чёрный рынок (WoW Forever)
+local BM_ZONES = { ["Лесоречье"] = true, ["Riverglades"] = true }
+function ns.InBMZone()
+  local names = { GetRealZoneText and GetRealZoneText(), GetZoneText and GetZoneText(), GetSubZoneText and GetSubZoneText() }
+  local m = C_Map and C_Map.GetBestMapForUnit and safe(C_Map.GetBestMapForUnit, "player")
+  local info = m and C_Map.GetMapInfo and safe(C_Map.GetMapInfo, m)
+  -- зона и все её «родители» на карте (если аукцион в подзоне Лесоречья)
+  local guard = 0
+  while info and guard < 6 do names[#names + 1] = info.name; info = info.parentMapID and info.parentMapID > 0 and safe(C_Map.GetMapInfo, info.parentMapID) or nil; guard = guard + 1 end
+  for _, n in pairs(names) do if n and BM_ZONES[n] then return true end end
+  return false
+end
 local function detectBM()
   local id, texts = npcInfo()
   ns.ahNpc = id
+  if ns.InBMZone() then return true end -- в Лесоречье аукцион - всегда чёрный рынок
   ns.DB.bmNpcs = ns.DB.bmNpcs or {}
   if id and ns.DB.bmNpcs[id] ~= nil then return ns.DB.bmNpcs[id] end
   for _, t in ipairs(texts) do
