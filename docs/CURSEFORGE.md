@@ -20,6 +20,7 @@
 - **Сигналы со своей ценой:** «купить, если не дороже» и «продать, если не дешевле» — цену вписываете сами. Сигналы общие для всех ваших персонажей.
 - **Аукцион прямо из окна аддона:** покупка с автоматическим расчётом цены, продажа с себестоимостью и выводом «выгодно / торговцу», выставление отмеченных по очереди.
 - **Графики цен** с подписями пиков и провалов.
+- **Чёрный рынок отдельно:** откройте его окно — текущие ставки появятся в подсказке предмета отдельной строкой, с ценами аукциона не смешиваются.
 - **Подсказка предмета:** стоимость крафта, цена на аукционе и прибыль со знаком + или −.
 - **Стоимость сумок** над окном сумок, с кнопкой «Сбросить» перед фармом.
 - **Профессии, которых у вас нет,** можно добавить и следить за их ценами.
@@ -56,6 +57,7 @@
 - **Alerts with your own price:** "buy at or below" and "sell at or above" - you set the price. Alerts are shared by all your characters.
 - **Auction house from the addon window:** buying with automatic price calculation, selling with crafting cost and a "worth it / sell to vendor" verdict, posting checked items one by one.
 - **Price charts** with peaks and dips labelled.
+- **Black Market kept separate:** open its window and the current bids show up as a separate line in item tooltips, never mixed with auction prices.
 - **Item tooltip:** crafting cost, auction price and profit with a + or − sign.
 - **Bag value** above your bags, with a "Reset" button before farming.
 - **Professions you don't have** can be added to track their prices.

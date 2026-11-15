@@ -141,6 +141,25 @@ check(#md >= 4 and md[1].header == "Кузнечное дело", "покупк�
 ns.OpenChart(2840)
 -- подсказка
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
+-- чёрный рынок: отдельная строка в подсказке, цены аукциона не трогает
+do
+  local ahBefore = ns.AHPrice(2840)
+  C_BlackMarket = { RequestItems = function() end, GetNumItems = function() return 2 end,
+    GetItemInfoByIndex = function(i)
+      if i == 1 then return "Медный слиток", nil, 1, nil, true, 1, 0, "", 50000, 1000, 0, false, 0, 3, "|Hitem:2840::|h[x]|h", 1 end
+      return "Редкость", nil, 1, nil, true, 1, 0, "", 900000, 1000, 1250000, false, 4, 2, "|Hitem:19019::|h[y]|h", 2
+    end }
+  fire("BLACK_MARKET_OPEN"); advance(1)
+  GameTooltip.wmDone = nil
+  local t1 = table.concat(tooltip(2840), "\n")
+  check(t1:find("Чёрный рынок", 1, true) or t1:find("Black Market", 1, true), "подсказка: строка «Чёрный рынок»")
+  check(ns.AHPrice(2840) == ahBefore, "чёрный рынок не смешивается с аукционом")
+  local r = ns.BlackMarketPrice(19019)
+  check(r and r.p == 1250000 and r.bids == 4, "чёрный рынок: текущая ставка и число ставок")
+  local t2 = table.concat(tooltip(19019), "\n")
+  check(t2:find("Чёрный рынок", 1, true) or t2:find("Black Market", 1, true), "подсказка предмета, которого нет на аукционе - тоже с чёрным рынком")
+  C_BlackMarket = nil
+end
 do
   local outId
   for _, p in pairs(ns.DB.chars[ns.charKey].profs) do for _, r in ipairs(p.recipes or {}) do if not outId and r.out and r.reag and #r.reag > 0 then outId = r.out end end end

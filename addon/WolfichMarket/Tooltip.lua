@@ -24,7 +24,8 @@ local function addLines(tt, id)
   local p, t = ns.AHPrice(id)
   local v = ns.DB.vendor[id]
   local rec = findRecipe(id)
-  if not p and not v and not rec and not ns.IsMarked(id) then return end
+  local bm, bmT = ns.BlackMarketPrice and ns.BlackMarketPrice(id)
+  if not p and not v and not rec and not bm and not ns.IsMarked(id) then return end
   local head = "|cffe6b450WolfichMarket|r" .. (ns.IsMarked(id) and " |cfff0c85a|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t|r" or "")
   if p then
     local avg = ns.AvgPrice(id, 24)
@@ -34,6 +35,10 @@ local function addLines(tt, id)
     tt:AddLine(head)
   end
   if v then tt:AddDoubleLine(L"|cffaaaaaa  у торговца|r", ns.money(v)) end
+  -- чёрный рынок - отдельно от аукциона
+  if bm then
+    tt:AddDoubleLine(L"  |cffc080ffЧёрный рынок|r" .. " |cffaaaaaa(" .. (bm.bids > 0 and (L"ставок: " .. bm.bids) or L"без ставок") .. ", " .. ns.ago(bmT) .. ")|r", ns.money(bm.p))
+  end
   local where, net, sell
   if ns.SellWhere then where, net, sell = ns.SellWhere(id) end
   if where == "ah" then tt:AddDoubleLine(L"  |cff40ff4dВыгоднее: на аукцион|r", sell and ("|cffaaaaaa" .. L"торговец" .. " " .. ns.money(sell, true) .. "|r") or "")
