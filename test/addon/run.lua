@@ -183,17 +183,18 @@ do
   local function has(list, id) for _, d in ipairs(list.data or {}) do if d.id == id then return d end end end
   local cheap, dear = B.buy and has(B.buy.list, 2862), B.dear and has(B.dear.list, 2840)
   check(okT and WolfichMarketMainFrame.pages[3]:IsShown() and ns.DB.settings.aucMode == "bm", "вкладка «Аукционы» открывается, выбран чёрный рынок")
-  check(cheap and cheap.gain > 0, "чёрный рынок: дешёвый лот - в колонке «купить на чёрном, продать на аукционе»")
-  check(dear and not has(B.buy.list, 2840), "чёрный рынок: дорогой лот - в колонке «на чёрном дороже»")
+  check(cheap and cheap.gain > 0, "чёрный рынок: дешёвый лот - в «Лучше купить здесь»")
+  check(dear and not has(B.buy.list, 2840), "чёрный рынок: дорогой лот - в «Лучше продать здесь»")
+  check(not B.all:IsShown(), "у чёрного рынка - только две колонки")
   -- поиск в колонке: по части названия, без учёта регистра (и для русских букв)
   ns.DB.names[2862] = "Грубое точило"
-  B.buy.search:SetText("ГРУБ"); B.buy.search.scripts.OnTextChanged(B.buy.search, true)
+  B.search:SetText("ГРУБ"); B.search.scripts.OnTextChanged(B.search, true)
   check(has(B.buy.list, 2862) ~= nil, "поиск в колонке чёрного рынка: «ГРУБ» находит «Грубое точило»")
-  B.buy.search:SetText("нет такого"); B.buy.search.scripts.OnTextChanged(B.buy.search, true)
+  B.search:SetText("нет такого"); B.search.scripts.OnTextChanged(B.search, true)
   check(#(B.buy.list.data or {}) == 0, "поиск в колонке: лишнее скрыто")
-  B.buy.search:SetText(""); B.buy.search.scripts.OnTextChanged(B.buy.search, true)
+  B.search:SetText(""); B.search.scripts.OnTextChanged(B.search, true)
   check(ns.lower("ЁЖ Abc") == "ёж abc", "нижний регистр с русскими буквами")
-  check(B.status.text:find("без цены", 1, true) or B.status.text:find("without", 1, true), "чёрный рынок: лоты без цены для сравнения посчитаны отдельно")
+  check(B.status.text ~= "", "чёрный рынок: строка состояния")
   -- категории: у каждого аукциона своя
   ns.DB.settings.aucCat = { bm = 7 }
   local oldII = GetItemInfoInstant; local oldC = C_Item
@@ -202,9 +203,17 @@ do
   check(has(B.buy.list, 2862) ~= nil and not has(B.dear.list, 2840), "категория «Хозяйственные товары»: лишние категории скрыты")
   B.kind.main.scripts.OnClick(B.kind.main)
   check(ns.DB.settings.aucCat.main == nil and (B.cat.label and B.cat.label.text or "") ~= "", "у фракционного - своя категория (все)")
-  -- фракционный: сравнение с лучшим из общего и чёрного рынка
-  local dd = has(B.dear.list, 2862)
-  check(not ns.RegularPrice(2862) or (dd and dd.thereKind == "bm"), "фракционный: точило дешевле на чёрном - в «на фракционном дороже, купить на ЧР»")
+  -- фракционный: весь аукцион одним списком, сортировка по заголовкам
+  ns.DB.settings.aucCat.main = nil; B.kind.main.scripts.OnClick(B.kind.main)
+  check(B.all:IsShown() and not B.buy:IsShown() and #(B.all.list.data or {}) > 0, "фракционный: весь аукцион одним списком")
+  B.all.heads.p.scripts.OnClick(B.all.heads.p)
+  local L1 = B.all.list.data
+  check(#L1 < 2 or L1[1].p >= L1[2].p, "фракционный: сортировка по цене (дороже сверху)")
+  B.all.heads.p.scripts.OnClick(B.all.heads.p)
+  L1 = B.all.list.data
+  check(#L1 < 2 or L1[1].p <= L1[2].p, "повторный клик - обратный порядок")
+  local okChg = pcall(B.all.heads.chg.scripts.OnClick, B.all.heads.chg)
+  check(okChg, "сортировка по изменению за сутки")
   -- категория по профессии: готовые предметы / ингредиенты
   do
     local slug, P = next(ns.RS.prof)
