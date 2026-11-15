@@ -67,6 +67,7 @@ end
 local function fillCard(rec)
   sel = rec
   local card = craft.card
+  if card.fade then ns.After(0, card.fade) end -- после раскладки: диапазон прокрутки и растушёвка
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
     card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.prices:Hide(); card.craft:Hide(); card.alarm:Hide(); card.where:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
@@ -355,14 +356,48 @@ local function buildCraft(f)
   local card = CreateFrame("Frame", nil, sf)
   card:SetSize(400, 400)
   sf:SetScrollChild(card)
-  local function resize() local w, h = sf:GetWidth(), sf:GetHeight(); if w and w > 0 then card:SetSize(w, h + EXTRA) end end
-  sf:SetScript("OnSizeChanged", resize); resize()
+  local cur, maxScroll = 0, EXTRA
+  -- прокрутка ровно до графика: заголовок графика встаёт к верхней линии рамки
+  local function range()
+    local st, tt = sf:GetTop(), card.chartTitle and card.chartTitle:GetTop()
+    if not st or not tt then return EXTRA end
+    return math.max(0, math.floor(st - (tt - cur) - 4))
+  end
+  local function resize()
+    local w, h = sf:GetWidth(), sf:GetHeight()
+    if w and w > 0 then maxScroll = math.min(EXTRA, range()); card:SetSize(w, h + maxScroll) end
+  end
+  -- растушёвка у верхней и нижней линии: что уходит за линию - плавно гаснет и не ловит мышь
+  local FADE = 16
+  local function fade()
+    local T, B = sf:GetTop(), sf:GetBottom()
+    if not T or not B then return end
+    local objs = { card:GetChildren() }
+    for _, rg in ipairs({ card:GetRegions() }) do if rg.GetObjectType and rg:GetObjectType() == "FontString" then objs[#objs + 1] = rg end end
+    for _, o in ipairs(objs) do
+      if o ~= card.chart and o.GetTop then
+        local top, bot = o:GetTop(), o:GetBottom()
+        if top and bot then
+          local a = math.min(math.max((T - top) / FADE + 1, 0), math.max(math.min((bot - B) / FADE + 1, 1), 0))
+          a = math.max(0, math.min(1, a))
+          o:SetAlpha(a)
+          if o.EnableMouse and o.IsMouseEnabled then
+            if o.wmMouse == nil then o.wmMouse = o:IsMouseEnabled() end
+            if o.wmMouse then o:EnableMouse(a > 0.3) end
+          end
+        end
+      end
+    end
+  end
+  card.fade = function() resize(); fade() end
+  sf:SetScript("OnSizeChanged", function() resize(); fade() end); resize()
   sf:EnableMouseWheel(true)
   local hint = UI.Font(box, 10, UI.DIM, "OVERLAY"); hint:SetPoint("BOTTOMRIGHT", -16, 8); hint:SetText(L"колёсико мыши - ниже график")
-  local cur = 0
   sf:SetScript("OnMouseWheel", function(self, delta)
-    cur = math.max(0, math.min(EXTRA, cur - delta * 50))
-    self:SetVerticalScroll(cur); hint:SetShown(cur < EXTRA * 0.5)
+    resize()
+    cur = math.max(0, math.min(maxScroll, cur - delta * 40))
+    self:SetVerticalScroll(cur); hint:SetShown(cur < maxScroll * 0.5)
+    fade()
   end)
   card.scroll = sf
   -- второй ряд профессий сдвигает фильтры, список и карточку вниз
