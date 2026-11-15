@@ -194,55 +194,121 @@ local function sharedIDs()
 end
 
 -- разослать свой снимок (только свой, не пересланный чужой)
-function ns.ShareScan(scan)
+-- ---------- плотная запись: самоограниченные числа без разделителей ----------
+-- 90 печатных символов (без «|», «^», «\» и пробела): 45 «продолжающих» цифр и 45 «последних».
+-- Последняя цифра числа берётся из второй половины - так видно, где число кончается.
+local A = {}
+for c = 33, 126 do local ch = string.char(c); if ch ~= "|" and ch ~= "^" and ch ~= "\\" and ch ~= "`" then A[#A + 1] = ch end end
+local HALF = 45
+local IDX = {}; for i, ch in ipairs(A) do IDX[ch] = i - 1 end
+local function zenc(n)
+  n = math.max(0, math.floor(n or 0))
+  local d = { n % HALF }; n = math.floor(n / HALF)
+  while n > 0 do table.insert(d, 1, n % HALF); n = math.floor(n / HALF) end
+  local out = {}
+  for i, v in ipairs(d) do out[i] = (i == #d) and A[v + HALF + 1] or A[v + 1] end
+  return table.concat(out)
+end
+-- разобрать строку в список чисел
+local function zdec(str)
+  local nums, cur = {}, 0
+  for i = 1, #str do
+    local v = IDX[str:sub(i, i)]
+    if not v then return nums end
+    if v >= HALF then nums[#nums + 1] = cur * HALF + (v - HALF); cur = 0 else cur = cur * HALF + v end
+  end
+  return nums
+end
+ns._zenc, ns._zdec = zenc, zdec
+
+-- сообщения из списка предметов: номера по возрастанию, первый - целиком, дальше - разница с предыдущим.
+-- withQty - с количеством (сигналы и рецепты), без него - только цена (остальной аукцион)
+local function pack(kind, t, ids, items, withQty, maxlen)
+  table.sort(ids)
+  local head = kind .. "^" .. RK() .. "^" .. enc(t) .. "^"
+  local out, buf, len, prev = {}, {}, #head, nil
+  for _, id in ipairs(ids) do
+    local r = items[id]
+    local piece = zenc(prev and (id - prev) or id) .. zenc(r[1]) .. (withQty and zenc(r[2] or 0) or "")
+    if len + #piece > maxlen and #buf > 0 then
+      out[#out + 1] = head .. table.concat(buf); buf, prev = {}, nil
+      piece = zenc(id) .. zenc(r[1]) .. (withQty and zenc(r[2] or 0) or "")
+      len = #head
+    end
+    buf[#buf + 1] = piece; len = len + #piece; prev = id
+  end
+  if #buf > 0 then out[#out + 1] = head .. table.concat(buf) end
+  return out
+end
+
+-- что разослано в прошлый раз (в памяти): для «только изменившихся цен»
+local lastSent = {}   -- [ключ аукциона] = { t, full = время полной рассылки, p = { [id] = цена } }
+local FULL_EVERY = 3600
+ns._netResetSent = function() for k in pairs(lastSent) do lastSent[k] = nil end end -- для автотестов
+
+-- разослать свой снимок (только свой, не пересланный чужой). full - целиком (по запросу или раз в час)
+function ns.ShareScan(scan, full)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
-  -- порядок: сначала предметы, на которые игроки поставили сигналы (из общего снимка аукциона), потом все рецепты игры
-  local order, seen = {}, {}
-  local function add(id) if id and not seen[id] then local r = scan.items[id]; if r and r[1] and r[1] > 0 then seen[id] = true; order[#order + 1] = id end end end
-  for id in pairs(ns.NetWanted()) do add(id) end -- сначала то, на что другие игроки поставили сигналы
-  for id in pairs(ns.DB.marked) do add(id) end
-  for id in pairs(sharedIDs()) do add(id) end -- затем материалы и результаты всех рецептов игры - от профессий сканирующего не зависит
-  local pri = #order                                -- сколько «важных» (сигналы и рецепты) - они уходят первыми
-  for id in pairs(scan.items) do add(id) end       -- потом весь остальной аукцион
+  local rk = RK()
+  local last = lastSent[rk]
+  if last and last.t and scan.t < last.t then return end -- уже разослан более свежий снимок
+  if not last or not last.full or time() - last.full >= FULL_EVERY or (last.t and last.t >= scan.t) then full = true end
+  -- порядок: сначала предметы, на которые игроки поставили сигналы, потом все рецепты игры, потом остальной аукцион
+  local seen = {}
+  local g0, g1, g2, rest = {}, {}, {}, {}
+  local function ok(id) local r = scan.items[id]; return id and not seen[id] and r and r[1] and r[1] > 0 end
+  for id in pairs(ns.NetWanted()) do if ok(id) then seen[id] = true; g0[#g0 + 1] = id end end
+  for id in pairs(ns.DB.marked) do if ok(id) then seen[id] = true; g1[#g1 + 1] = id end end
+  for id in pairs(sharedIDs()) do if ok(id) then seen[id] = true; g2[#g2 + 1] = id end end
+  local pri = #g0 + #g1 + #g2
+  local unchanged = 0
+  for id, r in pairs(scan.items) do
+    if ok(id) then
+      seen[id] = true
+      -- остальной аукцион: в обычной рассылке - только изменившиеся с прошлого раза цены
+      if full or not last.p or last.p[id] ~= r[1] then rest[#rest + 1] = id else unchanged = unchanged + 1 end
+    end
+  end
+  local n = pri + #rest
+  if n == 0 then return end
+  -- запомнить разосланное
+  local p = {}
+  for id, r in pairs(scan.items) do if r[1] and r[1] > 0 then p[id] = r[1] end end
+  lastSent[rk] = { t = scan.t, full = full and time() or last.full, p = p }
   -- новая рассылка отменяет недосланную старую
   for _, q in ipairs({ queue, bnQueue }) do for k = #q, 1, -1 do if q[k].t and q[k].t < scan.t then table.remove(q, k) end end end
-  local parts, n = {}, 0
-  local head = "P^" .. RK() .. "^" .. enc(scan.t) .. "^"
-  local cur = head
-  for _, id in ipairs(order) do
-    local r = scan.items[id]
-    local item = enc(id) .. "," .. enc(r[1]) .. "," .. enc(r[2] or 0) .. ";"
-    if #cur + #item > MAXLEN then parts[#parts + 1] = cur; cur = head end
-    cur = cur .. item; n = n + 1
-  end
-  if cur ~= head then parts[#parts + 1] = cur end
-  if n == 0 then return end
-  -- для Battle.net те же цены крупными пачками (до ~3800 символов): в 15 раз меньше сообщений
-  local bigParts, bcur = {}, head
-  for _, p in ipairs(parts) do
-    local body = p:sub(#head + 1)
-    if #bcur + #body > 2000 then bigParts[#bigParts + 1] = bcur; bcur = head end
-    bcur = bcur .. body
-  end
-  if bcur ~= head then bigParts[#bigParts + 1] = bcur end
-  ns._lastShare = { items = n, pri = pri }
-  send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or "") .. "^" .. enc(pri), nil, nil, scan.t)
-  -- обычные пути: мелкими сообщениями; сигналы и рецепты - всем путям, остальной аукцион - только каналу
-  local priParts = 0
-  do local c = 0; for i, p in ipairs(parts) do local _, k = p:gsub(";", ""); c = c + k; if c <= pri then priParts = i end end end
-  for i, p in ipairs(parts) do send(p, false, nil, scan.t, i > priParts + 1) end
-  for _, p in ipairs(bigParts) do send(p, p, true, scan.t) end -- Battle.net: крупнее
-  send("E^" .. RK() .. "^" .. enc(scan.t), nil, nil, scan.t)
+  local priParts = {}
+  for _, m in ipairs(pack("C", scan.t, g0, scan.items, true, MAXLEN)) do priParts[#priParts + 1] = m end
+  for _, m in ipairs(pack("C", scan.t, g1, scan.items, true, MAXLEN)) do priParts[#priParts + 1] = m end
+  for _, m in ipairs(pack("C", scan.t, g2, scan.items, true, MAXLEN)) do priParts[#priParts + 1] = m end
+  local restParts = pack("R", scan.t, rest, scan.items, false, MAXLEN)
+  -- Battle.net - те же данные крупнее
+  local all = {}; for _, id in ipairs(g0) do all[#all + 1] = id end; for _, id in ipairs(g1) do all[#all + 1] = id end; for _, id in ipairs(g2) do all[#all + 1] = id end
+  local bigParts = pack("C", scan.t, all, scan.items, true, 2000)
+  for _, m in ipairs(pack("R", scan.t, rest, scan.items, false, 2000)) do bigParts[#bigParts + 1] = m end
+  ns._lastShare = { items = n, pri = pri, full = full, unchanged = unchanged }
+  -- заголовок: время, сколько цен, версия, сколько важных, тип (f - целиком, d - только изменения)
+  send("H^" .. rk .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or "") .. "^" .. enc(pri) .. "^" .. (full and "f" or "d"), nil, nil, scan.t)
+  -- обычные пути: сигналы и рецепты - всем путям, остальной аукцион - только каналу
+  for _, m in ipairs(priParts) do send(m, false, nil, scan.t) end
+  for _, m in ipairs(restParts) do send(m, false, nil, scan.t, true) end
+  for _, m in ipairs(bigParts) do send(m, m, true, scan.t) end
+  send("E^" .. rk .. "^" .. enc(scan.t), nil, nil, scan.t)
+  local parts = {}
+  for _, m in ipairs(priParts) do parts[#parts + 1] = m end
+  local priCount = #priParts
+  for _, m in ipairs(restParts) do parts[#parts + 1] = m end
   local rs = routes()
   local names = {}
   for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or r[1] == "BN" and r[3] or L"группа" end
-  ns.say(string.format(L"общий рынок: отправляю %d цен (%s)", n, #names > 0 and table.concat(names, ", ") or L"|cffff6060некому - нет канала, гильдии, группы и друзей онлайн|r"))
+  ns.say(string.format(L"общий рынок: отправляю %d цен (%s)", n, #names > 0 and table.concat(names, ", ") or L"|cffff6060некому - нет канала, гильдии, группы и друзей онлайн|r")
+    .. (full and "" or string.format(L" - только изменившиеся, без изменений: %d", unchanged)))
   local small, bytes, msgs, priBytes, priMsgs = 0, 0, 0, 0, 0
   for _, r in ipairs(rs) do if r[1] ~= "BN" then small = small + 1 end end
   for i, p in ipairs(parts) do
-    local k = (i <= priParts + 1) and small or (small > 0 and 1 or 0)
+    local k = (i <= priCount) and small or (small > 0 and 1 or 0)
     bytes = bytes + (#p + OVERHEAD) * k; msgs = msgs + k
-    if i <= priParts + 1 then priBytes = priBytes + (#p + OVERHEAD) * k; priMsgs = priMsgs + k end
+    if i <= priCount then priBytes = priBytes + (#p + OVERHEAD) * k; priMsgs = priMsgs + k end
   end
   for _, r in ipairs(rs) do if r[1] == "BN" then for _, p in ipairs(bigParts) do bytes = bytes + #p + OVERHEAD end end end
   ns._lastShare.bytes, ns._lastShare.msgs, ns._lastShare.priBytes, ns._lastShare.priMsgs = bytes, msgs, priBytes, priMsgs
@@ -356,7 +422,7 @@ local function finish(sender, lost)
     ns.say(string.format(L"общий рынок: %s вышел из игры (или пропал из сети) раньше, чем к вам попал весь аукцион. Пришло %d из %d цен: сигналы и рецепты - %d из %d, остальной аукцион - %d из %d.",
       who, got, inc.n, priGot, inc.pri or inc.n, math.max(0, got - (inc.pri or 0)), math.max(0, inc.n - (inc.pri or 0))), true)
   else
-    ns.say(string.format(L"общий рынок: весь аукцион от %s (%s) - %d цен, из них свежее ваших: %d.", who, ns.ago(inc.t), got, inc.newCount or 0))
+    ns.say(string.format(inc.delta and L"общий рынок: изменения аукциона от %s (%s) - %d цен, из них свежее ваших: %d." or L"общий рынок: весь аукцион от %s (%s) - %d цен, из них свежее ваших: %d.", who, ns.ago(inc.t), got, inc.newCount or 0))
   end
 end
 
@@ -403,7 +469,7 @@ local function onMessage(prefix, msg, dist, sender)
     local scan = ns.DB.ahScans[ns.realmKey]
     if scan and scan.t > t + 600 and S().netSend ~= false then
       local my = scan.t
-      ns.After(1 + math.random() * 4, function() if not ns._netAnswered or ns._netAnswered < my then ns._netAnswered = my; ns.ShareScan(scan) end end)
+      ns.After(1 + math.random() * 4, function() if not ns._netAnswered or ns._netAnswered < my then ns._netAnswered = my; ns.ShareScan(scan, true) end end)
     end
   elseif kind == "H" then
     local t = dec(rest:match("^([^%^]+)")) or 0
@@ -422,7 +488,7 @@ local function onMessage(prefix, msg, dist, sender)
     if lastFrom[sender .. t] then return end
     lastFrom[sender .. t] = time()
     local parts = {}; for x in (rest .. "^"):gmatch("([^%^]*)%^") do parts[#parts + 1] = x end
-    incoming[sender] = { t = t, items = {}, n = dec(parts[2] or ""), pri = dec(parts[4] or ""), last = (GetTime and GetTime() or time()), msgs = 0 }
+    incoming[sender] = { t = t, items = {}, n = dec(parts[2] or ""), pri = dec(parts[4] or ""), delta = parts[5] == "d", last = (GetTime and GetTime() or time()), msgs = 0 }
     -- сторож: если сообщения перестали приходить на 90 секунд - отправитель вышел, сообщаем, что успело прийти
     local function watch()
       local inc = incoming[sender]
@@ -442,6 +508,25 @@ local function onMessage(prefix, msg, dist, sender)
     end
     inc.last = (GetTime and GetTime() or time()); inc.msgs = inc.msgs + 1
     -- по ходу: каждые 20 сообщений применяем пришедшее - важное (сигналы, рецепты) идёт первым и работает сразу
+    if inc.msgs % 20 == 0 then apply(inc, sender) end
+  elseif kind == "C" or kind == "R" then
+    -- плотная запись (2.29+): C - номер, цена, количество; R - номер и цена. Номера - разницей с предыдущим
+    local inc = incoming[sender]
+    if not inc then return end
+    local tstr, body = rest:match("^([^%^]+)%^(.*)$")
+    if not tstr or dec(tstr) ~= inc.t then return end
+    local nums = zdec(body)
+    local step = kind == "C" and 3 or 2
+    local id = 0
+    for i = 1, #nums - step + 1, step do
+      id = (i == 1) and nums[i] or (id + nums[i])
+      local p = nums[i + 1]
+      if p and p > 0 then
+        local old = inc.items[id]
+        inc.items[id] = { p, kind == "C" and nums[i + 2] or (old and old[2]) or (ns.DB.net and ns.DB.net[ns.realmKey] and ns.DB.net[ns.realmKey].items[id] and ns.DB.net[ns.realmKey].items[id][2]) or 0 }
+      end
+    end
+    inc.last = (GetTime and GetTime() or time()); inc.msgs = inc.msgs + 1
     if inc.msgs % 20 == 0 then apply(inc, sender) end
   elseif kind == "E" then
     if incoming[sender] and dec(rest) == incoming[sender].t then finish(sender) end

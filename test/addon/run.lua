@@ -497,6 +497,68 @@ do
   check(ns.DB.target[3470] == nil and ns.DB.target[2840] == nil, "убранный сигнал забывает свою цену")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 end
+-- разбор плотных сообщений C/R (2.29+): список номеров предметов
+function zids(m)
+  local kind, body = m:match("^([CR])%^[^%^]+%^[^%^]+%^(.*)$")
+  if not kind then return {} end
+  local nums = ns._zdec(body); local step = kind == "C" and 3 or 2
+  local out, id = {}, 0
+  for i = 1, #nums - step + 1, step do id = (i == 1) and nums[i] or (id + nums[i]); out[#out + 1] = id end
+  return out, kind
+end
+-- плотная запись: туда-обратно, только изменения, без количества в остальном аукционе
+do
+  for _, n in ipairs({ 0, 1, 44, 45, 46, 2024, 99999, 3500000, 123456789 }) do
+    local d = ns._zdec(ns._zenc(n) .. ns._zenc(7))
+    check(d[1] == n and d[2] == 7, "плотная запись числа " .. n .. " -> " .. tostring(d[1]))
+  end
+  for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
+  local sent = {}
+  C_ChatInfo = C_ChatInfo or {}
+  local oldS, oldG = C_ChatInfo.SendAddonMessage, GetChannelName
+  GetChannelName = function() return 6 end
+  C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m; return 0 end
+  local items = {}
+  for i = 1, 400 do items[600000 + i * 3] = { 1000 + i * 37, i % 9 + 1, 1 } end
+  local T = time() + 70000
+  ns._netResetSent(); ns.ShareScan({ t = T, items = items })
+  for _ = 1, 400 do advance(0.2) end
+  local bytes, cnt = 0, 0
+  local uniq = {}
+  for _, m in ipairs(sent) do local ids = zids(m); if #ids > 0 then bytes = bytes + #m; for _, id in ipairs(ids) do if items[id] and not uniq[id] then uniq[id] = true; cnt = cnt + 1 end end end end
+  check(cnt == 400, "плотная запись: ушли все 400 цен (" .. cnt .. ")")
+  check(bytes / cnt < 8, string.format("плотная запись: %.1f символа на цену (было ~14)", bytes / cnt))
+  local hasR = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "R^" then hasR = true end end
+  check(hasR, "остальной аукцион - без количества (R)")
+  -- приём: другой игрок разбирает эти же сообщения
+  local rk = ns.NetKey()
+  for _, m in ipairs(sent) do ns._netReceive("WolfMkt2", m, "CHANNEL", "Зеркало-Realm") end
+  local mineNet = ns.DB.net and ns.DB.net[ns.realmKey] or { items = {} }
+  local okAll = true
+  for id, r in pairs(items) do local x = mineNet.items[id]; if not x or x[1] ~= r[1] then okAll = false end end
+  check(okAll, "плотная запись: цены разобраны верно")
+  -- вторая рассылка: изменилась одна цена - уходит только она (плюс сигналы и рецепты)
+  sent = {}
+  local items2 = {}; for id, r in pairs(items) do items2[id] = { r[1], r[2], 1 } end
+  items2[600003][1] = 5555
+  ns.ShareScan({ t = T + 900, items = items2 })
+  for _ = 1, 100 do advance(0.2) end
+  local restIds = {}
+  for _, m in ipairs(sent) do local ids, kind = zids(m); if kind == "R" then for _, id in ipairs(ids) do restIds[#restIds + 1] = id end end end
+  check(#restIds == 1 and restIds[1] == 600003, "повторная рассылка - только изменившиеся цены (" .. #restIds .. ")")
+  local hd; for _, m in ipairs(sent) do if m:sub(1, 2) == "H^" then hd = m end end
+  check(hd and hd:sub(-2) == "^d", "заголовок помечен «только изменения»")
+  -- по запросу (Q) - целиком
+  sent = {}
+  ns.ShareScan({ t = T + 1000, items = items2 }, true)
+  for _ = 1, 400 do advance(0.2) end
+  local c2, u2 = 0, {}; for _, m in ipairs(sent) do for _, id in ipairs((zids(m))) do if items2[id] and not u2[id] then u2[id] = true; c2 = c2 + 1 end end end
+  check(c2 == 400, "по запросу - весь аукцион целиком (" .. c2 .. ")")
+  C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
+  for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
+  ns._netResetSent()
+  local net = ns.DB.net and ns.DB.net[ns.realmKey]; if net then net.t = nil; for id in pairs(items) do net.items[id] = nil end end
+end
 -- общий рынок: трафик не превышает лимит (иначе сервер разрывает связь), остальной аукцион - только в канал
 do
   for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
@@ -508,8 +570,8 @@ do
   local oldG, oldGuild = GetChannelName, IsInGuild
   GetChannelName = function() return 5 end; IsInGuild = function() return true end
   local items = {}
-  for i = 1, 3000 do items[500000 + i] = { 100 + i, 3, 1 } end
-  ns.ShareScan({ t = time() + 1, items = items })
+  for i = 1, 20000 do items[500000 + i * 7] = { 100 + i * 13, 3, 1 } end
+  ns._netResetSent(); ns.ShareScan({ t = time() + 1, items = items })
   local t0 = math.floor(GetTime())
   for _ = 1, 1200 do advance(0.1) end
   local total, peak = 0, 0
@@ -526,7 +588,7 @@ do
   -- без турбо: одно имя, медленнее
   ns.DB.settings.netTurbo = false
   prefixes, byRoute, bytes = {}, {}, {}
-  ns.ShareScan({ t = time() + 2, items = items })
+  ns._netResetSent(); ns.ShareScan({ t = time() + 2, items = items })
   for _ = 1, 1200 do advance(0.1) end
   np = 0; for _ in pairs(prefixes) do np = np + 1 end
   local sentNormal = 0; for _, v in pairs(byRoute) do sentNormal = sentNormal + v end
@@ -550,9 +612,9 @@ do
   C_ChatInfo = C_ChatInfo or {}
   C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m end
   local oldG = GetChannelName; GetChannelName = function() return 5 end
-  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [999999] = { 5, 1, 1 } } })
+  ns._netResetSent(); ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [999999] = { 5, 1, 1 } } })
   for _ = 1, 90 do advance(1) end
-  local hasP = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then hasP = true end end
+  local hasP = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "C^" or m:sub(1, 2) == "R^" then hasP = true end end
   local hasH, hasE = false, false; for _, m in ipairs(sent) do if m:sub(1, 2) == "H^" then hasH = true end; if m:sub(1, 2) == "E^" then hasE = true end end
   check(hasH and hasP and hasE, "общий рынок: снимок рассылается (" .. #sent .. " сообщ.)")
   -- приём от другого игрока
@@ -571,10 +633,10 @@ do
   ns._netReceive("WolfMkt1", "W^" .. rk .. "^" .. enc(3470) .. ",", "CHANNEL", "Друг-Realm")
   check(ns.NetWanted()[3470], "общий рынок: получен список сигналов другого игрока")
   sent = {}
-  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [3470] = { 90, 5, 1 } } })
+  ns._netResetSent(); ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [3470] = { 90, 5, 1 } } })
   for _ = 1, 90 do advance(1) end
-  local firstP; for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then firstP = m; break end end
-  check(firstP and firstP:match("%^[^%^]+%^(%w+),") == enc(3470), "общий рынок: чужие сигналы рассылаются первыми")
+  local firstP; for _, m in ipairs(sent) do if m:sub(1, 2) == "C^" then firstP = m; break end end
+  check(firstP and (function() for _, id in ipairs(zids(firstP)) do if id == 3470 then return true end end end)(), "общий рынок: чужие сигналы рассылаются первыми")
   sent = {}
   ns.SeenPrice(3470, 95, 7)
   for _ = 1, 12 do advance(1) end
@@ -607,7 +669,7 @@ do
     GetGameAccountInfoByID = function() return { characterName = "Латыш", realmName = "Realm" } end }
   local bn = false; for _, r in ipairs(ns.NetRoutes()) do if r[1] == "BN" and r[2] == 77 then bn = true end end
   check(bn, "общий рынок: друг Battle.net в WoW - получатель")
-  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
+  ns._netResetSent(); ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
   for _ = 1, 30 do advance(1) end
   check(#bnSent > 0, "общий рынок: цены уходят через Battle.net (" .. #bnSent .. ")")
   local enc = function(n) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; n = math.floor(n); repeat local d = n % 36; s2 = D:sub(d + 1, d + 1) .. s2; n = math.floor(n / 36) until n == 0; return s2 end
@@ -647,7 +709,7 @@ do
   local oldS, oldG = C_ChatInfo.SendAddonMessage, GetChannelName
   GetChannelName = function() return 6 end
   C_ChatInfo.SendAddonMessage = function(p, m) calls = calls + 1; if calls % 2 == 1 then return 3 end; got[#got + 1] = m; return 0 end
-  ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
+  ns._netResetSent(); ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
   for _ = 1, 120 do advance(1) end
   local hasE = false; for _, m in ipairs(got) do if m:sub(1, 2) == "E^" then hasE = true end end
   check(hasE and (ns.netStats.throttled or 0) > 0, "общий рынок: при «слишком часто» сообщения повторяются, а не теряются")
@@ -664,12 +726,12 @@ do
   local oldS, oldG = C_ChatInfo.SendAddonMessage, GetChannelName
   GetChannelName = function() return 6 end
   C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m; return 0 end
-  ns.ShareScan({ t = time() + 50000, items = { [2840] = { 150, 30, 2 }, [910001] = { 7, 1, 1 } } })
+  ns._netResetSent(); ns.ShareScan({ t = time() + 50000, items = { [2840] = { 150, 30, 2 }, [910001] = { 7, 1, 1 } } })
   for _ = 1, 30 do advance(1) end
   local order = {}
-  for _, m in ipairs(sent) do if m:sub(1, 2) == "P^" then for a in m:gmatch("%^(%w+),%w+,%w+;") do order[#order + 1] = a end; for a in m:gmatch(";(%w+),%w+,%w+;") do order[#order + 1] = a end end end
-  local all = table.concat(sent, "\n")
-  check(all:find(enc(910001) .. ",", 1, true) and all:find(enc(2840) .. ",", 1, true) and all:find(enc(2840) .. ",", 1, true) < all:find(enc(910001) .. ",", 1, true), "общий рынок: весь аукцион, рецепты раньше остального")
+  for _, m in ipairs(sent) do for _, id in ipairs((zids(m))) do order[#order + 1] = id end end
+  local pos = {}; for k, id in ipairs(order) do pos[id] = pos[id] or k end
+  check(pos[910001] and pos[2840] and pos[2840] < pos[910001], "общий рынок: весь аукцион, рецепты раньше остального")
   C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
   local rk = ns.NetKey(); local t = time() + 60000
   ns._netReceive("WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^" .. enc(3) .. "^2.23^" .. enc(1), "CHANNEL", "Ушедший-Realm")

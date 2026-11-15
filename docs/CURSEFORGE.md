@@ -9,7 +9,7 @@
 - **Сигналы, не заходя на аукцион.** Впишите свою цену покупки или продажи — уведомление со звуком придёт, как только цена до неё дойдёт. Цену может обновить любой игрок, а вы в это время хоть в другом конце мира.
 - **Только ваш аукцион.** PvP и обычный режим, Альянс и Орда не смешиваются. Игроки с разных «каналов» одного режима видят общий рынок.
 - **Своё важнее чужого.** Чужие цены принимаются, только если они свежее ваших. Явно ненормальные цены отбрасываются.
-- **Тихо и бережно.** Обмен идёт фоном через скрытый канал аддона, с учётом ограничений игры. Друзьям из Battle.net цены уходят мгновенно.
+- **Тихо и бережно.** Обмен идёт фоном через скрытый канал аддона, в безопасных пределах трафика. Цены записываются плотно, а после первого снимка уходят только изменившиеся — рассылка в несколько раз короче.
 - **Под вашим контролем.** «Делиться снимками» и «принимать цены» выключаются в настройках. Проверка связи — `/wmnet`.
 
 ## А ещё
@@ -45,7 +45,7 @@
 - **Alerts without visiting the AH.** Enter your own buy or sell price, and you get a sound notification as soon as the price reaches it, when any player refreshes that price, even from the other side of the world.
 - **Only your auction house.** PvP and normal modes, Alliance and Horde are never mixed. Players on different layers of the same mode share one market.
 - **Yours beats theirs.** Others' prices are used only when they are fresher than yours. Obviously wrong prices are discarded.
-- **Quiet and light.** Data travels in the background through a hidden addon channel, within the game's limits. Battle.net friends get it instantly.
+- **Quiet and light.** Data travels in the background through a hidden addon channel, within safe traffic limits. Prices are packed densely, and after the first snapshot only changed prices are sent, so sending is several times shorter.
 - **You are in control.** "Share snapshots" and "accept prices" can be switched off in settings. Check the connection with `/wmnet`.
 
 ## Also inside

@@ -60,7 +60,7 @@ local function slash(msg)
     end
   elseif msg == "netsend" then
     local scan = ns.DB.ahScans[ns.realmKey]
-    if scan and ns.ShareScan then ns.ShareScan(scan) else ns.tell(L"своего снимка аукциона нет - сделайте его у аукциониста.") end
+    if scan and ns.ShareScan then ns.ShareScan(scan, true) else ns.tell(L"своего снимка аукциона нет - сделайте его у аукциониста.") end
   elseif msg:match("^chat") then
     local m = msg:match("^chat%s+(%a+)")
     local map = { window = "window", main = "main", tab = "tab", quiet = "quiet", off = "off" }
