@@ -243,6 +243,10 @@ do
     row.GetElementData = function() return { GetData = function() return { recipeInfo = { recipeID = 777001 } } end } end
     local okD, errD = pcall(ns._decorateRow, row)
     check(okD and row.wmCols and row.wmCols.main, "строка рецепта: столбики Ф / Общ / ЧР")
+    local cat = CreateFrame("Frame")
+    cat.GetElementData = function() return { GetData = function() return { categoryInfo = { name = "Избранное" } } end } end
+    pcall(ns._decorateRow, cat)
+    check(cat.wmCols and (cat.wmCols.main.text or ""):find("Ф", 1, true) or (cat.wmCols and (cat.wmCols.main.text or ""):find("F", 1, true)), "заголовок группы: подписи столбиков над цифрами")
     nt.items[3470], bm.items[3470], nt.items[2840] = nil, nil, nil
     ProfessionsFrame = oldPF
   end

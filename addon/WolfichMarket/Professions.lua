@@ -347,7 +347,8 @@ end
 -- ---------- три аукциона: Ф - фракционный, Общ - общий, ЧР - чёрный рынок ----------
 local KINDS = { "main", "neutral", "bm" }
 local KSHORT = { main = L"Ф", neutral = L"Общ", bm = L"ЧР" }
-local COLW = 46
+local COLW = 40
+local COLR = -24 -- столбики левее правого края: там у заголовков групп кнопка «свернуть»
 -- короткая сумма: золото, а меньше золотого - серебро
 local function short(c)
   local a = math.abs(c)
@@ -373,11 +374,11 @@ local function decorate(frame)
     frame.wmCols = {}
     for i, k in ipairs(KINDS) do
       local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-      fs:SetPoint("RIGHT", frame, "RIGHT", -6 - (3 - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
+      fs:SetPoint("RIGHT", frame, "RIGHT", COLR - (3 - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
       frame.wmCols[k] = fs
     end
     -- название рецепта не должно залезать под столбики
-    if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", -6 - 3 * COLW, 0) end
+    if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", COLR - 3 * COLW, 0) end
   end
   local pr = ri and recipeIndex[ri.recipeID]
   if pr and pr.rec.out then
@@ -393,35 +394,16 @@ local function decorate(frame)
       fs:Show()
     end
     frame:SetAlpha(ns.DB.settings.profitOnly and not (pr.profit and pr.profit > 0) and 0.35 or 1)
+  elseif data and data.categoryInfo then
+    -- заголовок группы рецептов: подписи столбиков ровно над цифрами
+    for _, k in ipairs(KINDS) do frame.wmCols[k]:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r"); frame.wmCols[k]:Show() end
+    frame:SetAlpha(1)
   else
     for _, fs in pairs(frame.wmCols) do fs:Hide() end
     frame:SetAlpha(ri and ns.DB.settings.profitOnly and 0.35 or 1)
   end
 end
 ns._decorateRow = decorate
-
--- заголовки столбиков над списком рецептов
-local colHead
-local function headers()
-  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
-  local rl = page and page.RecipeList
-  if colHead or not rl or not rl.ScrollBox then return end
-  colHead = CreateFrame("Frame", nil, rl); colHead:SetSize(3 * COLW + 6, 12)
-  colHead:SetPoint("BOTTOMRIGHT", rl.ScrollBox, "TOPRIGHT", -6, 1); colHead:SetFrameLevel(rl.ScrollBox:GetFrameLevel() + 5)
-  for i, k in ipairs(KINDS) do
-    local fs = colHead:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    fs:SetPoint("RIGHT", colHead, "RIGHT", -(3 - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
-    fs:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
-  end
-  colHead:EnableMouse(true)
-  colHead:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine(L"Выгода крафта на каждом аукционе", 1, 0.82, 0)
-    GameTooltip:AddLine(L"Ф - фракционный, Общ - общий (межфракционный), ЧР - чёрный рынок. Материалы - там, где дешевле; продажа - на этом аукционе, минус 5%. Ярко - лучший вариант.", 1, 1, 1, true)
-    GameTooltip:Show()
-  end)
-  colHead:SetScript("OnLeave", function() GameTooltip:Hide() end)
-end
 
 -- ---------- таблица цен под реагентами в окне профессии ----------
 -- для каждого материала - цена на трёх аукционах и у торговца (дешевле - зелёным),
@@ -563,7 +545,6 @@ local function hookRows()
     pcall(ScrollUtil.AddInitializedFrameCallback, sb, function(_, frame) decorate(frame) end, panel or sb, true)
   end
   if sb.Update then pcall(hooksecurefunc, sb, "Update", function() ns.DecorateRecipeRows() end) end
-  headers()
   hookForm()
 end
 ns._hookRows = hookRows
