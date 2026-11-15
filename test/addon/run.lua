@@ -158,6 +158,18 @@ do
   check(r and r.p == 1250000 and r.bids == 4, "чёрный рынок: текущая ставка и число ставок")
   local t2 = table.concat(tooltip(19019), "\n")
   check(t2:find("Чёрный рынок", 1, true) or t2:find("Black Market", 1, true), "подсказка предмета, которого нет на аукционе - тоже с чёрным рынком")
+  -- вкладка «Чёрный рынок»: медь дешевле на чёрном? нет - 50000 против цены аукциона; редкость без цены аукциона
+  ns.DB.bmah[ns.realmKey].items[2862] = { p = 1, bids = 2, q = 1 }   -- точило за 1 медь: выгодно купить на чёрном
+  ns.ToggleMain()
+  local okT = pcall(WolfichMarketMainFrame.tabs[3].scripts.OnClick, WolfichMarketMainFrame.tabs[3])
+  local B = ns._mainBM
+  local function has(list, id) for _, d in ipairs(list.data or {}) do if d.id == id then return d end end end
+  local cheap, dear = B.buy and has(B.buy.list, 2862), B.dear and has(B.dear.list, 2840)
+  check(okT and WolfichMarketMainFrame.pages[3]:IsShown(), "вкладка «Чёрный рынок» открывается")
+  check(cheap and cheap.gain > 0, "чёрный рынок: дешёвый лот - в колонке «купить на чёрном, продать на аукционе»")
+  check(dear and not has(B.buy.list, 2840), "чёрный рынок: дорогой лот - в колонке «на чёрном дороже»")
+  check(B.status.text:find("19019", 1, true) == nil and (B.status.text:find("без цены", 1, true) or B.status.text:find("without", 1, true)), "чёрный рынок: лоты без цены аукциона посчитаны отдельно")
+  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
   C_BlackMarket = nil
 end
 do
@@ -282,8 +294,8 @@ do
   check(own.cost < full.cost and own.crafts == 0 and own.parts[1].buy == 0 and own.parts[2].buy == 5, "свои материалы не идут в себестоимость, недостающее - докупить")
   C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo = oldN, oldI
   ns.DB.settings.useBank = true
-  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
-  check(WolfichMarketMainFrame.pages[3]:IsShown(), "вкладка «Банк» открывается")
+  WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
+  check(WolfichMarketMainFrame.pages[4]:IsShown(), "вкладка «Банк» открывается")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
   local row = recRow(ns._mainCraft.list)
   if row and row.data then row.scripts.OnClick(row) end
@@ -821,8 +833,8 @@ do
   C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
 end
 -- вкладка «Настройки» в главном окне
-WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
-check(WolfichMarketMainFrame.pages[5]:IsShown(), "вкладка «Настройки» в главном окне")
+WolfichMarketMainFrame.tabs[6].scripts.OnClick(WolfichMarketMainFrame.tabs[6])
+check(WolfichMarketMainFrame.pages[6]:IsShown(), "вкладка «Настройки» в главном окне")
 WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 -- весь аукцион: сначала важное; отправитель вышел - сообщение, сколько успело прийти
 do
@@ -853,6 +865,6 @@ for _, e in ipairs(ns.log) do if e.msg:find("ошибка в") or e.msg:find("er
 -- сообщения аддона по умолчанию не идут в чат, а только в журнал главного окна
 local leaked; for _, s in ipairs(allPrinted) do if s:find("общий рынок: отправляю", 1, true) then leaked = s end end
 check(not leaked, "сообщения аддона не засоряют чат (только журнал окна)")
-WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
-check(WolfichMarketMainFrame.pages[4]:IsShown() and #ns.log > 0, "вкладка «Журнал» с сообщениями аддона (" .. #ns.log .. ")")
+WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
+check(WolfichMarketMainFrame.pages[5]:IsShown() and #ns.log > 0, "вкладка «Журнал» с сообщениями аддона (" .. #ns.log .. ")")
 check(not bad, "нет ошибок при сборке окон" .. (bad and (": " .. bad) or ""))

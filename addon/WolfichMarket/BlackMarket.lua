@@ -27,7 +27,7 @@ local function store()
   ns.DB.bmah[ns.realmKey] = { t = time(), items = items }
   local cnt = 0; for _ in pairs(items) do cnt = cnt + 1 end
   ns.say(string.format(L"чёрный рынок: %d лотов запомнено - цены видны в подсказке предмета.", cnt))
-  ns.Fire("PRICES")
+  ns.Fire("BLACKMARKET")
 end
 
 local pendingStore = false
