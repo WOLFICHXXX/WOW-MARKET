@@ -422,6 +422,17 @@ do
   ns.ahOpen = true
   ns.AHSelectTab(7)
   check(ns._ahPages[7]:IsShown() and #ns._ahPages[7].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
+  do
+    ns.DB.ntah = ns.DB.ntah or {}
+    ns.DB.ntah[ns.realmKey] = ns.DB.ntah[ns.realmKey] or { t = time(), items = {} }
+    ns.DB.ntah[ns.realmKey].items[3470] = { p = 1, q = 5 }
+    ns._ahPages[7].refresh()
+    local txt
+    local ids = {}
+    for _, r in ipairs(ns._ahPages[7].items.rows or {}) do if r.data then ids[#ids + 1] = r.data.id .. ":" .. r.data.buy; if r.data.id == 3470 then txt = r.cnt.text end end end
+    check(txt and (txt:find("Общ", 1, true) or txt:find("N", 1, true)), "план: пометка, где материал дешевле (" .. tostring(txt) .. ")")
+    ns.DB.ntah[ns.realmKey].items[3470] = nil
+  end
   ns.OpenBuy(3470, 5, true)
   check(ns._ahPages[3].qty:GetText() == 5, "«Купить» из плана подставляет количество")
   ns.ClearPlans()

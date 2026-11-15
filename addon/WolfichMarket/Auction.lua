@@ -934,7 +934,17 @@ local function pagePlan(f)
   end, function(r, d)
     r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
     local col = (d.bags + d.bank) >= d.need and "|cff78d98a" or "|cffffb060"
-    r.cnt:SetText(L"нужно" .. " " .. d.need .. "   " .. col .. L"сумки" .. " " .. d.bags .. " / " .. L"банк" .. " " .. d.bank .. "|r")
+    -- лёгкая пометка: где этот материал дешевле всего (торговец или один из трёх аукционов)
+    local where = ""
+    if d.buy > 0 and ns.BestBuy then
+      local bp, bk = ns.BestBuy(d.id)
+      local cur = ns.ahOpen and (ns.ahKind or "main")
+      if bk then
+        local tag = bk == "vendor" and ("|cffbbbbbb" .. L"торговец") or (ns.ALT_COLOR[bk] .. ns.KindShort(bk))
+        where = "   |cff888888" .. L"дешевле:" .. "|r " .. tag .. "|r |cff888888" .. ns.money(bp, true) .. "|r" .. (bk == cur and (" |cff78d98a" .. L"(здесь)" .. "|r") or "")
+      end
+    end
+    r.cnt:SetText(L"нужно" .. " " .. d.need .. "   " .. col .. L"сумки" .. " " .. d.bags .. " / " .. L"банк" .. " " .. d.bank .. "|r" .. where)
     if d.buy > 0 then
       r.buy:SetText(d.buy .. (d.unit and (" |cffaaaaaa" .. ns.money(d.unit * d.buy, true) .. "|r") or L" |cffaa8866нет цены|r"))
       r.buyBtn:Show()
