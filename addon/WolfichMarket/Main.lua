@@ -348,7 +348,10 @@ local function buildCraft(f)
   local box = CreateFrame("Frame", nil, f)
   box:SetPoint("TOPLEFT", f, "TOP", 10, -78); box:SetPoint("BOTTOMRIGHT")
   local sf = CreateFrame("ScrollFrame", nil, box)
-  sf:SetPoint("TOPLEFT", 2, -2); sf:SetPoint("BOTTOMRIGHT", -2, 2)
+  sf:SetPoint("TOPLEFT", 4, -6); sf:SetPoint("BOTTOMRIGHT", -4, 6)
+  -- обрезать всё, что уехало за край рамки при прокрутке
+  if sf.SetClipsChildren then sf:SetClipsChildren(true) end
+  if box.SetClipsChildren then box:SetClipsChildren(true) end
   local card = CreateFrame("Frame", nil, sf)
   card:SetSize(400, 400)
   sf:SetScrollChild(card)
