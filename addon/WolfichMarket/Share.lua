@@ -95,9 +95,28 @@ ns.NetRoutes = routes
 -- сообщение возвращается в начало очереди и повторяется позже. Через Battle.net - крупными пачками.
 local THROTTLED = { [3] = true, [8] = true }
 local queue, bnQueue, sending = {}, {}, false
+local bnTurn = false
+-- Общий лимит трафика (байт в секунду) на все пути вместе, включая Battle.net. Сервер разрывает связь
+-- (WOW51900319), если аддоны шлют слишком много данных подряд, поэтому держимся заметно ниже его порога
+-- и оставляем место чату и другим аддонам.
+local RATE, BURST, OVERHEAD = 400, 1000, 40
+local tokens, tokT = BURST, nil
+local function budget(cost)
+  local now = GetTime()
+  if tokT then tokens = math.min(BURST, tokens + (now - tokT) * RATE) end
+  tokT = now
+  if tokens >= cost then tokens = tokens - cost return 0 end
+  return (cost - tokens) / RATE
+end
+ns._netBudget = function() return RATE, BURST end
 local function pump()
-  local e = table.remove(bnQueue, 1) or table.remove(queue, 1) -- Battle.net - быстро и первым
+  -- очереди по очереди: Battle.net не забирает весь трафик у канала
+  bnTurn = not bnTurn
+  local e = (bnTurn and bnQueue[1]) or queue[1] or bnQueue[1]
   if not e then sending = false return end
+  local need = budget(#e[1] + OVERHEAD)
+  if need > 0 then ns.After(math.max(0.1, need), pump) return end -- ждём, пока наберётся «бюджет»
+  if bnQueue[1] == e then table.remove(bnQueue, 1) else table.remove(queue, 1) end
   local C = C_ChatInfo
   local wait = SEND_EVERY
   if e[2] == "BN" then
@@ -112,17 +131,21 @@ local function pump()
       wait = 2
     elseif not ok or res == false or (type(res) == "number" and res ~= 0) then
       ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = e[2] .. " " .. tostring(ok and res or "ошибка")
-    else ns.netStats.sent = ns.netStats.sent + 1; wait = 1.05 end
+    else ns.netStats.sent = ns.netStats.sent + 1 end
   end
   ns.After(wait, pump)
 end
 -- msg - для обычных путей (до 255 символов), big - то же крупной пачкой для Battle.net (если есть)
 -- t - время снимка: новая рассылка выбрасывает из очереди недосланную старую
-local function send(msg, big, onlyBig, t)
+-- rest - «остальной аукцион»: только через канал аддона и Battle.net, без копий в гильдию, группу и шёпотом друзьям
+local function send(msg, big, onlyBig, t, rest)
   for _, r in ipairs(routes()) do
+    if rest and r[1] ~= "CHANNEL" and r[1] ~= "BN" then
+    else
     if r[1] == "BN" then
       if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3], t = t } end
     elseif not onlyBig then queue[#queue + 1] = { msg, r[1], r[2], r[3], t = t } end
+    end
   end
   if not sending and (#queue > 0 or #bnQueue > 0) then sending = true; ns.After(0, pump) end
 end
@@ -169,20 +192,26 @@ function ns.ShareScan(scan)
   local bigParts, bcur = {}, head
   for _, p in ipairs(parts) do
     local body = p:sub(#head + 1)
-    if #bcur + #body > 3800 then bigParts[#bigParts + 1] = bcur; bcur = head end
+    if #bcur + #body > 2000 then bigParts[#bigParts + 1] = bcur; bcur = head end
     bcur = bcur .. body
   end
   if bcur ~= head then bigParts[#bigParts + 1] = bcur end
   send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or "") .. "^" .. enc(pri), nil, nil, scan.t)
-  for _, p in ipairs(parts) do send(p, false, nil, scan.t) end  -- обычные пути: мелкими сообщениями
-  for _, p in ipairs(bigParts) do send(p, p, true, scan.t) end -- Battle.net: крупными
+  -- обычные пути: мелкими сообщениями; сигналы и рецепты - всем путям, остальной аукцион - только каналу
+  local priParts = 0
+  do local c = 0; for i, p in ipairs(parts) do local _, k = p:gsub(";", ""); c = c + k; if c <= pri then priParts = i end end end
+  for i, p in ipairs(parts) do send(p, false, nil, scan.t, i > priParts + 1) end
+  for _, p in ipairs(bigParts) do send(p, p, true, scan.t) end -- Battle.net: крупнее
   send("E^" .. RK() .. "^" .. enc(scan.t), nil, nil, scan.t)
   local rs = routes()
   local names = {}
   for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or r[1] == "BN" and r[3] or L"группа" end
   ns.say(string.format(L"общий рынок: отправляю %d цен (%s)", n, #names > 0 and table.concat(names, ", ") or L"|cffff6060некому - нет канала, гильдии, группы и друзей онлайн|r"))
-  local small = 0; for _, r in ipairs(rs) do if r[1] ~= "BN" then small = small + 1 end end
-  if small > 0 then ns.say(string.format(L"общий рынок: сначала сигналы и рецепты (%d), потом остальной аукцион - около %d мин. Не выходите из игры, пока идёт рассылка.", pri, math.ceil(#parts * small * 1.05 / 60))) end
+  local small, bytes = 0, 0
+  for _, r in ipairs(rs) do if r[1] ~= "BN" then small = small + 1 end end
+  for i, p in ipairs(parts) do bytes = bytes + (#p + OVERHEAD) * (i <= priParts + 1 and small or 1) end
+  for _, r in ipairs(rs) do if r[1] == "BN" then for _, p in ipairs(bigParts) do bytes = bytes + #p + OVERHEAD end end end
+  if small > 0 then ns.say(string.format(L"общий рынок: сначала сигналы и рецепты (%d), потом остальной аукцион - около %d мин. Не выходите из игры, пока идёт рассылка.", pri, math.ceil(bytes / RATE / 60))) end
 end
 
 -- ---------- «что нужно»: каждый сообщает в канал свои предметы с сигналами ----------

@@ -497,6 +497,30 @@ do
   check(ns.DB.target[3470] == nil and ns.DB.target[2840] == nil, "убранный сигнал забывает свою цену")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 end
+-- общий рынок: трафик не превышает лимит (иначе сервер разрывает связь), остальной аукцион - только в канал
+do
+  for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
+  local bytes, byRoute = {}, {}
+  local oldS = C_ChatInfo and C_ChatInfo.SendAddonMessage
+  C_ChatInfo = C_ChatInfo or {}
+  C_ChatInfo.SendAddonMessage = function(p, m, ch) local now = math.floor(GetTime()); bytes[now] = (bytes[now] or 0) + #m + 40; byRoute[ch] = (byRoute[ch] or 0) + 1 end
+  local oldG, oldGuild = GetChannelName, IsInGuild
+  GetChannelName = function() return 5 end; IsInGuild = function() return true end
+  local items = {}
+  for i = 1, 3000 do items[500000 + i] = { 100 + i, 3, 1 } end
+  ns.ShareScan({ t = time() + 1, items = items })
+  local t0 = math.floor(GetTime())
+  for _ = 1, 120 do advance(1) end
+  local total, peak = 0, 0
+  for sec, b in pairs(bytes) do total = total + b; if b > peak then peak = b end end
+  local rate, burst = ns._netBudget()
+  check(total <= rate * 121 + burst, "общий рынок: за 2 мин отправлено " .. total .. " байт - не больше лимита " .. (rate * 121 + burst))
+  check(peak <= burst + rate, "общий рынок: нет всплесков (пик " .. peak .. " байт/с)")
+  check((byRoute.CHANNEL or 0) > (byRoute.GUILD or 0) and (byRoute.GUILD or 0) >= 1, "общий рынок: остальной аукцион - только в канал (канал " .. tostring(byRoute.CHANNEL) .. ", гильдия " .. tostring(byRoute.GUILD) .. ")")
+  for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
+  for _ = 1, 5 do advance(1) end
+  C_ChatInfo.SendAddonMessage = oldS; GetChannelName = oldG; IsInGuild = oldGuild
+end
 -- общий рынок: свой снимок рассылается, чужие цены принимаются (только для своего аукциона)
 do
   local q = ns._netQueue
