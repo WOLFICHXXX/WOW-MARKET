@@ -745,7 +745,7 @@ local function pageSettings(f)
     local c = UI.Check(f, text, function() return S[key] end, function(v) S[key] = v; if after then after() end end)
     c:SetPoint("TOPLEFT", 2, y); y = y - 26
   end
-  chk(L"Уведомления о скачках цен (только отмеченные)", "alerts")
+  chk(L"Уведомления сигналов (когда цена дошла до вашей)", "alerts")
   chk(L"Звук уведомлений", "alertSound")
   chk(L"Уведомление о лучшем крафте после снимка", "bestCraftAlert")
   chk(L"Цена и прибыль в подсказке предмета", "tooltip")
@@ -755,6 +755,7 @@ local function pageSettings(f)
   chk(L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end)
   chk(L"Общий рынок: делиться своими снимками с игроками", "netSend")
   chk(L"Общий рынок: принимать цены от игроков", "netRecv")
+  chk(L"Общий рынок: турбо (рассылка через 4 имени)", "netTurbo")
   -- куда писать сообщения аддона
   local cl = UI.Font(f, 11); cl:SetPoint("TOPLEFT", 6, y - 4); cl:SetText(L"Сообщения:")
   f.chatBtns = {}

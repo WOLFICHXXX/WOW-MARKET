@@ -503,20 +503,40 @@ do
   local bytes, byRoute = {}, {}
   local oldS = C_ChatInfo and C_ChatInfo.SendAddonMessage
   C_ChatInfo = C_ChatInfo or {}
-  C_ChatInfo.SendAddonMessage = function(p, m, ch) local now = math.floor(GetTime()); bytes[now] = (bytes[now] or 0) + #m + 40; byRoute[ch] = (byRoute[ch] or 0) + 1 end
+  local prefixes = {}
+  C_ChatInfo.SendAddonMessage = function(p, m, ch) prefixes[p] = (prefixes[p] or 0) + 1; local now = math.floor(GetTime()); bytes[now] = (bytes[now] or 0) + #m + 40; byRoute[ch] = (byRoute[ch] or 0) + 1 end
   local oldG, oldGuild = GetChannelName, IsInGuild
   GetChannelName = function() return 5 end; IsInGuild = function() return true end
   local items = {}
   for i = 1, 3000 do items[500000 + i] = { 100 + i, 3, 1 } end
   ns.ShareScan({ t = time() + 1, items = items })
   local t0 = math.floor(GetTime())
-  for _ = 1, 120 do advance(1) end
+  for _ = 1, 1200 do advance(0.1) end
   local total, peak = 0, 0
   for sec, b in pairs(bytes) do total = total + b; if b > peak then peak = b end end
   local rate, burst = ns._netBudget()
   check(total <= rate * 121 + burst, "общий рынок: за 2 мин отправлено " .. total .. " байт - не больше лимита " .. (rate * 121 + burst))
   check(peak <= burst + rate, "общий рынок: нет всплесков (пик " .. peak .. " байт/с)")
   check((byRoute.CHANNEL or 0) > (byRoute.GUILD or 0) and (byRoute.GUILD or 0) >= 1, "общий рынок: остальной аукцион - только в канал (канал " .. tostring(byRoute.CHANNEL) .. ", гильдия " .. tostring(byRoute.GUILD) .. ")")
+  local np = 0; for _ in pairs(prefixes) do np = np + 1 end
+  check(np == 4, "турбо: рассылка через 4 служебных имени (" .. np .. ")")
+  local sentTurbo = 0; for _, v in pairs(byRoute) do sentTurbo = sentTurbo + v end
+  for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
+  for _ = 1, 5 do advance(1) end
+  -- без турбо: одно имя, медленнее
+  ns.DB.settings.netTurbo = false
+  prefixes, byRoute, bytes = {}, {}, {}
+  ns.ShareScan({ t = time() + 2, items = items })
+  for _ = 1, 1200 do advance(0.1) end
+  np = 0; for _ in pairs(prefixes) do np = np + 1 end
+  local sentNormal = 0; for _, v in pairs(byRoute) do sentNormal = sentNormal + v end
+  check(np == 1 and sentNormal < sentTurbo, "без турбо: одно имя и медленнее (" .. sentNormal .. " против " .. sentTurbo .. " сообщ. за 2 мин)")
+  local total2 = 0; for _, b2 in pairs(bytes) do total2 = total2 + b2 end
+  local r2, b2 = ns._netBudget()
+  check(total2 <= r2 * 121 + b2, "без турбо: не больше лимита")
+  local n1, f1 = ns.NetSendTime(28000, 100)
+  check(f1 < n1, "оценка времени: турбо быстрее (" .. math.floor(f1) .. " с против " .. math.floor(n1) .. " с)")
+  ns.DB.settings.netTurbo = nil
   for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
   for _ = 1, 5 do advance(1) end
   C_ChatInfo.SendAddonMessage = oldS; GetChannelName = oldG; IsInGuild = oldGuild

@@ -49,7 +49,15 @@ local function slash(msg)
     if #by > 0 then ns.out("  " .. L"пришло через" .. ": " .. table.concat(by, ", ")) end
     local t, from = ns.NetInfo and ns.NetInfo()
     ns.out("  " .. L"цены игроков" .. ": " .. (t and (ns.ago(t) .. " (" .. tostring(from) .. ")") or L"ещё не приходили"))
-    ns.out("  " .. L"делиться" .. ": " .. (ns.DB.settings.netSend ~= false and L"вкл" or L"выкл") .. "   " .. L"принимать" .. ": " .. (ns.DB.settings.netRecv ~= false and L"вкл" or L"выкл"))
+    ns.out("  " .. L"делиться" .. ": " .. (ns.DB.settings.netSend ~= false and L"вкл" or L"выкл") .. "   " .. L"принимать" .. ": " .. (ns.DB.settings.netRecv ~= false and L"вкл" or L"выкл") .. "   " .. L"турбо" .. ": " .. (ns.DB.settings.netTurbo ~= false and L"вкл" or L"выкл"))
+    -- сколько уходит рассылка последнего снимка: обычный режим и турбо
+    local ls = ns._lastShare
+    if ls and ls.bytes and ns.NetSendTime then
+      local function m(sec) return sec < 60 and (math.ceil(sec) .. L" с") or (math.ceil(sec / 60) .. L" мин") end
+      local n1, f1 = ns.NetSendTime(ls.priBytes, ls.priMsgs)
+      local n2, f2 = ns.NetSendTime(ls.bytes, ls.msgs)
+      ns.out("  " .. string.format(L"рассылка снимка (%d цен): сигналы и рецепты - обычно %s, турбо %s; весь аукцион - обычно %s, турбо %s", ls.items, m(n1), m(f1), m(n2), m(f2)))
+    end
   elseif msg == "netsend" then
     local scan = ns.DB.ahScans[ns.realmKey]
     if scan and ns.ShareScan then ns.ShareScan(scan) else ns.tell(L"своего снимка аукциона нет - сделайте его у аукциониста.") end
