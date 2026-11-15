@@ -426,7 +426,7 @@ local seenOut, seenQueued = {}, false
 local origSeen = ns.SeenPrice
 ns.SeenPrice = function(id, unit, qty)
   origSeen(id, unit, qty)
-  if ns.ahIsBM and ns.ahOpen then return end -- цены чёрного рынка не рассылаются
+  if ns.ahIsBM and ns.ahOpen then return end -- цены общего аукциона не рассылаются
   if S().netSend == false or not id or not unit or unit <= 0 then return end
   if not ns.NetWanted()[id] then return end
   seenOut[id] = { unit, qty or 0 }

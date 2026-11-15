@@ -344,9 +344,10 @@ local function indexRecipes()
   wipe(recipeIndex)
   for _, pr in ipairs(ns.AllRecipeProfits(ns.curProf, ns.DB.settings.showUnlearned)) do recipeIndex[pr.rec.id] = pr end
 end
--- ---------- три аукциона: Ф - фракционный, Общ - общий, ЧР - чёрный рынок ----------
-local KINDS = { "main", "neutral", "bm" }
-local KSHORT = { main = L"Ф", neutral = L"Общ", bm = L"ЧР" }
+-- ---------- два аукциона: Ф - фракционный, Общ - общий ----------
+local KINDS = { "main", "neutral" }
+local KSHORT = { main = L"Ф", neutral = L"Общ" }
+local NK = #KINDS
 local COLW = 40
 local COLR = -24 -- столбики левее правого края: там у заголовков групп кнопка «свернуть»
 -- короткая сумма: золото, а меньше золотого - серебро
@@ -374,11 +375,11 @@ local function decorate(frame)
     frame.wmCols = {}
     for i, k in ipairs(KINDS) do
       local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-      fs:SetPoint("RIGHT", frame, "RIGHT", COLR - (3 - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
+      fs:SetPoint("RIGHT", frame, "RIGHT", COLR - (NK - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
       frame.wmCols[k] = fs
     end
     -- название рецепта не должно залезать под столбики
-    if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", COLR - 3 * COLW, 0) end
+    if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", COLR - NK * COLW, 0) end
   end
   local pr = ri and recipeIndex[ri.recipeID]
   if pr and pr.rec.out then
@@ -406,8 +407,8 @@ end
 ns._decorateRow = decorate
 
 -- ---------- таблица цен под реагентами в окне профессии ----------
--- для каждого материала - цена на трёх аукционах и у торговца (дешевле - зелёным),
--- для результата - продажа на трёх аукционах (дороже - золотым), внизу - где купить и где продать
+-- для каждого материала - цена на обоих аукционах и у торговца (дешевле - зелёным),
+-- для результата - продажа на обоих аукционах (дороже - золотым), внизу - где купить и где продать
 function ns.RecipeMarket(rec)
   local rows = {}
   for _, r in ipairs(rec.reag or {}) do
@@ -437,7 +438,7 @@ local function buildMarketTable(form)
   mt.bg = mt:CreateTexture(nil, "BACKGROUND"); mt.bg:SetAllPoints(); mt.bg:SetColorTexture(0, 0, 0, 0.45)
   mt.title = mt:CreateFontString(nil, "OVERLAY", "GameFontNormal"); mt.title:SetPoint("TOPLEFT", 8, -6); mt.title:SetText(L"Где купить и где продать")
   mt.cols = {}
-  local colX = { main = -130, neutral = -72, bm = -14 }
+  local colX = { main = -72, neutral = -14 }
   mt.colX = colX
   for _, k in ipairs(KINDS) do
     local h = mt:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", colX[k], -8); h:SetWidth(56); h:SetJustifyH("RIGHT")

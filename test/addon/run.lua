@@ -157,52 +157,41 @@ check(#md >= 4 and md[1].header == "Кузнечное дело", "покупк�
 ns.OpenChart(2840)
 -- подсказка
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
--- чёрный рынок: отдельная строка в подсказке, цены аукциона не трогает
+-- общий аукцион: отдельная строка в подсказке и вкладка «Аукционы»
 do
   local ahBefore = ns.AHPrice(2840)
-  C_BlackMarket = { RequestItems = function() end, GetNumItems = function() return 2 end,
-    GetItemInfoByIndex = function(i)
-      if i == 1 then return "Медный слиток", nil, 1, nil, true, 1, 0, "", 50000, 1000, 0, false, 0, 3, "|Hitem:2840::|h[x]|h", 1 end
-      return "Редкость", nil, 1, nil, true, 1, 0, "", 900000, 1000, 1250000, false, 4, 2, "|Hitem:19019::|h[y]|h", 2
-    end }
-  fire("BLACK_MARKET_OPEN"); advance(1)
+  ns.DB.ntah = ns.DB.ntah or {}
+  ns.DB.ntah[ns.realmKey] = { t = time(), lots = 3, items = { [2840] = { p = 50000, q = 1 }, [19019] = { p = 1250000, q = 1 } } }
   GameTooltip.wmDone = nil
   local t1 = table.concat(tooltip(2840), "\n")
-  check(t1:find("Чёрный рынок", 1, true) or t1:find("Black Market", 1, true), "подсказка: строка «Чёрный рынок»")
-  check(ns.AHPrice(2840) == ahBefore, "чёрный рынок не смешивается с аукционом")
-  local r = ns.BlackMarketPrice(19019)
-  check(r and r.p == 1250000 and r.bids == 4, "чёрный рынок: текущая ставка и число ставок")
-  local t2 = table.concat(tooltip(19019), "\n")
-  check(t2:find("Чёрный рынок", 1, true) or t2:find("Black Market", 1, true), "подсказка предмета, которого нет на аукционе - тоже с чёрным рынком")
-  -- вкладка «Чёрный рынок»: медь дешевле на чёрном? нет - 50000 против цены аукциона; редкость без цены аукциона
-  ns.DB.bmah[ns.realmKey].items[2862] = { p = 1, bids = 2, q = 1 }   -- точило за 1 медь: выгодно купить на чёрном
+  check(t1:find("Общий аукцион", 1, true) or t1:find("Neutral", 1, true), "подсказка: строка «Общий аукцион»")
+  check(not t1:find("Чёрный рынок", 1, true), "чёрного рынка в подсказке больше нет")
+  check(ns.AHPrice(2840) == ahBefore, "общий аукцион не смешивается с фракционным")
+  ns.DB.ntah[ns.realmKey].items[2862] = { p = 1, q = 1 }   -- точило за 1 медь: выгодно купить на общем
   ns.ToggleMain()
   local okT = pcall(WolfichMarketMainFrame.tabs[3].scripts.OnClick, WolfichMarketMainFrame.tabs[3])
   local B = ns._mainAuc
-  B.kind.bm.scripts.OnClick(B.kind.bm)
+  check(B.kind.bm == nil, "кнопки «Чёрный рынок» больше нет")
+  B.kind.neutral.scripts.OnClick(B.kind.neutral)
   local function has(list, id) for _, d in ipairs(list.data or {}) do if d.id == id then return d end end end
-  local cheap, dear = B.buy and has(B.buy.list, 2862), B.dear and has(B.dear.list, 2840)
-  check(okT and WolfichMarketMainFrame.pages[3]:IsShown() and ns.DB.settings.aucMode == "bm", "вкладка «Аукционы» открывается, выбран чёрный рынок")
-  check(cheap and cheap.gain > 0, "чёрный рынок: дешёвый лот - в «Лучше купить здесь»")
-  check(dear and not has(B.buy.list, 2840), "чёрный рынок: дорогой лот - в «Лучше продать здесь»")
-  check(not B.all:IsShown(), "у чёрного рынка - только две колонки")
-  -- поиск в колонке: по части названия, без учёта регистра (и для русских букв)
+  local cheap, dear = has(B.buy.list, 2862), has(B.dear.list, 2840)
+  check(okT and WolfichMarketMainFrame.pages[3]:IsShown() and ns.DB.settings.aucMode == "neutral", "вкладка «Аукционы» открывается, выбран общий")
+  check(cheap and cheap.gain > 0, "общий: дешёвый лот - в «Лучше купить здесь»")
+  check(dear and not has(B.buy.list, 2840), "общий: дорогой лот - в «Лучше продать здесь»")
+  check(not B.all:IsShown(), "у общего - только две колонки")
   ns.DB.names[2862] = "Грубое точило"
   B.search:SetText("ГРУБ"); B.search.scripts.OnTextChanged(B.search, true)
-  check(has(B.buy.list, 2862) ~= nil, "поиск в колонке чёрного рынка: «ГРУБ» находит «Грубое точило»")
+  check(has(B.buy.list, 2862) ~= nil, "поиск: «ГРУБ» находит «Грубое точило»")
   B.search:SetText("нет такого"); B.search.scripts.OnTextChanged(B.search, true)
-  check(#(B.buy.list.data or {}) == 0, "поиск в колонке: лишнее скрыто")
+  check(#(B.buy.list.data or {}) == 0, "поиск: лишнее скрыто")
   B.search:SetText(""); B.search.scripts.OnTextChanged(B.search, true)
   check(ns.lower("ЁЖ Abc") == "ёж abc", "нижний регистр с русскими буквами")
-  check(B.status.text ~= "", "чёрный рынок: строка состояния")
   -- категории: у каждого аукциона своя
-  ns.DB.settings.aucCat = { bm = 7 }
-  local oldII = GetItemInfoInstant; local oldC = C_Item
+  ns.DB.settings.aucCat = { neutral = 7 }
+  local oldC = C_Item
   C_Item = { GetItemInfoInstant = function(id) return id, "", "", "", 0, id == 2862 and 7 or 2, 0 end }
-  B.kind.bm.scripts.OnClick(B.kind.bm)
+  B.kind.neutral.scripts.OnClick(B.kind.neutral)
   check(has(B.buy.list, 2862) ~= nil and not has(B.dear.list, 2840), "категория «Хозяйственные товары»: лишние категории скрыты")
-  B.kind.main.scripts.OnClick(B.kind.main)
-  check(ns.DB.settings.aucCat.main == nil and (B.cat.label and B.cat.label.text or "") ~= "", "у фракционного - своя категория (все)")
   -- фракционный: весь аукцион одним списком, сортировка по заголовкам
   ns.DB.settings.aucCat.main = nil; B.kind.main.scripts.OnClick(B.kind.main)
   check(B.all:IsShown() and not B.buy:IsShown() and #(B.all.list.data or {}) > 0, "фракционный: весь аукцион одним списком")
@@ -212,31 +201,29 @@ do
   B.all.heads.p.scripts.OnClick(B.all.heads.p)
   L1 = B.all.list.data
   check(#L1 < 2 or L1[1].p <= L1[2].p, "повторный клик - обратный порядок")
-  local okChg = pcall(B.all.heads.chg.scripts.OnClick, B.all.heads.chg)
-  check(okChg, "сортировка по изменению за сутки")
+  check(pcall(B.all.heads.chg.scripts.OnClick, B.all.heads.chg), "сортировка по изменению за сутки")
   -- категория по профессии: готовые предметы / ингредиенты
   do
     local slug, P = next(ns.RS.prof)
     local outId, reagId
     for _, rid in ipairs(P.ids) do local d = ns.RS.r[rid]; if d and d.cr and d.rg and d.rg[1] then outId, reagId = d.cr[1], d.rg[1][1]; break end end
     if outId then
-      ns.DB.bmah[ns.realmKey].items[outId] = { p = 1, q = 1 }; ns.DB.bmah[ns.realmKey].items[reagId] = { p = 1, q = 1 }
+      ns.DB.ntah[ns.realmKey].items[outId] = { p = 1, q = 1 }; ns.DB.ntah[ns.realmKey].items[reagId] = { p = 1, q = 1 }
       ns.DB.seen[outId] = { p = 999999, t = time(), r = ns.realmKey, q = 1 }; ns.DB.seen[reagId] = { p = 999999, t = time(), r = ns.realmKey, q = 1 }
-      ns.DB.settings.aucCat = { bm = "p:" .. slug .. ":out" }
-      B.kind.bm.scripts.OnClick(B.kind.bm)
-      check(has(B.buy.list, outId) and not has(B.buy.list, reagId), "категория «профессия: готовые предметы»")
-      ns.DB.settings.aucCat = { bm = "p:" .. slug .. ":reag" }
-      B.kind.bm.scripts.OnClick(B.kind.bm)
+      ns.DB.settings.aucCat = { neutral = "p:" .. slug .. ":out" }
+      B.kind.neutral.scripts.OnClick(B.kind.neutral)
+      check(has(B.buy.list, outId) ~= nil, "категория «профессия: готовые предметы»")
+      ns.DB.settings.aucCat = { neutral = "p:" .. slug .. ":reag" }
+      B.kind.neutral.scripts.OnClick(B.kind.neutral)
       check(has(B.buy.list, reagId) ~= nil, "категория «профессия: ингредиенты»")
-      local okM = pcall(B.openCats, B.cat); local okM2 = pcall(B.openCats, B.cat, slug)
-      check(okM and okM2, "меню категорий с профессиями открывается")
-      ns.DB.bmah[ns.realmKey].items[outId], ns.DB.bmah[ns.realmKey].items[reagId] = nil, nil
+      check(pcall(B.openCats, B.cat) and pcall(B.openCats, B.cat, slug), "меню категорий с профессиями открывается")
+      ns.DB.ntah[ns.realmKey].items[outId], ns.DB.ntah[ns.realmKey].items[reagId] = nil, nil
       ns.DB.seen[outId], ns.DB.seen[reagId] = nil, nil
     end
   end
   C_Item = oldC; ns.DB.settings.aucCat = {}; ns.DB.settings.aucMode = nil
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
-  C_BlackMarket = nil
+  ns.DB.ntah[ns.realmKey] = nil
   -- вид аукциона - по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий; иначе - фракционный
   local oldUN, oldGUID, oldZ = UnitName, UnitGUID, GetRealZoneText
   UnitName = function(u) if u == "npc" then return "Аукционер Леонус" end return "Вульфыч" end
@@ -247,7 +234,7 @@ do
   local function reopen() fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1) end
   reopen()
   check(ns.ahKind == "main" and not ns.ahIsBM, "Аукционер Леонус в городе - фракционный (по имени больше не определяем)")
-  for _, z in ipairs({ "Лесоречье", "Riverglades" }) do zone = z; reopen(); check(ns.ahKind == "bm", z .. " - чёрный рынок") end
+  for _, z in ipairs({ "Лесоречье", "Riverglades" }) do zone = z; reopen(); check(ns.ahKind == "off", z .. " - не учитывается") end
   for _, z in ipairs({ "Остров Зефрис", "Тернистая долина", "Танарис", "Tanaris" }) do zone = z; reopen(); check(ns.ahKind == "neutral", z .. " - общий аукцион") end
   -- общий аукцион: снимок и поиск - отдельно, цены у его окна - его
   ns.DB.ntLastReq = 0
@@ -256,15 +243,16 @@ do
   check(ns.DB.ntah[ns.realmKey] and ns.DB.ntah[ns.realmKey].items[2840] ~= nil, "снимок общего аукциона сохранён отдельно")
   ns.SeenPrice(2840, 9, 1)
   check(ns.AHPrice(2840) == 9 and ns.RegularPrice(2840) == ahP, "у общего аукциона цены аддона - его, основные не тронуты")
-  -- чёрный рынок
+  -- Лесоречье: снимок и поиск не сохраняются вовсе
   zone = "Лесоречье"; reopen()
-  ns.DB.bmLastReq = 0
+  ns.DB.offLastReq = 0
+  local ntBefore = ns.DB.ntah[ns.realmKey]
   ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
-  check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) ~= 9, "снимок чёрного рынка не заменил цены основного аукциона")
-  check(ns.DB.bmah[ns.realmKey].items[2840] ~= nil, "снимок чёрного рынка сохранён отдельно")
+  check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.DB.ntah[ns.realmKey] == ntBefore and ns.DB.bmah == nil, "Лесоречье: снимок не сохранён никуда")
   ns.SeenPrice(2840, 7, 1)
-  check(ns.RegularPrice(2840) == ahP and ns.DB.bmah[ns.realmKey].items[2840].p == 7, "поиск на чёрном рынке - в его цены, не в обычные")
-  check(ns.AHPrice(2840) == 7, "у окна чёрного рынка цены аддона - по снимку чёрного рынка")
+  check(ns.RegularPrice(2840) == ahP, "Лесоречье: поиск не меняет цены")
+  zone = "Танарис"; reopen()
+  GameTooltip.wmDone = nil
   local tt = table.concat(tooltip(2840), "\n")
   check(tt:find(ns.money(ahP), 1, true) ~= nil and (tt:find("Общий аукцион", 1, true) or tt:find("Neutral", 1, true)), "подсказка: основная цена и строка общего аукциона")
   -- ручной выбор вне известных зон запоминается для аукциониста
@@ -279,15 +267,15 @@ do
   -- выгода крафта на трёх аукционах и таблица «где купить, где продать»
   do
     local rec = { id = 777001, name = "Тест-рецепт", out = 3470, qmin = 1, qmax = 1, reag = { { 2840, 2 } } }
-    local nt = ns.DB.ntah[ns.realmKey]; local bm = ns.DB.bmah[ns.realmKey]
-    nt.items[3470] = { p = 50000, q = 1 }; bm.items[3470] = { p = 90000, q = 1 }
+    local nt = ns.DB.ntah[ns.realmKey]
+    nt.items[3470] = { p = 90000000, q = 1 }
     nt.items[2840] = { p = 1, q = 9 }        -- медь на общем почти даром
     local by, best = ns.ProfitByKind(rec)
-    check(by.main and by.neutral and by.bm and best == "bm", "выгода по аукционам: лучший - чёрный рынок (" .. tostring(best) .. ")")
+    check(by.main and by.neutral and by.bm == nil and best == "neutral", "выгода по аукционам: лучший - общий (" .. tostring(best) .. ")")
     local _, where = ns.BestBuy(2840)
     check(where == "neutral", "материал дешевле на общем аукционе")
     local M = ns.RecipeMarket(rec)
-    check(#M.rows == 1 and M.rows[1].bestKind == "neutral" and M.out.p.bm == 90000, "таблица: материалы и продажа по аукционам")
+    check(#M.rows == 1 and M.rows[1].bestKind == "neutral" and M.out.p.neutral == 90000000 and M.out.p.bm == nil, "таблица: материалы и продажа по двум аукционам")
     -- окно профессии игры: столбики на строках и таблица под реагентами
     local oldPF = ProfessionsFrame
     ProfessionsFrame = CreateFrame("Frame"); ProfessionsFrame.CraftingPage = CreateFrame("Frame")
@@ -311,12 +299,12 @@ do
     local row = CreateFrame("Frame")
     row.GetElementData = function() return { GetData = function() return { recipeInfo = { recipeID = 777001 } } end } end
     local okD, errD = pcall(ns._decorateRow, row)
-    check(okD and row.wmCols and row.wmCols.main, "строка рецепта: столбики Ф / Общ / ЧР")
+    check(okD and row.wmCols and row.wmCols.main, "строка рецепта: столбики Ф / Общ")
     local cat = CreateFrame("Frame")
     cat.GetElementData = function() return { GetData = function() return { categoryInfo = { name = "Избранное" } } end } end
     pcall(ns._decorateRow, cat)
     check(cat.wmCols and (cat.wmCols.main.text or ""):find("Ф", 1, true) or (cat.wmCols and (cat.wmCols.main.text or ""):find("F", 1, true)), "заголовок группы: подписи столбиков над цифрами")
-    nt.items[3470], bm.items[3470], nt.items[2840] = nil, nil, nil
+    nt.items[3470], nt.items[2840] = nil, nil
     ProfessionsFrame = oldPF
   end
   -- вкладка «Общий аук.» в главном окне
@@ -327,25 +315,9 @@ do
   ns.DB.settings.aucMode = nil
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
   UnitName, UnitGUID, GetRealZoneText = oldUN, oldGUID, oldZ
-  -- старый случай: снимок чёрного рынка записался вместо обычного - переносится при входе
-  local savedScans = ns.DB.ahScans
-  ns.DB.ahScans = { ["Тест~PvE|Horde"] = { t = 12345, lots = 300, items = { [2840] = { 99, 3, 1 } } } }
-  ns.DB.hist[2840] = ns.DB.hist[2840] or {}; table.insert(ns.DB.hist[2840], { 12345, 99, 3, "Тест~PvE|Horde" })
-  ns.FixBMScans()
-  local leftOver = ns.DB.ahScans["Тест~PvE|Horde"]
-  ns.DB.ahScans = savedScans
-  local moved = ns.DB.bmah["Тест~PvE|Horde"]
-  local pt = false; for _, p in ipairs(ns.DB.hist[2840]) do if p[1] == 12345 then pt = true end end
-  -- исправление ошибки 2.35.0: большой снимок чёрного рынка без отметки персонажа возвращается в чёрный рынок
-  do
-    local sv = ns.DB.ahScans
-    ns.DB.ahScans = { ["Тест2~PvE|Horde"] = { t = 999, lots = 300000, items = { [2840] = { 77, 5, 2 } } } }
-    ns.DB.bmFixV = 2; fire("PLAYER_LOGIN"); advance(3)
-    local left2, bmb = ns.DB.ahScans["Тест2~PvE|Horde"], ns.DB.bmah["Тест2~PvE|Horde"]
-    ns.DB.ahScans = sv
-    check(left2 == nil and bmb and bmb.items[2840].p == 77 and ns.DB.bmFixV == 3, "снимок чёрного рынка, ошибочно перенесённый в 2.35.0, вернулся")
-  end
-  check(leftOver == nil and moved and moved.items[2840].p == 99 and not pt, "старый снимок чёрного рынка перенесён из обычного аукциона")
+  -- данные чёрного рынка из прошлых версий удаляются при входе
+  ns.DB.bmah = { x = {} }; ns.DB.bmLastReq = 1; fire("PLAYER_LOGIN"); advance(3)
+  check(ns.DB.bmah == nil and ns.DB.bmLastReq == nil, "данные чёрного рынка удалены")
 end
 do
   local outId

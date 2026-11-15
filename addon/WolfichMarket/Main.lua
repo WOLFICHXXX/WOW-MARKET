@@ -585,23 +585,12 @@ function refreshBank()
   bank.total:SetText(L"Стоимость по аукциону: " .. ns.money(total))
 end
 
--- ---------- вкладка «Аукционы»: три аукциона - фракционный, общий, чёрный рынок ----------
--- Сверху - какой аукцион смотрим и категория (как на аукционе в игре; у каждого аукциона своя).
--- Слева - что выгодно купить на этом аукционе и продать на другом, справа - что здесь дороже (выгоднее купить на другом).
-local KIND_LIST = { "main", "neutral", "bm" }
-local KIND_TAB = { main = L"Фракционный", neutral = L"Общий", bm = L"Чёрный рынок" }
-local KIND_SHORT = { main = L"фракц.: ", neutral = L"общий: ", bm = L"чёрный: " }
-local KIND_RGB = { main = { 1, 0.82, 0 }, neutral = { 0.4, 0.85, 0.8 }, bm = { 0.75, 0.5, 1 } }
+-- ---------- вкладка «Аукционы»: фракционный (весь аукцион) и общий (что где выгоднее) ----------
+-- Сверху - какой аукцион смотрим, поиск и категория (как на аукционе в игре; у каждого аукциона своя).
+local KIND_LIST = { "main", "neutral" }
+local KIND_TAB = { main = L"Фракционный", neutral = L"Общий" }
 local TEXTS = {
-  main = { buy = L"Купить на фракционном - продать на общем / ЧР", dear = L"На фракционном дороже - купить на общем / ЧР",
-    gain = L"выгода = цена там минус 5% минус цена на фракционном", diff = L"разница = цена на фракционном минус цена там",
-    none = L"|cffff9966Нет снимков общего аукциона и чёрного рынка - сравнивать не с чем. Отсканируйте аукцион на Острове Зефрис, в Тернистой долине, Танарисе или в Лесоречье.|r" },
-  neutral = { buy = L"Купить на общем - продать на фракционном", dear = L"На общем дороже - купить на фракционном",
-    gain = L"выгода = цена фракционного минус 5% минус цена на общем", diff = L"разница = цена на общем минус цена фракционного",
-    none = L"|cffff9966Общий аукцион ещё не записан - отсканируйте аукцион на Острове Зефрис, в Тернистой долине или Танарисе.|r" },
-  bm = { buy = L"Купить на чёрном - продать на аукционе", dear = L"На чёрном дороже - купить на аукционе",
-    gain = L"выгода = цена на аукционе минус 5% минус ставка на чёрном", diff = L"разница = ставка на чёрном минус цена на аукционе",
-    none = L"|cffff9966Чёрный рынок ещё не записан - отсканируйте аукцион в Лесоречье.|r" },
+  neutral = { none = L"|cffff9966Общий аукцион ещё не записан - отсканируйте аукцион на Острове Зефрис, в Тернистой долине или Танарисе.|r" },
 }
 -- категории аукциона игры (классы предметов) в том же порядке, что на аукционе
 -- (самоцветы, улучшения и символы в этой версии игры устаревшие - их нет)
@@ -654,7 +643,7 @@ ns._itemClass = itemClass
 local aucp = {}
 local refreshAuc
 -- строки сравнения: here - цена на смотримом аукционе, there - на другом (thereKind)
--- общий / чёрный рынок против фракционного: что лучше купить здесь, что лучше продать здесь
+-- общий против фракционного: что лучше купить здесь, что лучше продать здесь
 local function compareRows(mode, rk)
   local buy, sell, total, have = {}, {}, 0, false
   ns.WithRealm(rk, function()
@@ -693,7 +682,7 @@ local function buildAuc(f)
   aucp.kind = {}
   local x = 0
   for _, k in ipairs(KIND_LIST) do
-    local w = k == "neutral" and 84 or 116
+    local w = 116
     local b = UI.Button(f, KIND_TAB[k], w, 22, function() S.aucMode = k; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
     b:SetPoint("TOPLEFT", x, 0); x = x + w + 4
     aucp.kind[k] = b
@@ -701,7 +690,7 @@ local function buildAuc(f)
   aucp.cat = UI.Button(f, L"Все категории", 190, 22, function(self) aucp.openCats(self) end)
   aucp.cat:SetPoint("TOPRIGHT", 0, 0)
   aucp.search = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); aucp.search:SetHeight(20)
-  aucp.search:SetPoint("LEFT", aucp.kind.bm, "RIGHT", 14, 0); aucp.search:SetPoint("RIGHT", aucp.cat, "LEFT", -8, 0); aucp.search:SetAutoFocus(false)
+  aucp.search:SetPoint("LEFT", aucp.kind.neutral, "RIGHT", 14, 0); aucp.search:SetPoint("RIGHT", aucp.cat, "LEFT", -8, 0); aucp.search:SetAutoFocus(false)
   aucp.hint = UI.Font(aucp.search, 10, UI.DIM); aucp.hint:SetPoint("LEFT", 2, 0); aucp.hint:SetText(L"поиск по названию...")
   aucp.search:SetScript("OnTextChanged", function(self) aucp.hint:SetShown(self:GetText() == ""); refreshAuc() end)
   aucp.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
@@ -792,7 +781,7 @@ local function buildAuc(f)
     r.chg:SetText(x.chg and ns.pct(x.chg) or "|cff555555-|r")
   end)
   all.list:SetPoint("TOPLEFT", 4, -28); all.list:SetPoint("BOTTOMRIGHT", -4, 6)
-  -- ОБЩИЙ / ЧР: две колонки - что лучше купить здесь и что лучше продать здесь
+  -- ОБЩИЙ: две колонки - что лучше купить здесь и что лучше продать здесь
   local function panel(left)
     local p = CreateFrame("Frame", nil, f)
     if left then p:SetPoint("TOPLEFT", 0, -50); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
@@ -1011,7 +1000,7 @@ ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
 ns.Listen("LOG", function() if win and win:IsShown() and view == VIEW_LOG then refreshLog() end end)
 ns.Listen("INVENTORY", function() if view == VIEW_BANK or ns.DB.settings.useBank then refresh() end end)
-ns.Listen("BLACKMARKET", function() if view == VIEW_AUC then refresh() end end)
+ns.Listen("ALTAH", function() if view == VIEW_AUC then refresh() end end)
 ns._mainAuc = aucp
 
 -- ---------- кнопка у миникарты ----------

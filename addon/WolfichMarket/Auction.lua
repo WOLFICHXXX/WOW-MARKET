@@ -13,18 +13,19 @@ local chartItem, buyItem, sellSel
 
 local function setStatus() ns.Fire("SCAN_STATE") end
 
--- ---------- какой это аукцион: фракционный (основной), общий (межфракционный) или чёрный рынок ----------
--- Определяется по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий.
+-- ---------- какой это аукцион: фракционный (основной) или общий (межфракционный) ----------
+-- Определяется по зоне: Остров Зефрис, Тернистая долина, Танарис - общий; остальное - фракционный.
 -- Если где-то не угадали - кнопками на панели (запоминается для этого аукциониста).
--- Цены общего аукциона и чёрного рынка хранятся отдельно, не заменяют основные и между игроками не рассылаются.
+-- Цены общего аукциона хранятся отдельно, не заменяют основные и между игроками не рассылаются.
+-- Аукцион в Лесоречье аддон не учитывает вовсе (его цены не записываются).
 local ZONES = {
-  ["Лесоречье"] = "bm", ["Riverglades"] = "bm",
   ["Остров Зефрис"] = "neutral", ["Тернистая долина"] = "neutral", ["Северная Тернистая долина"] = "neutral",
   ["Мыс Тернистой долины"] = "neutral", ["Танарис"] = "neutral",
   ["Stranglethorn Vale"] = "neutral", ["Northern Stranglethorn"] = "neutral", ["The Cape of Stranglethorn"] = "neutral", ["Tanaris"] = "neutral",
+  ["Лесоречье"] = "off", ["Riverglades"] = "off",
 }
-ns.AH_KINDS = { "main", "neutral", "bm" }
-local KIND_LAST = { main = "ahLastReq", neutral = "ntLastReq", bm = "bmLastReq" }
+ns.AH_KINDS = { "main", "neutral" }
+local KIND_LAST = { main = "ahLastReq", neutral = "ntLastReq", off = "offLastReq" }
 local function npcId()
   local guid = UnitGUID and UnitGUID("npc")
   return guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
@@ -48,26 +49,24 @@ local function detectKind()
 end
 local function applyKind(k)
   ns.ahKind = k or "main"
-  ns.ahIsBM = ns.ahKind ~= "main" -- «отдельный» аукцион: цены хранятся отдельно и не рассылаются
+  ns.ahIsBM = ns.ahKind ~= "main" -- не основной аукцион: цены не попадают в основные и не рассылаются
 end
 function ns.SetAHKind(k)
   applyKind(k)
   if ns.ahNpc then ns.DB.ahNpcKind = ns.DB.ahNpcKind or {}; ns.DB.ahNpcKind[ns.ahNpc] = ns.ahKind end
-  ns.say(ns.ahKind == "bm" and L"этот аукцион - чёрный рынок: его цены хранятся отдельно и не заменяют цены основного аукциона."
-    or ns.ahKind == "neutral" and L"этот аукцион - общий (межфракционный): его цены хранятся отдельно и не заменяют цены основного аукциона."
+  ns.say(ns.ahKind == "neutral" and L"этот аукцион - общий (межфракционный): его цены хранятся отдельно и не заменяют цены основного аукциона."
     or L"этот аукцион - фракционный (основной).")
   ns.Fire("SCAN_STATE"); ns.Fire("AH_STATE"); ns.Fire("PRICES")
 end
-function ns.SetAHIsBM(v) ns.SetAHKind(v and "bm" or "main") end -- для старых вызовов
 local function cdKey() return KIND_LAST[ns.ahKind or "main"] or "ahLastReq" end
--- снимок отдельного аукциона (общего или чёрного рынка)
+-- снимок общего аукциона
 function ns.AltData(kind, rk)
-  local t = kind == "bm" and "bmah" or "ntah"
-  ns.DB[t] = ns.DB[t] or {}
-  return ns.DB[t][rk or ns.priceRealm or ns.realmKey or ""], ns.DB[t]
+  if kind ~= "neutral" then return nil, {} end
+  ns.DB.ntah = ns.DB.ntah or {}
+  return ns.DB.ntah[rk or ns.priceRealm or ns.realmKey or ""], ns.DB.ntah
 end
-function ns.AltName(kind) return kind == "bm" and L"Чёрный рынок" or kind == "neutral" and L"Общий аукцион" or L"Фракционный аукцион" end
-ns.ALT_COLOR = { bm = "|cffc080ff", neutral = "|cff66d9cc", main = "|cffffd100" }
+function ns.AltName(kind) return kind == "neutral" and L"Общий аукцион" or kind == "off" and L"Лесоречье (не учитывается)" or L"Фракционный аукцион" end
+ns.ALT_COLOR = { neutral = "|cff66d9cc", main = "|cffffd100", off = "|cff888888" }
 
 local function finishScan()
   if processing then return end
@@ -94,8 +93,14 @@ local function finishScan()
     ns.progress = math.floor(i / n * 100)
     setStatus()
     if i < n then ns.After(0, step) return end
+    if ns.ahKind == "off" then
+      busy, processing, ns.progress = false, false, nil
+      ns.say(L"аукцион в Лесоречье аддон не учитывает - снимок не сохранён.")
+      setStatus()
+      return
+    end
     if ns.ahIsBM then
-      -- снимок общего аукциона или чёрного рынка - отдельно: без истории, сигналов и общего рынка (личный)
+      -- снимок общего аукциона - отдельно: без истории, сигналов и общего рынка (личный)
       local bm = {}
       for id, r in pairs(items) do if r[1] > 0 then bm[id] = { p = r[1], bids = 0, q = r[2], lots = r[3] } end end
       local _, tbl = ns.AltData(ns.ahKind)
@@ -103,7 +108,7 @@ local function finishScan()
       busy, processing, ns.progress = false, false, nil
       local cnt = 0; for _ in pairs(bm) do cnt = cnt + 1 end
       ns.say(string.format(L"%sснимок: %s|r - %d лотов, %d предметов. Цены основного аукциона не тронуты.", ns.ALT_COLOR[ns.ahKind], ns.AltName(ns.ahKind), n, cnt))
-      setStatus(); ns.Fire("BLACKMARKET")
+      setStatus(); ns.Fire("ALTAH")
       return
     end
     local prev = ns.CurrentScan()
@@ -302,7 +307,7 @@ local function header()
   panel.quickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- какой это аукцион: три кнопки (горит текущий); нажатие - исправить, запоминается для аукциониста
   panel.kindBtn = {}
-  local KB = { { "main", L"Фракционный", 104 }, { "neutral", L"Общий", 72 }, { "bm", L"ЧР", 46 } }
+  local KB = { { "main", L"Фракционный", 104 }, { "neutral", L"Общий", 72 } }
   local x = 20
   for _, k in ipairs(KB) do
     local b = UI.Button(panel, k[2], k[3], 22, function() ns.SetAHKind(k[1]) end)
@@ -310,7 +315,7 @@ local function header()
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:AddLine(ns.AltName(k[1]), 1, 0.82, 0)
-      GameTooltip:AddLine(L"Горит - этот аукцион такого вида. Определяется по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий; остальное - фракционный. Снимки общего аукциона и чёрного рынка личные: хранятся отдельно, не заменяют цены фракционного и не рассылаются. Нажмите, если аддон ошибся - запомнит для этого аукциониста.", 1, 1, 1, true)
+      GameTooltip:AddLine(L"Горит - этот аукцион такого вида. Определяется по зоне: Остров Зефрис, Тернистая долина, Танарис - общий; остальное - фракционный. Снимки общего аукциона личные: хранятся отдельно, не заменяют цены фракционного и не рассылаются. Нажмите, если аддон ошибся - запомнит для этого аукциониста.", 1, 1, 1, true)
       GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
