@@ -428,7 +428,12 @@ end
 local mt
 local function buildMarketTable(form)
   mt = CreateFrame("Frame", nil, form)
-  mt:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 26, 46); mt:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -26, 46); mt:SetHeight(196)
+  -- сразу под списком реагентов игры, чтобы не налезать на него; высота - по числу строк
+  local reag = type(form.Reagents) == "table" and form.Reagents.GetBottom and form.Reagents or nil
+  if reag then mt:SetPoint("TOPLEFT", reag, "BOTTOMLEFT", 0, -8); mt:SetPoint("RIGHT", form, "RIGHT", -26, 0)
+  else mt:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 26, 46); mt:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -26, 46) end
+  mt.anchoredTop = reag ~= nil
+  mt:SetHeight(160)
   mt.bg = mt:CreateTexture(nil, "BACKGROUND"); mt.bg:SetAllPoints(); mt.bg:SetColorTexture(0, 0, 0, 0.45)
   mt.title = mt:CreateFontString(nil, "OVERLAY", "GameFontNormal"); mt.title:SetPoint("TOPLEFT", 8, -6); mt.title:SetText(L"Где купить и где продать")
   mt.cols = {}
@@ -441,11 +446,11 @@ local function buildMarketTable(form)
   mt.lines = {}
   for i = 1, 9 do
     local ln = {}
-    ln.icon = mt:CreateTexture(nil, "ARTWORK"); ln.icon:SetSize(14, 14); ln.icon:SetPoint("TOPLEFT", 8, -10 - i * 17)
+    ln.icon = mt:CreateTexture(nil, "ARTWORK"); ln.icon:SetSize(14, 14); ln.icon:SetPoint("TOPLEFT", 8, -8 - i * 15)
     ln.name = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); ln.name:SetPoint("LEFT", ln.icon, "RIGHT", 4, 0); ln.name:SetPoint("RIGHT", mt, "RIGHT", -196, 0); ln.name:SetJustifyH("LEFT"); ln.name:SetWordWrap(false)
     ln.p = {}
     for _, k in ipairs(KINDS) do
-      local fs = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetPoint("RIGHT", mt, "TOPRIGHT", colX[k], -17 - i * 17); fs:SetWidth(56); fs:SetJustifyH("RIGHT")
+      local fs = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetPoint("RIGHT", mt, "TOPRIGHT", colX[k], -15 - i * 15); fs:SetWidth(56); fs:SetJustifyH("RIGHT")
       ln.p[k] = fs
     end
     mt.lines[i] = ln
@@ -498,6 +503,7 @@ local function fillMarketTable(rec)
   local parts = {}
   for w, n in pairs(buyAt) do parts[#parts + 1] = w .. (n > 1 and (" ×" .. n) or "") end
   table.sort(parts)
+  mt:SetHeight(26 + i * 15 + 34)
   mt.foot:SetText((#parts > 0 and (L"Материалы дешевле: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
     .. (M.best and ("\n" .. L"Продать выгоднее: " .. ns.ALT_COLOR[M.best] .. ns.AltName(M.best) .. "|r, " .. L"прибыль " .. short(M.profit[M.best])) or ""))
   mt:Show()
@@ -554,10 +560,19 @@ local timer
 -- Рецепты читаются из игры только если профессия ещё не сохранена или с прошлого чтения
 -- был новый снимок аукциона. В остальное время — только пересчёт прибыли по сохранённым рецептам.
 local function recipesStale()
-  local prof = professionInfo()
+  local prof, skill, maxSkill = professionInfo()
   if not prof or not ns.charKey then return false end
   local p = ns.DB.chars[ns.charKey].profs[prof]
   if not p or p.virtual or not p.recipes or #p.recipes == 0 or not p.line then return true end -- профессию выучили - заменить «отслеживаемую» настоящей -- line: номер профессии для кнопки «Крафт»
+  -- вырос навык или открылась следующая ступень (225 -> 300), выучены новые рецепты - перечитать
+  if (skill and skill ~= (p.skill or 0)) or (maxSkill and maxSkill ~= (p.max or 0)) then return true end
+  local ids = C_TradeSkillUI and safe(C_TradeSkillUI.GetAllRecipeIDs)
+  if ids and #ids > 0 then
+    local learned, known = 0, 0
+    for _, r in ipairs(p.recipes) do if r.learned ~= false then learned = learned + 1 end end
+    for _, rid in ipairs(ids) do local ri = safe(C_TradeSkillUI.GetRecipeInfo, rid); if ri and ri.learned and not ri.isDummyRecipe then known = known + 1 end end
+    if known ~= learned then return true end
+  end
   local scan = ns.CurrentScan()
   return scan and (p.t or 0) < scan.t or false
 end
@@ -576,6 +591,20 @@ local function onTradeSkill()
 end
 ns.On("TRADE_SKILL_SHOW", onTradeSkill)
 ns.On("TRADE_SKILL_DATA_SOURCE_CHANGED", onTradeSkill)
+-- выучили рецепт или вырос навык при открытом окне - перечитать (с задержкой, событий бывает много подряд)
+local relearn
+local function onLearn()
+  if relearn then return end
+  relearn = true
+  ns.After(1.5, function()
+    relearn = false
+    local h = host()
+    if h and h:IsShown() and recipesStale() then ns.ScanProfession(); ns.DecorateRecipeRows() end
+  end)
+end
+ns.On("NEW_RECIPE_LEARNED", onLearn)
+ns.On("TRADE_SKILL_LIST_UPDATE", onLearn)
+ns.On("SKILL_LINES_CHANGED", onLearn)
 -- снимок аукциона готов, а окно профессии открыто — перечитать рецепты сразу
 ns.Listen("SCAN_DONE", function()
   local h = host()
