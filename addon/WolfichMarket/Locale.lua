@@ -462,6 +462,7 @@ ns.EN = {
   ["общий рынок: изменения аукциона от %s (%s) - %d цен, из них свежее ваших: %d."] = "shared market: auction changes from %s (%s) - %d prices, fresher than yours: %d.",
   ["общий рынок: сейчас рассылает другой игрок - свой снимок отправлю после него, только отличия."] = "shared market: another player is sending now - I'll send my snapshot after them, differences only.",
   ["общий рынок: цены в сети уже такие же, как в вашем снимке - рассылать нечего."] = "shared market: the network already has the same prices as your snapshot - nothing to send.",
+  ["общий рынок: %s попросил цены - отправляю ему весь аукцион (%d цен)."] = "shared market: %s asked for prices - sending them the whole auction (%d prices).",
   ["Цена сейчас"] = "Price now",
   ["Ваша цена"] = "Your price",
   ["ваша цена продажи"] = "your sell price",

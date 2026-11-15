@@ -167,7 +167,22 @@ end
 -- msg - для обычных путей (до 255 символов), big - то же крупной пачкой для Battle.net (если есть)
 -- t - время снимка: новая рассылка выбрасывает из очереди недосланную старую
 -- rest - «остальной аукцион»: только через канал аддона и Battle.net, без копий в гильдию, группу и шёпотом друзьям
+-- sendTarget - ответ одному игроку (тому, кто спросил цены): только ему, через Battle.net или шёпотом
+local sendTarget
 local function send(msg, big, onlyBig, t, rest)
+  if sendTarget then
+    local short = sendTarget:match("^[^-]+")
+    for _, r in ipairs(routes()) do
+      if r[1] == "BN" and r[3] and r[3]:match("^[^-]+") == short then
+        if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3], t = t } end
+        if not sending then sending = true; ns.After(0, pump) end
+        return
+      end
+    end
+    if not onlyBig then queue[#queue + 1] = { msg, "WHISPER", sendTarget, nil, t = t } end
+    if not sending and #queue > 0 then sending = true; ns.After(0, pump) end
+    return
+  end
   for _, r in ipairs(routes()) do
     if rest and r[1] ~= "CHANNEL" and r[1] ~= "BN" then
     else
@@ -243,7 +258,6 @@ end
 
 -- что разослано в прошлый раз (в памяти): для «только изменившихся цен»
 local lastSent = {}   -- [ключ аукциона] = { t, full = время полной рассылки, p = { [id] = цена } }
-local FULL_EVERY = 3600
 
 -- разослать свой снимок (только свой, не пересланный чужой). full - целиком (по запросу или раз в час)
 -- Когда снимки делают многие игроки сразу, рассылки не должны мешать друг другу:
@@ -255,11 +269,13 @@ ns._netSeen = netSeen
 ns._netResetSent = function() for k in pairs(lastSent) do lastSent[k] = nil end; netSeen.active, netSeen.lastFull = -1000, 0 end -- для автотестов
 local pending                                  -- отложенная рассылка { scan, full, tries }
 local function busy() return GetTime() - netSeen.active < 20 end
-function ns.ShareScan(scan, full, again)
+-- to - имя игрока: ответ на его запрос - весь аукцион целиком только ему (остальным не мешает)
+function ns.ShareScan(scan, full, again, to)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
   local rk = RK()
   local last = lastSent[rk]
-  if last and last.t and scan.t < last.t then return end -- уже разослан более свежий снимок
+  if to then full, again = "force", true end
+  if not to and last and last.t and scan.t < last.t then return end -- уже разослан более свежий снимок
   local net = ns.DB.net and ns.DB.net[ns.realmKey]
   if not full and net and net.t and net.t >= scan.t then return end -- в сети уже есть снимок не хуже
   -- кто-то сейчас рассылает - подождём конца (до ~15 минут), потом разошлём только отличия от пришедшего
@@ -277,11 +293,10 @@ function ns.ShareScan(scan, full, again)
     ns.say(L"общий рынок: сейчас рассылает другой игрок - свой снимок отправлю после него, только отличия.")
     return
   end
-  if busy() and full ~= "force" then return end -- так и не освободилось - не мешаем
   if pending and pending.scan.t <= scan.t then pending = nil end
-  local lastFull = math.max(netSeen.lastFull or 0, last and last.full or 0)
-  if full and time() - lastFull < 600 and full ~= "force" then full = nil end -- целиком недавно уже было
-  if not full and time() - lastFull >= FULL_EVERY then full = true end
+  -- в общую сеть - всегда весь аукцион, но только цены, изменившиеся относительно уже известных;
+  -- целиком - только вручную (/wmnetsend) и лично тому, кто спросил
+  if full ~= "force" then full = nil end
   -- последняя известная сети цена: из чужих рассылок или из нашей прошлой - что свежее
   local function known(id)
     local x = net and net.items[id]
@@ -312,14 +327,14 @@ function ns.ShareScan(scan, full, again)
   end
   local n = pri + #rest
   if n == 0 then
-    lastSent[rk] = { t = scan.t, full = last and last.full, p = last and last.p or {} }
+    if not to then lastSent[rk] = { t = scan.t, full = last and last.full, p = last and last.p or {} } end
     ns.say(L"общий рынок: цены в сети уже такие же, как в вашем снимке - рассылать нечего.")
     return
   end
   -- запомнить разосланное
   local p = {}
   for id, r in pairs(scan.items) do if r[1] and r[1] > 0 then p[id] = r[1] end end
-  lastSent[rk] = { t = scan.t, full = full and time() or (last and last.full), p = p }
+  if not to then lastSent[rk] = { t = scan.t, full = full and time() or (last and last.full), p = p } end
   -- новая рассылка отменяет недосланную старую
   for _, q in ipairs({ queue, bnQueue }) do for k = #q, 1, -1 do if q[k].t and q[k].t < scan.t then table.remove(q, k) end end end
   local priParts = {}
@@ -333,12 +348,15 @@ function ns.ShareScan(scan, full, again)
   for _, m in ipairs(pack("R", scan.t, rest, scan.items, false, 2000)) do bigParts[#bigParts + 1] = m end
   ns._lastShare = { items = n, pri = pri, full = full, unchanged = unchanged }
   -- заголовок: время, сколько цен, версия, сколько важных, тип (f - целиком, d - только изменения)
+  sendTarget = to
   send("H^" .. rk .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or "") .. "^" .. enc(pri) .. "^" .. (full and "f" or "d"), nil, nil, scan.t)
   -- обычные пути: сигналы и рецепты - всем путям, остальной аукцион - только каналу
   for _, m in ipairs(priParts) do send(m, false, nil, scan.t) end
   for _, m in ipairs(restParts) do send(m, false, nil, scan.t, true) end
   for _, m in ipairs(bigParts) do send(m, m, true, scan.t) end
   send("E^" .. rk .. "^" .. enc(scan.t), nil, nil, scan.t)
+  sendTarget = nil
+  if to then ns.say(string.format(L"общий рынок: %s попросил цены - отправляю ему весь аукцион (%d цен).", to:match("^[^-]+") or to, n)) return end
   local parts = {}
   for _, m in ipairs(priParts) do parts[#parts + 1] = m end
   local priCount = #priParts
@@ -471,6 +489,7 @@ local function finish(sender, lost)
   end
 end
 
+local answered = {}     -- [кто спросил] = когда ему начали отвечать
 local function onMessage(prefix, msg, dist, sender)
   if not IS_PREFIX[prefix] or not msg or not ns.DB then return end
   ns.netStats.recv = ns.netStats.recv + 1; ns.netStats.lastFrom = sender
@@ -515,10 +534,17 @@ local function onMessage(prefix, msg, dist, sender)
     -- кто-то спрашивает свежие цены: отвечаем, если наш снимок новее на 10+ минут (со случайной задержкой, чтобы не отвечали все)
     local t = dec(rest) or 0
     local scan = ns.DB.ahScans[ns.realmKey]
+    -- отвечаем лично ему (весь аукцион целиком); в общую сеть - «я отвечаю», чтобы не отвечали все сразу
     if scan and scan.t > t + 600 and S().netSend ~= false then
-      local my = scan.t
-      ns.After(1 + math.random() * 4, function() if not ns._netAnswered or ns._netAnswered < my then ns._netAnswered = my; ns.ShareScan(scan, true) end end)
+      ns.After(1 + math.random() * 4, function()
+        if answered[sender] and time() - answered[sender] < 120 then return end
+        answered[sender] = time()
+        send("A^" .. RK() .. "^" .. sender)
+        ns.ShareScan(scan, true, true, sender)
+      end)
     end
+  elseif kind == "A" then
+    answered[rest] = time() -- этому игроку уже отвечает кто-то другой
   elseif kind == "H" then
     local t = dec(rest:match("^([^%^]+)")) or 0
     ns._netAnswered = math.max(ns._netAnswered or 0, t) -- кто-то уже рассылает такой снимок - сами не отвечаем

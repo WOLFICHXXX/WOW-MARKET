@@ -561,7 +561,7 @@ do
   ns.ShareScan({ t = T + 1100, items = items2 }, true)
   for _ = 1, 100 do advance(0.2) end
   local c3 = 0; for _, m in ipairs(sent) do c3 = c3 + #(zids(m)) end
-  check(c3 == 1, "запрос вскоре после полной рассылки - только отличия (" .. c3 .. ")")
+  check(c3 == 1, "обычная рассылка - всегда только отличия (" .. c3 .. ")")
   -- пока рассылает другой игрок - своя рассылка ждёт, потом только отличия от пришедшего
   sent = {}
   ns._netReceive("WolfMkt3", "H^" .. ns.NetKey() .. "^" .. "zzzzz0" .. "^1^2.29^0^d", "CHANNEL", "Другой-Realm")
@@ -578,6 +578,30 @@ do
   ns.ShareScan({ t = T + 1300, items = items2 })
   for _ = 1, 50 do advance(0.2) end
   check(#sent == 0, "цены в сети такие же - рассылать нечего (" .. #sent .. " сообщ.)")
+  -- новичок спрашивает цены (Q): весь аукцион целиком - лично ему шёпотом; в сеть - только «A» (я отвечаю)
+  local log = {}
+  C_ChatInfo.SendAddonMessage = function(p, m, ch, target) log[#log + 1] = { m = m, ch = ch, to = target }; return 0 end
+  local oldScan = ns.DB.ahScans[ns.realmKey]
+  ns.DB.ahScans[ns.realmKey] = { t = T + 1300, items = items2 }
+  ns._netReceive("WolfMkt1", "Q^" .. ns.NetKey() .. "^0", "CHANNEL", "Новичок-Realm")
+  for _ = 1, 400 do advance(0.25) end
+  local toHim, toAll, aMsg = {}, 0, false
+  for _, e in ipairs(log) do
+    if e.ch == "WHISPER" and e.to == "Новичок-Realm" then for _, id in ipairs((zids(e.m))) do toHim[id] = true end
+    elseif e.m:sub(1, 2) == "A^" then aMsg = true
+    elseif #(zids(e.m)) > 0 then toAll = toAll + 1 end
+  end
+  local nHim = 0; for _ in pairs(toHim) do nHim = nHim + 1 end
+  check(nHim == 400 and toAll == 0 and aMsg, "запрос новичка: весь аукцион лично ему (" .. nHim .. "), в сеть ничего (" .. toAll .. ")")
+  -- второй такой же запрос, когда ему уже отвечает другой (A) - не отвечаем
+  log = {}
+  ns._netReceive("WolfMkt1", "A^" .. ns.NetKey() .. "^Новичок2-Realm", "CHANNEL", "Кто-то-Realm")
+  ns._netReceive("WolfMkt1", "Q^" .. ns.NetKey() .. "^0", "CHANNEL", "Новичок2-Realm")
+  for _ = 1, 60 do advance(0.25) end
+  local whisp = 0; for _, e in ipairs(log) do if e.ch == "WHISPER" then whisp = whisp + 1 end end
+  check(whisp == 0, "новичку уже отвечает другой игрок - второй ответ не шлём")
+  ns.DB.ahScans[ns.realmKey] = oldScan
+  C_ChatInfo.SendAddonMessage = function(p, m) sent[#sent + 1] = m; return 0 end
   C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
   for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
   ns._netResetSent()
