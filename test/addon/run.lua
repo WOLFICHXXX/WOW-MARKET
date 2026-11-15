@@ -577,6 +577,15 @@ do
     if WolfichMarketChartDialog then WolfichMarketChartDialog:Hide() end
     f.chartBtn.scripts.OnClick(f.chartBtn)
     check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown(), "«Продать»: график цены открывается")
+    do
+      local ch = ns.UI.Chart(UIParent)
+      if ch then
+        ch:SetPoints({ { 1000, 500, 100 }, { 2000, 480, 70 }, { 3000, 470, 90 }, { 4000, 460, 40 } })
+        local shown = 0; for _, l in ipairs(ch.slines) do if l.shown ~= false then shown = shown + 1 end end
+        check(#ch.slines == 3 and #ch.bars == 0, "график: вместо столбиков - вторая линия «продано»")
+        check(ch.slabels[3] and (ch.slabels[3].text or ""):find("50", 1, true), "график: шкала проданных справа (макс 50 шт)")
+      end
+    end
     local oldC = C_Item
     C_Item = setmetatable({ GetItemCount = function() return 37 end }, { __index = oldC or {} })
     f.qty:SetText(1); f.qtyAll.scripts.OnClick(f.qtyAll)

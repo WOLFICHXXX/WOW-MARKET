@@ -559,6 +559,7 @@ ns.EN = {
   ["по прибыли Общ"] = "by N profit",
   ["прибыль по общему"] = "neutral profit",
   ["прибыль по фракционному"] = "faction profit",
+  ["продано, шт (примерно)"] = "sold, pcs (approx.)",
   ["Цена сейчас"] = "Price now",
   ["Ваша цена"] = "Your price",
   ["ваша цена продажи"] = "your sell price",

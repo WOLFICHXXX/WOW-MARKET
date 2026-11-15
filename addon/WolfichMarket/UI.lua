@@ -339,9 +339,12 @@ end
 function UI.Chart(parent)
   local f = CreateFrame("Frame", nil, parent)
   local plot = CreateFrame("Frame", nil, f)
-  plot:SetPoint("TOPLEFT", 54, -6); plot:SetPoint("BOTTOMRIGHT", -8, 20)
+  plot:SetPoint("TOPLEFT", 54, -16); plot:SetPoint("BOTTOMRIGHT", -40, 20)
   local frameBg = plot:CreateTexture(nil, "BACKGROUND"); frameBg:SetAllPoints(); frameBg:SetColorTexture(0, 0, 0, 0.3)
-  f.lines, f.bars, f.labels, f.grid = {}, {}, {}, {}
+  f.lines, f.bars, f.labels, f.grid, f.slines, f.slabels = {}, {}, {}, {}, {}, {}
+  -- легенда: две линии - цена и продано (шт)
+  f.legend = UI.Font(f, 9, UI.DIM, "OVERLAY"); f.legend:SetPoint("BOTTOMRIGHT", plot, "TOPRIGHT", 0, 2)
+  f.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт (примерно)" .. "|r")
   local msg = UI.Font(f, 12, UI.DIM); msg:SetPoint("CENTER", plot); msg:SetJustifyH("CENTER")
   local function line(i)
     local l = f.lines[i]
@@ -358,6 +361,8 @@ function UI.Chart(parent)
   end
   function f:SetPoints(pts)
     for _, l in ipairs(self.lines) do l:Hide() end
+    for _, l in ipairs(self.slines) do l:Hide() end
+    for _, s in ipairs(self.slabels) do s:Hide() end
     for _, b in ipairs(self.bars) do b:Hide() end
     for _, s in ipairs(self.labels) do s:Hide() end
     for _, g in ipairs(self.grid) do g:Hide() end
@@ -380,12 +385,32 @@ function UI.Chart(parent)
       g:SetColorTexture(1, 1, 1, 0.07); g:SetHeight(1); g:ClearAllPoints(); g:SetPoint("BOTTOMLEFT", plot, "BOTTOMLEFT", 0, Y(v)); g:SetPoint("RIGHT", plot); g:Show()
       local s = lbl(i + 1); s:ClearAllPoints(); s:SetPoint("RIGHT", plot, "BOTTOMLEFT", -4, Y(v)); s:SetText(ns.money(v, true))
     end
-    -- объёмы — столбики
-    local bw = math.max(1, W / #pts * 0.6)
-    for i, p in ipairs(pts) do
-      local b = self.bars[i] or plot:CreateTexture(nil, "BORDER"); self.bars[i] = b
-      b:SetColorTexture(0.6, 0.77, 0.92, 0.18)
-      b:ClearAllPoints(); b:SetPoint("BOTTOM", plot, "BOTTOMLEFT", X(p[1]), 0); b:SetSize(bw, math.max(1, (p[3] or 0) / qmax * H * 0.35)); b:Show()
+    -- вторая линия: сколько продано между снимками (на сколько уменьшилось выставленное количество)
+    local sold, smax = {}, 0
+    for i = 2, #pts do
+      local a, b = pts[i - 1][3], pts[i][3]
+      local v = (a and b and a > b) and (a - b) or 0
+      sold[i] = v; if v > smax then smax = v end
+    end
+    sold[1] = 0
+    if smax > 0 then
+      local SY = function(v) return v / smax * H * 0.85 end
+      for i = 2, #pts do
+        local l = self.slines[i - 1]
+        if not l then
+          if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(1.5) else l = plot:CreateTexture(nil, "ARTWORK"); l:SetSize(2, 2) end
+          l:SetColorTexture(0.4, 0.85, 0.8, 0.9); self.slines[i - 1] = l
+        end
+        local x1, y1, x2, y2 = X(pts[i - 1][1]), SY(sold[i - 1]), X(pts[i][1]), SY(sold[i])
+        if l.SetStartPoint then l:SetStartPoint("BOTTOMLEFT", plot, x1, y1); l:SetEndPoint("BOTTOMLEFT", plot, x2, y2)
+        else l:ClearAllPoints(); l:SetPoint("CENTER", plot, "BOTTOMLEFT", x2, y2) end
+        l:Show()
+      end
+      -- шкала справа: штуки
+      for k, v in ipairs({ 0, math.floor(smax / 2 + 0.5), smax }) do
+        local s = self.slabels[k] or UI.Font(f, 9, UI.DIM); self.slabels[k] = s
+        s:ClearAllPoints(); s:SetPoint("LEFT", plot, "BOTTOMRIGHT", 4, SY(v)); s:SetText("|cff66d9cc" .. v .. "|r"); s:Show()
+      end
     end
     -- линия цены
     for i = 2, #pts do
@@ -432,11 +457,16 @@ function UI.Chart(parent)
         s:SetText(ns.money(p[2], true)); s:Show()
       end
     end
-    -- подписи времени
-    for k, idx in ipairs({ 1, math.floor((#pts + 1) / 2), #pts }) do
+    -- подписи времени (без наложения: близкие друг к другу пропускаются)
+    local mid = math.floor((#pts + 1) / 2)
+    local xs = { X(pts[1][1]), X(pts[mid][1]), X(pts[#pts][1]) }
+    local show = { xs[3] - xs[1] >= 150, (xs[2] - xs[1] >= 80) and (xs[3] - xs[2] >= 80), true }
+    for k, idx in ipairs({ 1, mid, #pts }) do
       local s = lbl(4 + k); s:ClearAllPoints()
-      s:SetPoint(k == 1 and "TOPLEFT" or k == 3 and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", X(pts[idx][1]), -3)
-      s:SetText(date("%d.%m %H:%M", pts[idx][1]))
+      if show[k] then
+        s:SetPoint(k == 1 and "TOPLEFT" or k == 3 and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", xs[k], -3)
+        s:SetText(date("%d.%m %H:%M", pts[idx][1]))
+      else s:Hide() end
     end
   end
   return f
