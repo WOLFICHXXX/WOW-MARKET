@@ -115,8 +115,10 @@ local function budget(cost)
   local now = GetTime()
   if tokT then tokens = math.min(BURST, tokens + (now - tokT) * RATE) else tokens = BURST end
   tokT = now
-  if tokens >= cost then tokens = tokens - cost return 0 end
-  return (cost - tokens) / RATE
+  -- крупное сообщение (Battle.net) может быть больше запаса - тогда ждём полного запаса и уходим «в долг»
+  local need = math.min(cost, BURST)
+  if tokens >= need then tokens = tokens - cost return 0 end
+  return (need - tokens) / RATE
 end
 ns._netBudget = function() return limits() end
 -- свободное имя: при турбо - то, что раньше освободится; иначе только основное
@@ -490,6 +492,7 @@ local function finish(sender, lost)
 end
 
 local answered = {}     -- [кто спросил] = когда ему начали отвечать
+local alias, bySig = {}, {} -- один снимок, пришедший разными путями: [отправитель] = основное имя; [время/кол-во] = основное имя
 local function onMessage(prefix, msg, dist, sender)
   if not IS_PREFIX[prefix] or not msg or not ns.DB then return end
   ns.netStats.recv = ns.netStats.recv + 1; ns.netStats.lastFrom = sender
@@ -559,11 +562,16 @@ local function onMessage(prefix, msg, dist, sender)
       end
       return
     end
-    ns.say(string.format(L"общий рынок: принимаю цены от %s (%s)...", (sender:match("^[^-]+") or sender), ns.ago(t)))
-    -- один и тот же снимок мог прийти несколькими путями (канал, гильдия, Battle.net) - берём один раз
+    -- один и тот же снимок мог прийти несколькими путями (канал, гильдия, Battle.net) под разными именами
+    -- отправителя - собираем его в одно место: цены с любого пути идут в одну копию
     if lastFrom[sender .. t] then return end
     lastFrom[sender .. t] = time()
     local parts = {}; for x in (rest .. "^"):gmatch("([^%^]*)%^") do parts[#parts + 1] = x end
+    local sig = t .. "/" .. (parts[2] or "")
+    local same = bySig[sig]
+    if same and incoming[same] then alias[sender] = same; return end
+    bySig[sig] = sender; alias[sender] = nil
+    ns.say(string.format(L"общий рынок: принимаю цены от %s (%s)...", (sender:match("^[^-]+") or sender), ns.ago(t)))
     incoming[sender] = { t = t, items = {}, n = dec(parts[2] or ""), pri = dec(parts[4] or ""), delta = parts[5] == "d", last = (GetTime and GetTime() or time()), msgs = 0 }
     -- сторож: если сообщения перестали приходить на 90 секунд - отправитель вышел, сообщаем, что успело прийти
     local function watch()
@@ -574,6 +582,7 @@ local function onMessage(prefix, msg, dist, sender)
     end
     ns.After(15, watch)
   elseif kind == "P" then
+    sender = (alias[sender] and incoming[alias[sender]]) and alias[sender] or sender
     local inc = incoming[sender]
     if not inc then return end
     local tstr, body = rest:match("^([^%^]+)%^(.*)$")
@@ -587,6 +596,7 @@ local function onMessage(prefix, msg, dist, sender)
     if inc.msgs % 20 == 0 then apply(inc, sender) end
   elseif kind == "C" or kind == "R" then
     -- плотная запись (2.29+): C - номер, цена, количество; R - номер и цена. Номера - разницей с предыдущим
+    sender = (alias[sender] and incoming[alias[sender]]) and alias[sender] or sender
     local inc = incoming[sender]
     if not inc then return end
     local tstr, body = rest:match("^([^%^]+)%^(.*)$")
@@ -605,6 +615,7 @@ local function onMessage(prefix, msg, dist, sender)
     inc.last = (GetTime and GetTime() or time()); inc.msgs = inc.msgs + 1
     if inc.msgs % 20 == 0 then apply(inc, sender) end
   elseif kind == "E" then
+    sender = (alias[sender] and incoming[alias[sender]]) and alias[sender] or sender
     if incoming[sender] and dec(rest) == incoming[sender].t then finish(sender) end
   end
 end

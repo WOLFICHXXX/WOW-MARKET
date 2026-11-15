@@ -730,6 +730,31 @@ do
   fire("BN_CHAT_MSG_ADDON", "WolfMkt1", "E^" .. rk .. "^" .. enc(t), "WHISPER", 77)
   check(ns.AHPrice(2840) == 222, "общий рынок: цены через Battle.net приняты")
   ns.DB.net = nil
+  -- большой снимок: крупные сообщения Battle.net не застревают (раньше были больше запаса и не уходили никогда)
+  bnSent = {}
+  local big = {}; for i = 1, 6000 do big[700000 + i * 11] = { 500 + i * 7, 2, 1 } end
+  local okBig = pcall(function() ns._netResetSent(); ns.ShareScan({ t = time() + 30000, items = big }) end)
+  for _ = 1, 600 do advance(0.5) end
+  local bnIds = {}
+  for _, e in ipairs(bnSent) do for _, id in ipairs((zids(e[2]))) do bnIds[id] = true end end
+  local nb = 0; for id in pairs(bnIds) do if big[id] then nb = nb + 1 end end
+  check(okBig and nb == 6000, "Battle.net: большой снимок дошёл целиком (" .. nb .. " из 6000)")
+  -- один снимок пришёл двумя путями под разными именами, цены - только одним: принят без «вышел из игры»
+  ns.DB.net = nil
+  for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
+  local t2 = time() + 40000
+  local hdr = "H^" .. rk .. "^" .. enc(t2) .. "^" .. enc(2) .. "^2.31^" .. enc(2) .. "^d"
+  printed = {}; for k in pairs(ns.log) do ns.log[k] = nil end; local logStart = 0
+  ns._netReceive("WolfMkt1", hdr, "BN", "Сосед Менеджмент")
+  ns._netReceive("WolfMkt1", hdr, "CHANNEL", "Сосед-Realm")
+  ns._netReceive("WolfMkt2", "C^" .. rk .. "^" .. enc(t2) .. "^" .. ns._zenc(2840) .. ns._zenc(333) .. ns._zenc(5) .. ns._zenc(30) .. ns._zenc(444) .. ns._zenc(6), "CHANNEL", "Сосед-Realm")
+  ns._netReceive("WolfMkt1", "E^" .. rk .. "^" .. enc(t2), "CHANNEL", "Сосед-Realm")
+  for _ = 1, 20 do advance(10) end
+  local lost, took, acc = false, false, 0
+  for k = logStart + 1, #ns.log do local m = ns.log[k].msg; if m:find("вышел из игры", 1, true) or m:find("left the game", 1, true) then lost = true end; if m:find("принимаю", 1, true) or m:find("receiving", 1, true) then acc = acc + 1 end end
+  check(ns.AHPrice(2840) == 333 and ns.AHPrice(2870) == 444, "снимок двумя путями: цены приняты (" .. tostring(ns.AHPrice(2840)) .. ")")
+  check(not lost and acc <= 1, "снимок двумя путями: без «вышел из игры» и одно «принимаю» (" .. acc .. ")")
+  ns.DB.net = nil
   BNGetNumFriends, BNSendGameData, C_BattleNet = nil, nil, nil
   printed = {}; SlashCmdList.WOLFICHMARKETNET()
   check(#printed > 2, "/wmnet работает")
