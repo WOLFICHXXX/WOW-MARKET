@@ -244,15 +244,51 @@ end
 -- что разослано в прошлый раз (в памяти): для «только изменившихся цен»
 local lastSent = {}   -- [ключ аукциона] = { t, full = время полной рассылки, p = { [id] = цена } }
 local FULL_EVERY = 3600
-ns._netResetSent = function() for k in pairs(lastSent) do lastSent[k] = nil end end -- для автотестов
 
 -- разослать свой снимок (только свой, не пересланный чужой). full - целиком (по запросу или раз в час)
-function ns.ShareScan(scan, full)
+-- Когда снимки делают многие игроки сразу, рассылки не должны мешать друг другу:
+--  * пока кто-то рассылает, свою рассылку откладываем, а потом шлём только то, что отличается от уже пришедшего;
+--  * целиком аукцион уходит в сети не чаще раза в час (кто бы его ни прислал) и по запросу, но не чаще раза в 10 минут;
+--  * если в сети уже есть снимок свежее нашего - не шлём ничего.
+local netSeen = { active = 0, lastFull = 0 }  -- active - когда пришло последнее сообщение чужой рассылки (GetTime), lastFull - время последней полной (time)
+ns._netSeen = netSeen
+ns._netResetSent = function() for k in pairs(lastSent) do lastSent[k] = nil end; netSeen.active, netSeen.lastFull = -1000, 0 end -- для автотестов
+local pending                                  -- отложенная рассылка { scan, full, tries }
+local function busy() return GetTime() - netSeen.active < 20 end
+function ns.ShareScan(scan, full, again)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
   local rk = RK()
   local last = lastSent[rk]
   if last and last.t and scan.t < last.t then return end -- уже разослан более свежий снимок
-  if not last or not last.full or time() - last.full >= FULL_EVERY or (last.t and last.t >= scan.t) then full = true end
+  local net = ns.DB.net and ns.DB.net[ns.realmKey]
+  if not full and net and net.t and net.t >= scan.t then return end -- в сети уже есть снимок не хуже
+  -- кто-то сейчас рассылает - подождём конца (до ~15 минут), потом разошлём только отличия от пришедшего
+  if busy() and not again then
+    pending = { scan = scan, full = full, tries = 0 }
+    local function retry()
+      local pd = pending
+      if not pd or pd.scan ~= scan then return end
+      pd.tries = pd.tries + 1
+      if busy() and pd.tries < 30 then ns.After(20 + math.random() * 20, retry) return end
+      pending = nil
+      ns.ShareScan(scan, full, true)
+    end
+    ns.After(20 + math.random() * 20, retry)
+    ns.say(L"общий рынок: сейчас рассылает другой игрок - свой снимок отправлю после него, только отличия.")
+    return
+  end
+  if busy() and full ~= "force" then return end -- так и не освободилось - не мешаем
+  if pending and pending.scan.t <= scan.t then pending = nil end
+  local lastFull = math.max(netSeen.lastFull or 0, last and last.full or 0)
+  if full and time() - lastFull < 600 and full ~= "force" then full = nil end -- целиком недавно уже было
+  if not full and time() - lastFull >= FULL_EVERY then full = true end
+  -- последняя известная сети цена: из чужих рассылок или из нашей прошлой - что свежее
+  local function known(id)
+    local x = net and net.items[id]
+    local mine = last and last.p and last.p[id]
+    if mine and (not x or (last.t or 0) >= (x[3] or 0)) then return mine end
+    return x and x[1]
+  end
   -- порядок: сначала предметы, на которые игроки поставили сигналы, потом все рецепты игры, потом остальной аукцион
   local seen = {}
   local g0, g1, g2, rest = {}, {}, {}, {}
@@ -260,21 +296,30 @@ function ns.ShareScan(scan, full)
   for id in pairs(ns.NetWanted()) do if ok(id) then seen[id] = true; g0[#g0 + 1] = id end end
   for id in pairs(ns.DB.marked) do if ok(id) then seen[id] = true; g1[#g1 + 1] = id end end
   for id in pairs(sharedIDs()) do if ok(id) then seen[id] = true; g2[#g2 + 1] = id end end
-  local pri = #g0 + #g1 + #g2
   local unchanged = 0
+  -- не целиком: и в важном, и в остальном - только цены, отличающиеся от уже известных сети
+  if not full then
+    for _, g in ipairs({ g0, g1, g2 }) do
+      for k = #g, 1, -1 do if known(g[k]) == scan.items[g[k]][1] then table.remove(g, k); unchanged = unchanged + 1 end end
+    end
+  end
+  local pri = #g0 + #g1 + #g2
   for id, r in pairs(scan.items) do
     if ok(id) then
       seen[id] = true
-      -- остальной аукцион: в обычной рассылке - только изменившиеся с прошлого раза цены
-      if full or not last.p or last.p[id] ~= r[1] then rest[#rest + 1] = id else unchanged = unchanged + 1 end
+      if full or known(id) ~= r[1] then rest[#rest + 1] = id else unchanged = unchanged + 1 end
     end
   end
   local n = pri + #rest
-  if n == 0 then return end
+  if n == 0 then
+    lastSent[rk] = { t = scan.t, full = last and last.full, p = last and last.p or {} }
+    ns.say(L"общий рынок: цены в сети уже такие же, как в вашем снимке - рассылать нечего.")
+    return
+  end
   -- запомнить разосланное
   local p = {}
   for id, r in pairs(scan.items) do if r[1] and r[1] > 0 then p[id] = r[1] end end
-  lastSent[rk] = { t = scan.t, full = full and time() or last.full, p = p }
+  lastSent[rk] = { t = scan.t, full = full and time() or (last and last.full), p = p }
   -- новая рассылка отменяет недосланную старую
   for _, q in ipairs({ queue, bnQueue }) do for k = #q, 1, -1 do if q[k].t and q[k].t < scan.t then table.remove(q, k) end end end
   local priParts = {}
@@ -438,6 +483,9 @@ local function onMessage(prefix, msg, dist, sender)
   if sender and me and (sender == me or sender:match("^[^-]+") == me) then return end
   local kind, rk, rest = msg:match("^(%a)%^([^%^]+)%^(.*)$")
   if not kind or rk ~= RK() then return end -- чужой аукцион (другой режим или фракция)
+  -- кто-то рассылает снимок: свою рассылку придержим (см. ns.ShareScan)
+  if kind == "H" or kind == "C" or kind == "R" or kind == "P" then netSeen.active = GetTime() end
+  if kind == "H" and rest:match("%^f$") then netSeen.lastFull = time() end
   if kind == "W" then
     local w = wants[sender] or { ids = {} }
     if not wants[sender] or time() - w.t > 60 then w.ids = {} end -- новый список - заменяет старый

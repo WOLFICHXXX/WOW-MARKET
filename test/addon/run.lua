@@ -541,6 +541,7 @@ do
   sent = {}
   local items2 = {}; for id, r in pairs(items) do items2[id] = { r[1], r[2], 1 } end
   items2[600003][1] = 5555
+  ns._netSeen.active = -1000 -- чужая рассылка (зеркало) закончилась
   ns.ShareScan({ t = T + 900, items = items2 })
   for _ = 1, 100 do advance(0.2) end
   local restIds = {}
@@ -550,10 +551,33 @@ do
   check(hd and hd:sub(-2) == "^d", "заголовок помечен «только изменения»")
   -- по запросу (Q) - целиком
   sent = {}
-  ns.ShareScan({ t = T + 1000, items = items2 }, true)
+  ns.ShareScan({ t = T + 1000, items = items2 }, "force")
   for _ = 1, 400 do advance(0.2) end
   local c2, u2 = 0, {}; for _, m in ipairs(sent) do for _, id in ipairs((zids(m))) do if items2[id] and not u2[id] then u2[id] = true; c2 = c2 + 1 end end end
-  check(c2 == 400, "по запросу - весь аукцион целиком (" .. c2 .. ")")
+  check(c2 == 400, "/wmnetsend - весь аукцион целиком (" .. c2 .. ")")
+  -- по запросу Q, если целиком было меньше 10 минут назад - только отличия
+  sent = {}
+  items2[600006][1] = 4444
+  ns.ShareScan({ t = T + 1100, items = items2 }, true)
+  for _ = 1, 100 do advance(0.2) end
+  local c3 = 0; for _, m in ipairs(sent) do c3 = c3 + #(zids(m)) end
+  check(c3 == 1, "запрос вскоре после полной рассылки - только отличия (" .. c3 .. ")")
+  -- пока рассылает другой игрок - своя рассылка ждёт, потом только отличия от пришедшего
+  sent = {}
+  ns._netReceive("WolfMkt3", "H^" .. ns.NetKey() .. "^" .. "zzzzz0" .. "^1^2.29^0^d", "CHANNEL", "Другой-Realm")
+  items2[600009][1] = 3333
+  ns.ShareScan({ t = T + 1200, items = items2 })
+  advance(1)
+  local early = 0; for _, m in ipairs(sent) do early = early + #(zids(m)) end
+  check(early == 0, "пока рассылает другой - своя рассылка ждёт")
+  for _ = 1, 300 do advance(0.5) end
+  local c4 = 0; for _, m in ipairs(sent) do c4 = c4 + #(zids(m)) end
+  check(c4 == 1, "после чужой рассылки - отправлены только отличия (" .. c4 .. ")")
+  -- в сети цены уже такие же - ничего не шлём
+  sent = {}
+  ns.ShareScan({ t = T + 1300, items = items2 })
+  for _ = 1, 50 do advance(0.2) end
+  check(#sent == 0, "цены в сети такие же - рассылать нечего (" .. #sent .. " сообщ.)")
   C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
   for k in pairs(ns._netQueue) do ns._netQueue[k] = nil end
   ns._netResetSent()
@@ -633,7 +657,7 @@ do
   ns._netReceive("WolfMkt1", "W^" .. rk .. "^" .. enc(3470) .. ",", "CHANNEL", "Друг-Realm")
   check(ns.NetWanted()[3470], "общий рынок: получен список сигналов другого игрока")
   sent = {}
-  ns._netResetSent(); ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 }, [3470] = { 90, 5, 1 } } })
+  ns._netResetSent(); ns.ShareScan({ t = time() + 6000, items = { [2840] = { 150, 30, 2 }, [3470] = { 90, 5, 1 } } })
   for _ = 1, 90 do advance(1) end
   local firstP; for _, m in ipairs(sent) do if m:sub(1, 2) == "C^" then firstP = m; break end end
   check(firstP and (function() for _, id in ipairs(zids(firstP)) do if id == 3470 then return true end end end)(), "общий рынок: чужие сигналы рассылаются первыми")
