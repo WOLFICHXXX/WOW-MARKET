@@ -140,6 +140,16 @@ do
   advance(5)
   local n2 = 0; for _ in pairs(sell.checked) do n2 = n2 + 1 end
   check(sell.pending == nil and n2 == n1, "без подтверждения - лот остаётся в очереди, кнопку можно нажать снова")
+  -- окно «Продать» самой игры занято предметом - массовое выставление не шлёт параллельно
+  do
+    local oldA = AuctionHouseFrame
+    local sellFr = CreateFrame("Frame"); sellFr.GetItem = function() return { bagID = 0, slotIndex = 1 } end; sellFr:Show()
+    AuctionHouseFrame = CreateFrame("Frame"); AuctionHouseFrame:Show(); AuctionHouseFrame.CommoditiesSellFrame = sellFr
+    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+    check(postedLot == nil and ((sell.bulkInfo.text or ""):find("Продать", 1, true) or (sell.bulkInfo.text or ""):find("Sell", 1, true)), "окно «Продать» игры занято - выставление не уходит, подсказка")
+    AuctionHouseFrame = oldA
+  end
+
 end
 check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
 local buy = P[3]

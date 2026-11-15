@@ -13,6 +13,23 @@ local chartItem, buyItem, sellSel
 
 local function setStatus() ns.Fire("SCAN_STATE") end
 
+-- Аукцион принимает запросы по одному: если послать новый, пока не пришёл ответ на прошлый (свой или окна игры),
+-- ответ теряется и окно игры зависает на «Поиск...». Поэтому все запросы аддона - только когда аукцион свободен.
+function ns.AHReady()
+  local f = C_AuctionHouse and C_AuctionHouse.IsThrottledMessageSystemReady
+  if not f then return true end
+  return safe(f) ~= false
+end
+-- окно «Продать» самой игры с положенным предметом: оно само шлёт запросы - выставлять параллельно нельзя
+function ns.BlizzSellBusy()
+  local A = AuctionHouseFrame
+  if not A or not A.IsShown or not A:IsShown() then return false end
+  for _, fr in ipairs({ A.CommoditiesSellFrame, A.ItemSellFrame }) do
+    if type(fr) == "table" and fr.IsShown and fr:IsShown() and fr.GetItem and safe(fr.GetItem, fr) then return true end
+  end
+  return false
+end
+
 -- ---------- какой это аукцион: фракционный (основной) или общий (межфракционный) ----------
 -- Определяется по зоне: Остров Зефрис, Тернистая долина, Танарис - общий; остальное - фракционный.
 -- Если где-то не угадали - кнопками на панели (запоминается для этого аукциониста).
@@ -226,9 +243,12 @@ function ns.QuickRefresh(ids)
   local mine = ids == nil
   ids = ids or myIDs()
   if #ids == 0 then ns.say(L"нечего обновлять: откройте окна своих профессий или положите предметы в сумки.") return end
-  quick = { ids = ids, i = 0, mine = mine }
+  quick = { ids = ids, i = 0, mine = mine, wait = 0 }
   local function step()
     if not quick then return end
+    -- аукцион ещё не ответил на прошлый запрос - подождать (не больше ~10 с)
+    if not ns.AHReady() and quick.wait < 30 then quick.wait = quick.wait + 1; ns.After(0.3, step) return end
+    quick.wait = 0
     quick.i = quick.i + 1
     local id = quick.ids[quick.i]
     if not id or not ns.ahOpen then
@@ -559,9 +579,11 @@ local function pageBuy(f)
   end
 end
 
-local function searchItem(id)
+local function searchItem(id, tries)
   local key = C_AuctionHouse.MakeItemKey and C_AuctionHouse.MakeItemKey(id)
   if not key then return end
+  tries = tries or 0
+  if not ns.AHReady() and tries < 30 then ns.After(0.3, function() if buyItem == id then searchItem(id, tries + 1) end end) return end
   local sorts = {}
   if Enum and Enum.AuctionHouseSortOrder then sorts = { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } } end
   pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
@@ -784,6 +806,8 @@ local function pageSell(f)
   end
   f.doPost = function()
     local d = sellSel; if not d or not d.loc then return end
+    if ns.BlizzSellBusy() then ns.say(L"|cffffb060В окне «Продать» самой игры лежит предмет - уберите его (или откройте там «Купить»), иначе аукцион зависает на «Поиск...».|r") return end
+    if not ns.AHReady() then ns.say(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r") return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
     local ok, err
     if d.commodity then ok, err = pcall(C_AuctionHouse.PostCommodity, d.loc, f.dur, q, unit)
@@ -818,11 +842,21 @@ local function pageSell(f)
   end
   f.postNext = function()
     if f.pending then return end -- прошлый лот ещё не подтверждён игрой
-    -- аукцион принимает следующий лот только когда освободится (иначе молча отказывает)
-    if C_AuctionHouse.IsThrottledMessageSystemReady and not safe(C_AuctionHouse.IsThrottledMessageSystemReady) then
-      f.bulkInfo:SetText(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r")
+    if ns.BlizzSellBusy() then
+      f.bulkInfo:SetText(L"|cffffb060В окне «Продать» самой игры лежит предмет - уберите его (или откройте там «Купить»), иначе аукцион зависает на «Поиск...».|r")
       return
     end
+    -- аукцион принимает следующий лот только когда освободится (иначе молча отказывает)
+    if not ns.AHReady() then
+      f.busySince = f.busySince or GetTime()
+      if GetTime() - f.busySince > 8 then
+        f.bulkInfo:SetText(L"|cffff6060Аукцион не отвечает. Закройте окно аукциона и откройте снова - очередь сохранится.|r")
+      else
+        f.bulkInfo:SetText(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r")
+      end
+      return
+    end
+    f.busySince = nil
     local q = f.queue()
     local it = q[1]; if not it then f.updateBulk() return end
     local d = it.d
