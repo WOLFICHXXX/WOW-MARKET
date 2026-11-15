@@ -179,6 +179,20 @@ do
   local scanRef, ahP = ns.DB.ahScans[ns.realmKey], ns.AHPrice(2840)
   fire("AUCTION_HOUSE_SHOW"); advance(3)
   check(ns.ahIsBM == true, "аукционист чёрного рынка определён по подписи")
+  do
+    local un, ti = UnitName, C_TooltipInfo
+    UnitName = function(u) if u == "npc" then return "Аукционер Леонус" end return "Вульфыч" end
+    C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Аукционер Леонус" }, { leftText = "<Аукционист>" } } } end }
+    local oldG = UnitGUID; UnitGUID = function(u) if u == "npc" then return "Creature-0-1-2-3-88888-00001" end return "Player-1-0001" end
+    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+    check(ns.ahIsBM == true, "Аукционер Леонус - чёрный рынок")
+    UnitName = function(u) if u == "npc" then return "Аукционер Фитч" end return "Вульфыч" end
+    C_TooltipInfo = { GetUnit = function() return { lines = { { leftText = "Аукционер Фитч" }, { leftText = "<Аукционист>" } } } end }
+    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+    check(ns.ahIsBM == false, "обычный аукционист - обычный аукцион")
+    UnitName, C_TooltipInfo, UnitGUID = un, ti, oldG
+    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+  end
   ns.DB.bmLastReq = 0
   ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
   check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) == ahP, "снимок чёрного рынка не заменил цены обычного аукциона")

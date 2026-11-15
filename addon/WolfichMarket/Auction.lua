@@ -18,7 +18,8 @@ local function setStatus() ns.Fire("SCAN_STATE") end
 -- («<Чёрный рынок>»), а если не угадали - кнопкой «Чёрный рынок» на панели (запоминается для этого аукциониста).
 -- Цены чёрного рынка хранятся отдельно и не заменяют цены обычного аукциона.
 -- string.lower не меняет русские буквы - поэтому оба варианта написания
-local BM_WORDS = { "чёрн", "черн", "Чёрн", "Черн", "ЧЁРН", "ЧЕРН", "black market", "blackmarket", "контрабанд", "Контрабанд", "smuggl", "goya", "гойя", "Гойя" }
+local BM_WORDS = { "чёрн", "черн", "Чёрн", "Черн", "ЧЁРН", "ЧЕРН", "black market", "blackmarket", "контрабанд", "Контрабанд", "smuggl", "goya", "гойя", "Гойя",
+  "Леонус", "Leonus" } -- Аукционер Леонус - чёрный рынок на WoW Forever
 local function npcInfo()
   local guid = UnitGUID and UnitGUID("npc")
   local id = guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
