@@ -357,28 +357,30 @@ local function buildCraft(f)
   card:SetSize(400, 400)
   sf:SetScrollChild(card)
   local cur, maxScroll = 0, EXTRA
+  local FADE, EDGE_T, EDGE_B = 14, 12, 10 -- растушёвка и отступ линии рамки от края
   -- прокрутка ровно до графика: заголовок графика встаёт к верхней линии рамки
   local function range()
     local st, tt = sf:GetTop(), card.chartTitle and card.chartTitle:GetTop()
     if not st or not tt then return EXTRA end
-    return math.max(0, math.floor(st - (tt - cur) - 4))
+    return math.max(0, math.floor(st - (tt - cur) - EDGE_T - FADE))
   end
   local function resize()
     local w, h = sf:GetWidth(), sf:GetHeight()
     if w and w > 0 then maxScroll = math.min(EXTRA, range()); card:SetSize(w, h + maxScroll) end
   end
-  -- растушёвка у верхней и нижней линии: что уходит за линию - плавно гаснет и не ловит мышь
-  local FADE = 16
+  -- растушёвка у верхней и нижней линии рамки (по внутренней линии с уголками): к линии строка гаснет полностью,
+  -- за линией её нет; погасшие кнопки не ловят мышь
   local function fade()
-    local T, B = sf:GetTop(), sf:GetBottom()
-    if not T or not B then return end
+    local bt, bb = box:GetTop(), box:GetBottom()
+    if not bt or not bb then return end
+    local T, B = bt - EDGE_T, bb + EDGE_B
     local objs = { card:GetChildren() }
     for _, rg in ipairs({ card:GetRegions() }) do if rg.GetObjectType and rg:GetObjectType() == "FontString" then objs[#objs + 1] = rg end end
     for _, o in ipairs(objs) do
       if o ~= card.chart and o.GetTop then
         local top, bot = o:GetTop(), o:GetBottom()
         if top and bot then
-          local a = math.min(math.max((T - top) / FADE + 1, 0), math.max(math.min((bot - B) / FADE + 1, 1), 0))
+          local a = math.min((T - top) / FADE, (bot - B) / FADE)
           a = math.max(0, math.min(1, a))
           o:SetAlpha(a)
           if o.EnableMouse and o.IsMouseEnabled then
