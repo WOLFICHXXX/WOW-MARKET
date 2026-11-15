@@ -705,10 +705,18 @@ local function pageSell(f)
   local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 10, -94); ql:SetText(L"Количество:")
   f.qty = CreateFrame("EditBox", nil, box, "InputBoxTemplate"); f.qty:SetSize(54, 20); f.qty:SetPoint("LEFT", ql, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true)
   f.qty:SetScript("OnTextChanged", function() f.calc() end)
+  -- «Все» - всё количество этого предмета из сумок
+  f.qtyAll = UI.Button(box, L"Все", 40, 20, function()
+    local d = sellSel
+    if not d then return end
+    local n = (C_Item and C_Item.GetItemCount and safe(C_Item.GetItemCount, d.id, false)) or (GetItemCount and safe(GetItemCount, d.id, false)) or d.count or 1
+    f.qty:SetText(math.max(1, n or 1)); f.calc()
+  end)
+  f.qtyAll:SetPoint("LEFT", f.qty, "RIGHT", 4, 0)
   f.durBtns = {}
   for i, d in ipairs(DURS) do
     local b = UI.Button(box, L(d[2]), 46, 20, function() f.dur = d[1]; f.calc(); f.updateBulk() end)
-    b:SetPoint("LEFT", f.qty, "RIGHT", 12 + (i - 1) * 50, 0); f.durBtns[i] = b
+    b:SetPoint("LEFT", f.qtyAll, "RIGHT", 10 + (i - 1) * 50, 0); f.durBtns[i] = b
   end
   f.dur = 2
   f.info = UI.Font(box, 10, UI.DIM); f.info:SetPoint("BOTTOMLEFT", 10, 10); f.info:SetPoint("RIGHT", -140, 0); f.info:SetMaxLines(2); f.info:SetWordWrap(true)
