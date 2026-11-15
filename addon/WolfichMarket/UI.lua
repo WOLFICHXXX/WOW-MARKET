@@ -359,6 +359,9 @@ function UI.Chart(parent)
   local function lbl(i)
     local s = f.labels[i] or UI.Font(f, 9, UI.DIM); f.labels[i] = s; s:Show(); return s
   end
+  -- клик по графику (если задан f.onClick) - например, открыть большой график
+  f:EnableMouse(true)
+  f:SetScript("OnMouseUp", function(self) if self.onClick then self.onClick() end end)
   function f:SetPoints(pts)
     for _, l in ipairs(self.lines) do l:Hide() end
     for _, l in ipairs(self.slines) do l:Hide() end
@@ -368,6 +371,7 @@ function UI.Chart(parent)
     for _, g in ipairs(self.grid) do g:Hide() end
     for _, s in ipairs(self.peakLbl or {}) do s:Hide() end
     for _, d in ipairs(self.dots or {}) do d:Hide() end
+    self.legend:SetShown(not self.compact and not self.noLegend)
     if not pts or #pts < 2 then msg:SetText(L"Мало данных для графика.\nКаждый снимок аукциона добавляет точку."); msg:Show() return end
     msg:Hide()
     local W, H = plot:GetWidth(), plot:GetHeight()
@@ -378,9 +382,10 @@ function UI.Chart(parent)
     local pad = (hi - lo) * 0.1; hi = hi + pad; lo = math.max(0, lo - pad)
     local X = function(t) return (t - t0) / math.max(1, t1 - t0) * W end
     local Y = function(v) return (v - lo) / (hi - lo) * H end
-    -- сетка и подписи цен
-    for i = 0, 3 do
-      local v = lo + (hi - lo) * i / 3
+    -- сетка и подписи цен (в компактном виде - только низ и верх)
+    local steps = self.compact and 1 or 3
+    for i = 0, steps do
+      local v = lo + (hi - lo) * i / steps
       local g = self.grid[i + 1] or plot:CreateTexture(nil, "BORDER"); self.grid[i + 1] = g
       g:SetColorTexture(1, 1, 1, 0.07); g:SetHeight(1); g:ClearAllPoints(); g:SetPoint("BOTTOMLEFT", plot, "BOTTOMLEFT", 0, Y(v)); g:SetPoint("RIGHT", plot); g:Show()
       local s = lbl(i + 1); s:ClearAllPoints(); s:SetPoint("RIGHT", plot, "BOTTOMLEFT", -4, Y(v)); s:SetText(ns.money(v, true))
@@ -407,7 +412,7 @@ function UI.Chart(parent)
         l:Show()
       end
       -- шкала справа: штуки
-      for k, v in ipairs({ 0, math.floor(smax / 2 + 0.5), smax }) do
+      for k, v in ipairs(self.compact and { smax } or { 0, math.floor(smax / 2 + 0.5), smax }) do
         local s = self.slabels[k] or UI.Font(f, 9, UI.DIM); self.slabels[k] = s
         s:ClearAllPoints(); s:SetPoint("LEFT", plot, "BOTTOMRIGHT", 4, SY(v)); s:SetText("|cff66d9cc" .. v .. "|r"); s:Show()
       end
@@ -420,7 +425,13 @@ function UI.Chart(parent)
       else l:ClearAllPoints(); l:SetPoint("CENTER", plot, "BOTTOMLEFT", x2, y2) end
     end
     -- подписи цен на пиках: максимум, минимум и до 3 самых высоких локальных пиков
-    if self.showPeaks then
+    if self.compact then
+      -- компактно: только точка и цена последнего снимка
+      self.dots = self.dots or {}; self.peakLbl = self.peakLbl or {}
+      local p = pts[#pts]
+      local d = self.dots[1] or plot:CreateTexture(nil, "OVERLAY"); self.dots[1] = d
+      d:SetColorTexture(1, 0.85, 0.4, 1); d:SetSize(6, 6); d:ClearAllPoints(); d:SetPoint("CENTER", plot, "BOTTOMLEFT", X(p[1]), Y(p[2])); d:Show()
+    elseif self.showPeaks then
       self.peakLbl = self.peakLbl or {}; self.dots = self.dots or {}
       for _, s in ipairs(self.peakLbl) do s:Hide() end
       for _, d in ipairs(self.dots) do d:Hide() end
@@ -460,7 +471,7 @@ function UI.Chart(parent)
     -- подписи времени (без наложения: близкие друг к другу пропускаются)
     local mid = math.floor((#pts + 1) / 2)
     local xs = { X(pts[1][1]), X(pts[mid][1]), X(pts[#pts][1]) }
-    local show = { xs[3] - xs[1] >= 150, (xs[2] - xs[1] >= 80) and (xs[3] - xs[2] >= 80), true }
+    local show = { xs[3] - xs[1] >= 150, not self.compact and (xs[2] - xs[1] >= 80) and (xs[3] - xs[2] >= 80), true }
     for k, idx in ipairs({ 1, mid, #pts }) do
       local s = lbl(4 + k); s:ClearAllPoints()
       if show[k] then

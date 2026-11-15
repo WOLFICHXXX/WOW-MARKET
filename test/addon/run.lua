@@ -341,6 +341,9 @@ do
       check(okS and ns.DB.settings.craftSort == "neutral", "главное окно: галочка «прибыль по общему»")
       C.sortMain:SetChecked(true); C.sortMain.scripts.OnClick(C.sortMain)
       check(ns.DB.settings.craftSort == "main" and not C.sortNt:GetChecked(), "главное окно: галочки взаимоисключающие")
+      local sc = C.card and C.card.scroll
+      local okW = pcall(sc.scripts.OnMouseWheel, sc, -1)
+      check(sc and okW, "карточка рецепта прокручивается колёсиком вниз, к графику")
       ns.DB.settings.craftSort = nil; ns.ToggleMain()
       nt.items[2862] = nil
       ns.DB.chars[ns.charKey].profs["ТестПроф"] = nil; ns.curProf = saveProf; ns.MarkProfitDirty()

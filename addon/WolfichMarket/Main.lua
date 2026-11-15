@@ -121,7 +121,9 @@ function craft.drawChart()
   for _, r in ipairs(card.rows) do r.hl:SetShown(r:IsShown() and r.id == id) end
   if not id then card.chartTitle:SetText(""); card.chart:SetPoints(nil); return end
   local p = ns.AHPrice(id)
-  card.chartTitle:SetText(L"График: " .. ns.itemLinkText(id) .. (p and ("  |cffaaaaaa" .. L"сейчас" .. "|r " .. ns.money(p, true)) or ""))
+  card.chartId = id
+  -- заголовок вместо легенды: цвет слов = цвет линий
+  card.chartTitle:SetText(L"График: " .. ns.itemLinkText(id) .. "   |cfff2c761" .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc" .. L"продано, шт" .. "|r")
   local h = ns.History(id)
   ns.After(0, function() card.chart:SetPoints(h) end)
 end
@@ -420,9 +422,42 @@ local function buildCraft(f)
   card.alarm:SetScript("OnLeave", function() GameTooltip:Hide() end)
   card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", card.craft, "BOTTOMLEFT", 2, -6); card.total:SetPoint("RIGHT", -10, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
   card.chartTitle = UI.Font(card, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", 0, -10); card.chartTitle:SetPoint("RIGHT", -10, 0)
-  card.chart = UI.Chart(card); card.chart.showPeaks = true
+  -- график - полноразмерный, с подписями; карточка прокручивается колёсиком мыши вниз, к графику
+  card.chart = UI.Chart(card); card.chart.showPeaks = true; card.chart.noLegend = true
   card.chart:SetPoint("TOPLEFT", card.chartTitle, "BOTTOMLEFT", -8, -4); card.chart:SetPoint("BOTTOMRIGHT", -10, 10)
   craft.card = card
+  -- прокрутка карточки: всё содержимое (кроме рамки) переносится в прокручиваемую область,
+  -- которая на EXTRA выше видимой - туда и вытягивается график
+  do
+    local EXTRA = 210
+    local sf = CreateFrame("ScrollFrame", nil, card)
+    sf:SetPoint("TOPLEFT", 4, -6); sf:SetPoint("BOTTOMRIGHT", -4, 6)
+    local content = CreateFrame("Frame", nil, sf)
+    content:SetSize(400, 400)
+    sf:SetScrollChild(content)
+    local function move(obj)
+      if obj == sf then return end
+      local pts = {}
+      for i = 1, (obj.GetNumPoints and obj:GetNumPoints() or 0) do pts[i] = { obj:GetPoint(i) } end
+      obj:SetParent(content)
+      if #pts > 0 then
+        obj:ClearAllPoints()
+        for _, p in ipairs(pts) do obj:SetPoint(p[1], p[2] == card and content or p[2], p[3], p[4], p[5]) end
+      end
+    end
+    for _, ch in ipairs({ card:GetChildren() }) do move(ch) end
+    for _, rg in ipairs({ card:GetRegions() }) do if rg.GetObjectType and rg:GetObjectType() == "FontString" then move(rg) end end
+    local function resize() local w, h = sf:GetWidth(), sf:GetHeight(); if w and w > 0 then content:SetSize(w, h + EXTRA) end end
+    sf:SetScript("OnSizeChanged", resize); resize()
+    sf:EnableMouseWheel(true)
+    local hint = UI.Font(card, 10, UI.DIM, "OVERLAY"); hint:SetPoint("BOTTOMRIGHT", -16, 8); hint:SetText(L"колёсико мыши - ниже график")
+    local cur = 0
+    sf:SetScript("OnMouseWheel", function(self, delta)
+      cur = math.max(0, math.min(EXTRA, cur - delta * 50))
+      self:SetVerticalScroll(cur); hint:SetShown(cur < EXTRA * 0.5)
+    end)
+    card.scroll = sf
+  end
 end
 
 -- ---------- вкладка «Сигналы» ----------
