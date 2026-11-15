@@ -556,30 +556,6 @@ end
 WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
 check(WolfichMarketMainFrame.pages[5]:IsShown(), "вкладка «Настройки» в главном окне")
 WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
--- «турбо»: рассылка через 4 служебных имени, весь аукцион; приём с любого имени
-do
-  local used, msgs = {}, 0
-  local oldS, oldG = C_ChatInfo.SendAddonMessage, GetChannelName
-  GetChannelName = function() return 6 end
-  C_ChatInfo.SendAddonMessage = function(p, m) used[p] = true; msgs = msgs + 1; return 0 end
-  local items = {}
-  for k = 1, 600 do items[900000 + k] = { 100 + k, 5, 1 } end -- предметы не из рецептов
-  local t0 = GetTime()
-  ns.ShareScan({ t = time() + 30000, items = items })
-  for _ = 1, 400 do advance(0.25); if #ns._netQueue == 0 then break end end
-  local took = GetTime() - t0
-  local n = 0; for _ in pairs(used) do n = n + 1 end
-  check(n == 4 and msgs > 20, "общий рынок: турбо - 4 служебных имени (" .. msgs .. " сообщ. за " .. math.floor(took) .. " с)")
-  check(took < msgs * 0.5, "общий рынок: турбо быстрее одного сообщения в секунду")
-  C_ChatInfo.SendAddonMessage, GetChannelName = oldS, oldG
-  local enc = function(x) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; x = math.floor(x); repeat local d = x % 36; s2 = D:sub(d + 1, d + 1) .. s2; x = math.floor(x / 36) until x == 0; return s2 end
-  local rk = ns.NetKey(); local t = time() + 40000
-  ns._netReceive("WolfMkt1", "H^" .. rk .. "^" .. enc(t) .. "^1^2.23", "CHANNEL", "Турбо-Realm")
-  ns._netReceive("WolfMkt3", "P^" .. rk .. "^" .. enc(t) .. "^" .. enc(900005) .. "," .. enc(333) .. ",2;", "CHANNEL", "Турбо-Realm")
-  ns._netReceive("WolfMkt1", "E^" .. rk .. "^" .. enc(t), "CHANNEL", "Турбо-Realm")
-  check(ns.AHPrice(900005) == 333, "общий рынок: цены с любого служебного имени принимаются (весь аукцион)")
-  ns.DB.net = nil
-end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

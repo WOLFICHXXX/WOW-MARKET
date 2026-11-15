@@ -6,11 +6,6 @@ local L = ns.L
 local safe = ns.safe
 
 local PREFIX = "WolfMkt1"
--- «турбо»: у каждого служебного имени аддона свой лимит частоты (~1 сообщение в секунду), поэтому рассылка
--- снимка идёт по очереди через 4 имени - примерно в 4 раза быстрее. Выключается в настройках («netTurbo»).
-local PREFIXES = { "WolfMkt1", "WolfMkt2", "WolfMkt3", "WolfMkt4" }
-local IS_PREFIX = {}; for _, p in ipairs(PREFIXES) do IS_PREFIX[p] = true end
-local nextOk = {}     -- [имя] = время, когда этим именем снова можно отправлять
 local CHANNEL = "WolfichMarketNet"
 local SEND_EVERY = 0.3          -- пауза для Battle.net; обычные пути - раз в секунду (ограничение игры)
 local MAXLEN = 240
@@ -100,50 +95,33 @@ ns.NetRoutes = routes
 -- сообщение возвращается в начало очереди и повторяется позже. Через Battle.net - крупными пачками.
 local THROTTLED = { [3] = true, [8] = true }
 local queue, bnQueue, sending = {}, {}, false
-local function now() return GetTime and GetTime() or 0 end
--- свободное имя: при «турбо» - то, которое раньше освободится; иначе только основное
-local function pickPrefix()
-  if S().netTurbo == false then return PREFIX end
-  local best, bt = PREFIX, nextOk[PREFIX] or 0
-  for _, p in ipairs(PREFIXES) do local t = nextOk[p] or 0; if t < bt then best, bt = p, t end end
-  return best
-end
 local function pump()
-  local e = table.remove(bnQueue, 1)
+  local e = table.remove(bnQueue, 1) or table.remove(queue, 1) -- Battle.net - быстро и первым
+  if not e then sending = false return end
   local C = C_ChatInfo
   local wait = SEND_EVERY
-  if e then
+  if e[2] == "BN" then
     local ok = pcall(BNSendGameData, e[3], PREFIX, e[1])
     if ok then ns.netStats.sent = ns.netStats.sent + 1 else ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = "BN" end
-    ns.After(wait, pump) return
-  end
-  e = queue[1]
-  if not e then sending = false return end
-  local p = e.multi and pickPrefix() or PREFIX
-  local ready = nextOk[p] or 0
-  if ready > now() then ns.After(math.max(0.05, ready - now()), pump) return end -- имя ещё «остывает»
-  table.remove(queue, 1)
-  if C and C.SendAddonMessage then
-    local ok, res = pcall(C.SendAddonMessage, p, e[1], e[2], e[3])
+  elseif C and C.SendAddonMessage then
+    local ok, res = pcall(C.SendAddonMessage, PREFIX, e[1], e[2], e[3])
     if ok and type(res) == "number" and THROTTLED[res] then
       e.tries = (e.tries or 0) + 1
       if e.tries <= 5 then table.insert(queue, 1, e) end -- повторить, когда игра разрешит
       ns.netStats.throttled = (ns.netStats.throttled or 0) + 1
-      nextOk[p] = now() + 3
+      wait = 2
     elseif not ok or res == false or (type(res) == "number" and res ~= 0) then
       ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = e[2] .. " " .. tostring(ok and res or "ошибка")
-      nextOk[p] = now() + 1.05
-    else ns.netStats.sent = ns.netStats.sent + 1; nextOk[p] = now() + 1.05 end
+    else ns.netStats.sent = ns.netStats.sent + 1; wait = 1.05 end
   end
-  ns.After(0.05, pump)
+  ns.After(wait, pump)
 end
 -- msg - для обычных путей (до 255 символов), big - то же крупной пачкой для Battle.net (если есть)
--- multi - можно слать через любое из имён («турбо»); t - время снимка (для отмены устаревшей рассылки)
-local function send(msg, big, onlyBig, multi, t)
+local function send(msg, big, onlyBig)
   for _, r in ipairs(routes()) do
     if r[1] == "BN" then
-      if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3], t = t } end
-    elseif not onlyBig then queue[#queue + 1] = { msg, r[1], r[2], r[3], multi = multi, t = t } end
+      if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3] } end
+    elseif not onlyBig then queue[#queue + 1] = { msg, r[1], r[2], r[3] } end
   end
   if not sending and (#queue > 0 or #bnQueue > 0) then sending = true; ns.After(0, pump) end
 end
@@ -171,9 +149,6 @@ function ns.ShareScan(scan)
   for id in pairs(ns.NetWanted()) do add(id) end -- сначала то, на что другие игроки поставили сигналы
   for id in pairs(ns.DB.marked) do add(id) end
   for id in pairs(sharedIDs()) do add(id) end -- затем материалы и результаты всех рецептов игры - от профессий сканирующего не зависит
-  if S().netFull ~= false then for id in pairs(scan.items) do add(id) end end -- и весь остальной аукцион
-  -- новая рассылка отменяет недосланную старую
-  for _, q in ipairs({ queue, bnQueue }) do for k = #q, 1, -1 do if q[k].t and q[k].t < scan.t then table.remove(q, k) end end end
   local parts, n = {}, 0
   local head = "P^" .. RK() .. "^" .. enc(scan.t) .. "^"
   local cur = head
@@ -193,10 +168,10 @@ function ns.ShareScan(scan)
     bcur = bcur .. body
   end
   if bcur ~= head then bigParts[#bigParts + 1] = bcur end
-  send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or ""), nil, nil, false, scan.t)
-  for _, p in ipairs(parts) do send(p, false, nil, true, scan.t) end  -- обычные пути: мелкими сообщениями, через все имена
-  for _, p in ipairs(bigParts) do send(p, p, true, false, scan.t) end -- Battle.net: крупными
-  send("E^" .. RK() .. "^" .. enc(scan.t), nil, nil, false, scan.t)
+  send("H^" .. RK() .. "^" .. enc(scan.t) .. "^" .. enc(n) .. "^" .. (ns.VERSION or ""))
+  for _, p in ipairs(parts) do send(p, false) end  -- обычные пути: мелкими сообщениями
+  for _, p in ipairs(bigParts) do send(p, p, true) end -- Battle.net: крупными
+  send("E^" .. RK() .. "^" .. enc(scan.t))
   local rs = routes()
   local names = {}
   for _, r in ipairs(rs) do names[#names + 1] = r[1] == "CHANNEL" and L"канал" or r[1] == "GUILD" and L"гильдия" or r[1] == "WHISPER" and r[2] or r[1] == "BN" and r[3] or L"группа" end
@@ -289,7 +264,7 @@ local function finish(sender)
 end
 
 local function onMessage(prefix, msg, dist, sender)
-  if not IS_PREFIX[prefix] or not msg or not ns.DB then return end
+  if prefix ~= PREFIX or not msg or not ns.DB then return end
   ns.netStats.recv = ns.netStats.recv + 1; ns.netStats.lastFrom = sender
   -- каким путём пришло: по этому видно, работает ли общий канал (он нужен для игроков вне друзей и гильдии)
   ns.netStats.by = ns.netStats.by or {}
@@ -369,13 +344,13 @@ ns._netReceive = onMessage -- для автотестов
 ns.On("CHAT_MSG_ADDON", onMessage)
 -- сообщения от друзей Battle.net
 ns.On("BN_CHAT_MSG_ADDON", function(prefix, text, _, gameAccountID)
-  if not IS_PREFIX[prefix] then return end
+  if prefix ~= PREFIX then return end
   local g = C_BattleNet and C_BattleNet.GetGameAccountInfoByID and safe(C_BattleNet.GetGameAccountInfoByID, gameAccountID)
   local who = g and g.characterName and (g.characterName .. (g.realmName and g.realmName ~= "" and ("-" .. g.realmName) or "")) or ("bn" .. tostring(gameAccountID))
   onMessage(prefix, text, "BN", who)
 end)
 ns.Listen("LOGIN", function()
-  if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then for _, p in ipairs(PREFIXES) do pcall(C_ChatInfo.RegisterAddonMessagePrefix, p) end end
+  if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then pcall(C_ChatInfo.RegisterAddonMessagePrefix, PREFIX) end
   ns.After(8, function()
     join()
     -- спросить у других свежие цены, если своих нет или они старше 15 минут
