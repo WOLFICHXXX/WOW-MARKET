@@ -589,6 +589,7 @@ end
 -- слева - дешевле на чёрном рынке, чем продать на аукционе (купить там, выставить здесь);
 -- справа - на чёрном рынке дороже, чем на аукционе (выгоднее купить на обычном аукционе)
 local bmp = {}
+local refreshBM
 local function buildBM(f)
   bmp.status = UI.Font(f, 11, UI.DIM); bmp.status:SetPoint("TOPLEFT", 4, 0); bmp.status:SetPoint("RIGHT", -4, 0); bmp.status:SetWordWrap(true)
   local function panel(left, title, color)
@@ -597,7 +598,13 @@ local function buildBM(f)
     else p:SetPoint("TOPLEFT", f, "TOP", 6, -44); p:SetPoint("BOTTOMRIGHT", 0, 0) end
     UI.Skin(p, { theme = "acard", scale = 0.25 }) -- та же рамка, что у панелей сигналов
     local t = UI.Font(p, 13, color); t:SetPoint("TOPLEFT", 12, -10); t:SetPoint("RIGHT", -12, 0); t:SetText(title)
-    p.sum = UI.Font(p, 10, UI.DIM); p.sum:SetPoint("TOPLEFT", 12, -28); p.sum:SetPoint("RIGHT", -12, 0)
+    -- поиск по названию
+    p.search = CreateFrame("EditBox", nil, p, "InputBoxTemplate"); p.search:SetHeight(20); p.search:SetPoint("TOPLEFT", 18, -30); p.search:SetPoint("RIGHT", -12, 0); p.search:SetAutoFocus(false)
+    p.hint = UI.Font(p.search, 10, UI.DIM); p.hint:SetPoint("LEFT", 2, 0); p.hint:SetText(L"поиск по названию...")
+    p.search:SetScript("OnTextChanged", function(self) p.hint:SetShown(self:GetText() == ""); refreshBM() end)
+    p.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+    p.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    p.sum = UI.Font(p, 10, UI.DIM); p.sum:SetPoint("TOPLEFT", 12, -54); p.sum:SetPoint("RIGHT", -12, 0)
     p.list = UI.List(p, 36, function(r)
       r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(24, 24); r.icon:SetPoint("LEFT", 4, 0)
       r.gain = UI.Font(r, 12); r.gain:SetPoint("TOPRIGHT", -4, -4); r.gain:SetJustifyH("RIGHT"); r.gain:SetWidth(90)
@@ -611,13 +618,13 @@ local function buildBM(f)
       r.gain:SetText((d.gain >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(d.gain), true) .. "|r")
       r.sub:SetText(L"чёрный: " .. ns.money(d.bm, true) .. " |cffaaaaaa(" .. (d.lots and (L"лотов: " .. d.lots) or d.bids > 0 and (L"ставок: " .. d.bids) or L"без ставок") .. ")|r   " .. L"аукцион: " .. ns.money(d.ah, true))
     end)
-    p.list:SetPoint("TOPLEFT", 8, -44); p.list:SetPoint("BOTTOMRIGHT", -8, 8)
+    p.list:SetPoint("TOPLEFT", 8, -70); p.list:SetPoint("BOTTOMRIGHT", -8, 8)
     return p
   end
   bmp.buy = panel(true, L"Купить на чёрном - продать на аукционе", UI.GOLD)
   bmp.dear = panel(false, L"На чёрном дороже - купить на аукционе", { 0.75, 0.5, 1 })
 end
-local function refreshBM()
+function refreshBM()
   if not bmp.status then return end
   local c = ns.DB.chars[charKey] or {}
   local rk = c.realmKey or ns.realmKey or ""
@@ -635,6 +642,16 @@ local function refreshBM()
       end
     end
   end)
+  -- поиск в каждой колонке - свой
+  local function filter(list, box)
+    local q = ns.lower(box and box:GetText() or "")
+    if q == "" then return list end
+    local out = {}
+    for _, d in ipairs(list) do if ns.lower(ns.itemName(d.id) or ""):find(q, 1, true) then out[#out + 1] = d end end
+    return out
+  end
+  local total = #buy + #dear + noAH
+  buy, dear = filter(buy, bmp.buy.search), filter(dear, bmp.dear.search)
   table.sort(buy, function(a, b) return a.gain > b.gain end)
   table.sort(dear, function(a, b) return a.gain > b.gain end)
   bmp.buy.list:SetData(buy); bmp.dear.list:SetData(dear)
@@ -644,7 +661,7 @@ local function refreshBM()
   bmp.dear.sum:SetText(L"разница = ставка на чёрном минус цена на аукционе")
   if d then
     bmp.status:SetText(string.format(L"Чёрный рынок: снимок %s, предметов: %d, без цены на аукционе: %d. Обновляется сканированием у аукциониста чёрного рынка (между игроками не рассылается).",
-      ns.ago(d.t), #buy + #dear + noAH, noAH))
+      ns.ago(d.t), total, noAH))
   else
     bmp.status:SetText(L"|cffff9966Чёрный рынок ещё не записан - откройте окно чёрного рынка у его аукциониста.|r")
   end

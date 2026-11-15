@@ -25,7 +25,9 @@ local function npcInfo()
   local id = guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
   local texts = { (UnitName and UnitName("npc")) or "" }
   local tip = C_TooltipInfo and C_TooltipInfo.GetUnit and safe(C_TooltipInfo.GetUnit, "npc")
-  for _, line in ipairs(tip and tip.lines or {}) do texts[#texts + 1] = line.leftText or "" end
+  -- только имя и подпись (вторая строка): в остальных строках бывает что угодно (гильдия, зона, задания)
+  local l2 = tip and tip.lines and tip.lines[2]
+  if l2 and l2.leftText then texts[#texts + 1] = l2.leftText end
   return id, texts
 end
 local function detectBM()
@@ -72,6 +74,12 @@ local function finishScan()
     ns.progress = math.floor(i / n * 100)
     setStatus()
     if i < n then ns.After(0, step) return end
+    if ns.ahIsBM and n >= ns.BM_MAX_LOTS then
+      -- столько лотов на чёрном рынке не бывает - значит, аукционист обычный: исправляем и сохраняем как обычный снимок
+      ns.ahIsBM = false
+      if ns.ahNpc then ns.DB.bmNpcs = ns.DB.bmNpcs or {}; ns.DB.bmNpcs[ns.ahNpc] = false end
+      ns.say(string.format(L"в снимке %d лотов - это обычный аукцион, а не чёрный рынок: сохраняю как обычный и запоминаю этого аукциониста.", n))
+    end
     if ns.ahIsBM then
       -- снимок чёрного рынка - отдельно: без истории, сигналов и общего рынка
       local bm = {}

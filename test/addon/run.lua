@@ -168,6 +168,14 @@ do
   check(okT and WolfichMarketMainFrame.pages[3]:IsShown(), "вкладка «Чёрный рынок» открывается")
   check(cheap and cheap.gain > 0, "чёрный рынок: дешёвый лот - в колонке «купить на чёрном, продать на аукционе»")
   check(dear and not has(B.buy.list, 2840), "чёрный рынок: дорогой лот - в колонке «на чёрном дороже»")
+  -- поиск в колонке: по части названия, без учёта регистра (и для русских букв)
+  ns.DB.names[2862] = "Грубое точило"
+  B.buy.search:SetText("ГРУБ"); B.buy.search.scripts.OnTextChanged(B.buy.search, true)
+  check(has(B.buy.list, 2862) ~= nil, "поиск в колонке чёрного рынка: «ГРУБ» находит «Грубое точило»")
+  B.buy.search:SetText("нет такого"); B.buy.search.scripts.OnTextChanged(B.buy.search, true)
+  check(#(B.buy.list.data or {}) == 0, "поиск в колонке: лишнее скрыто")
+  B.buy.search:SetText(""); B.buy.search.scripts.OnTextChanged(B.buy.search, true)
+  check(ns.lower("ЁЖ Abc") == "ёж abc", "нижний регистр с русскими буквами")
   check(B.status.text:find("19019", 1, true) == nil and (B.status.text:find("без цены", 1, true) or B.status.text:find("without", 1, true)), "чёрный рынок: лоты без цены аукциона посчитаны отдельно")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
   C_BlackMarket = nil
@@ -196,6 +204,14 @@ do
   ns.DB.bmLastReq = 0
   ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
   check(ns.DB.ahScans[ns.realmKey] == scanRef and ns.AHPrice(2840) == ahP, "снимок чёрного рынка не заменил цены обычного аукциона")
+  do
+    local oldMax = ns.BM_MAX_LOTS; ns.BM_MAX_LOTS = 1 -- любой снимок «слишком большой» для чёрного рынка
+    ns.DB.bmLastReq = 0; ns.ahIsBM = true
+    ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
+    check(ns.DB.ahScans[ns.realmKey] ~= scanRef and ns.ahIsBM == false and ns.DB.bmNpcs[99999] == false, "огромный «чёрный рынок» - на самом деле обычный аукцион: сохранён как обычный")
+    ns.BM_MAX_LOTS = oldMax; ns.DB.bmNpcs[99999] = nil; scanRef = ns.DB.ahScans[ns.realmKey]; ahP = ns.AHPrice(2840)
+    fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW"); advance(1)
+  end
   check(ns.DB.bmah[ns.realmKey].items[2840] ~= nil, "снимок чёрного рынка сохранён отдельно")
   ns.SeenPrice(2840, 7, 1)
   check(ns.AHPrice(2840) == ahP and ns.DB.bmah[ns.realmKey].items[2840].p == 7, "поиск на чёрном рынке - в его цены, не в обычные")
@@ -214,6 +230,16 @@ do
   ns.DB.ahScans = savedScans
   local moved = ns.DB.bmah["Тест~PvE|Horde"]
   local pt = false; for _, p in ipairs(ns.DB.hist[2840]) do if p[1] == 12345 then pt = true end end
+  -- и наоборот: «чёрный рынок» с десятками тысяч лотов возвращается в обычный аукцион
+  do
+    local sv, bv = ns.DB.ahScans, ns.DB.bmah["Тест2~PvE|Horde"]
+    ns.DB.ahScans = {}
+    ns.DB.bmah["Тест2~PvE|Horde"] = { t = 999, lots = 250000, items = { [2840] = { p = 77, q = 5, lots = 2 } } }
+    ns.FixBMScans()
+    local back = ns.DB.ahScans["Тест2~PvE|Horde"]
+    check(back and back.items[2840][1] == 77 and ns.DB.bmah["Тест2~PvE|Horde"] == nil, "огромный «чёрный рынок» вернулся в обычный аукцион")
+    ns.DB.ahScans = sv
+  end
   check(leftOver == nil and moved and moved.items[2840].p == 99 and not pt, "старый снимок чёрного рынка перенесён из обычного аукциона")
 end
 do

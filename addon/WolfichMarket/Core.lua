@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.34.3"
+ns.VERSION = "2.35.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -237,7 +237,34 @@ function ns.MigrateRealmKeys()
   DB.realmKeysV = 1
 end
 
+-- нижний регистр с русскими буквами (string.lower меняет только латиницу)
+local RU_UP = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+local RU_LO = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+local RU_MAP = {}
+do
+  local up, lo = {}, {}
+  for ch in RU_UP:gmatch("[%z\1-\127\194-\244][\128-\191]*") do up[#up + 1] = ch end
+  for ch in RU_LO:gmatch("[%z\1-\127\194-\244][\128-\191]*") do lo[#lo + 1] = ch end
+  for i, ch in ipairs(up) do RU_MAP[ch] = lo[i] end
+end
+ns.BM_MAX_LOTS = 20000 -- у чёрного рынка сотни лотов, у обычного аукциона - сотни тысяч
+function ns.lower(s)
+  if not s then return "" end
+  return (s:lower():gsub("[\208\209][\128-\191]", function(ch) return RU_MAP[ch] or ch end))
+end
 function ns.FixBMScans()
+  -- обычный аукцион, по ошибке записанный как чёрный рынок (десятки тысяч лотов) - вернуть на место
+  for rk, d in pairs(ns.DB.bmah or {}) do
+    if d.lots and d.lots >= ns.BM_MAX_LOTS then
+      local cur = ns.DB.ahScans[rk]
+      if not cur or (cur.t or 0) < (d.t or 0) then
+        local items = {}
+        for id, r in pairs(d.items or {}) do items[id] = { r.p, r.q or 0, r.lots or 1 } end
+        ns.DB.ahScans[rk] = { t = d.t, lots = d.lots, items = items, realm = rk }
+      end
+      ns.DB.bmah[rk] = nil
+    end
+  end
   for rk, sc in pairs(ns.DB.ahScans) do
     if sc.lots and sc.lots < 1000 and sc.items then
       ns.DB.bmah = ns.DB.bmah or {}
@@ -261,7 +288,7 @@ ns.On("PLAYER_LOGIN", function()
   ns.MigrateRealmKeys()
   -- до 2.34 снимок чёрного рынка (несколько сотен лотов) мог записаться вместо обычного аукциона (сотни тысяч лотов):
   -- такой маленький «снимок аукциона» переносим в чёрный рынок, а его точки убираем из графиков
-  if not ns.DB.bmFixV then ns.DB.bmFixV = 1; ns.FixBMScans() end
+  if (ns.DB.bmFixV or 0) < 2 then ns.DB.bmFixV = 2; ns.FixBMScans() end
   local DB = ns.DB
   DB.chars[ns.charKey] = DB.chars[ns.charKey] or { profs = {} }
   local c = DB.chars[ns.charKey]
