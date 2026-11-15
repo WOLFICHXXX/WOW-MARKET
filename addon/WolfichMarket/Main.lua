@@ -595,9 +595,9 @@ local function buildBM(f)
     local p = CreateFrame("Frame", nil, f)
     if left then p:SetPoint("TOPLEFT", 0, -44); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
     else p:SetPoint("TOPLEFT", f, "TOP", 6, -44); p:SetPoint("BOTTOMRIGHT", 0, 0) end
-    UI.Skin(p, { theme = "main", scale = 0.45 })
-    local t = UI.Font(p, 13, color); t:SetPoint("TOPLEFT", 10, -8); t:SetPoint("RIGHT", -10, 0); t:SetText(title)
-    p.sum = UI.Font(p, 10, UI.DIM); p.sum:SetPoint("TOPLEFT", 10, -26); p.sum:SetPoint("RIGHT", -10, 0)
+    UI.Skin(p, { theme = "acard", scale = 0.25 }) -- та же рамка, что у панелей сигналов
+    local t = UI.Font(p, 13, color); t:SetPoint("TOPLEFT", 12, -10); t:SetPoint("RIGHT", -12, 0); t:SetText(title)
+    p.sum = UI.Font(p, 10, UI.DIM); p.sum:SetPoint("TOPLEFT", 12, -28); p.sum:SetPoint("RIGHT", -12, 0)
     p.list = UI.List(p, 36, function(r)
       r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(24, 24); r.icon:SetPoint("LEFT", 4, 0)
       r.gain = UI.Font(r, 12); r.gain:SetPoint("TOPRIGHT", -4, -4); r.gain:SetJustifyH("RIGHT"); r.gain:SetWidth(90)
@@ -611,7 +611,7 @@ local function buildBM(f)
       r.gain:SetText((d.gain >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(d.gain), true) .. "|r")
       r.sub:SetText(L"чёрный: " .. ns.money(d.bm, true) .. " |cffaaaaaa(" .. (d.lots and (L"лотов: " .. d.lots) or d.bids > 0 and (L"ставок: " .. d.bids) or L"без ставок") .. ")|r   " .. L"аукцион: " .. ns.money(d.ah, true))
     end)
-    p.list:SetPoint("TOPLEFT", 4, -42); p.list:SetPoint("BOTTOMRIGHT", -4, 4)
+    p.list:SetPoint("TOPLEFT", 8, -44); p.list:SetPoint("BOTTOMRIGHT", -8, 8)
     return p
   end
   bmp.buy = panel(true, L"Купить на чёрном - продать на аукционе", UI.GOLD)
