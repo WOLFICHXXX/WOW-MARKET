@@ -701,6 +701,7 @@ end
 -- /wm net: проверка общего рынка без ошибок; друзья онлайн - отдельный маршрут
 do
   C_FriendList = { GetNumFriends = function() return 1 end, GetFriendInfoByIndex = function() return { connected = true, name = "Друг" } end }
+  for k in pairs(ns._netInChannel) do ns._netInChannel[k] = nil end
   local rs = ns.NetRoutes()
   local fr = false; for _, r in ipairs(rs) do if r[1] == "WHISPER" and r[2] == "Друг" then fr = true end end
   check(fr, "общий рынок: друзья онлайн получают цены личным сообщением аддона")
@@ -720,6 +721,15 @@ do
     GetGameAccountInfoByID = function() return { characterName = "Латыш", realmName = "Realm" } end }
   local bn = false; for _, r in ipairs(ns.NetRoutes()) do if r[1] == "BN" and r[2] == 77 then bn = true end end
   check(bn, "общий рынок: друг Battle.net в WoW - получатель")
+  -- друг сидит в канале аддона (от него приходили сообщения через канал) - через Battle.net ему не дублируем
+  do
+    local oldG = GetChannelName; GetChannelName = function() return 5 end
+    ns._netReceive("WolfMkt1", "W^" .. ns.NetKey() .. "^1,", "CHANNEL", "Латыш-Realm")
+    local bn2 = false; for _, r in ipairs(ns.NetRoutes()) do if r[1] == "BN" then bn2 = true end end
+    check(not bn2, "друг из канала аддона - без дубля через Battle.net")
+    for k in pairs(ns._netInChannel) do ns._netInChannel[k] = nil end
+    GetChannelName = oldG
+  end
   ns._netResetSent(); ns.ShareScan({ t = time(), items = { [2840] = { 150, 30, 2 } } })
   for _ = 1, 30 do advance(1) end
   check(#bnSent > 0, "общий рынок: цены уходят через Battle.net (" .. #bnSent .. ")")

@@ -64,9 +64,16 @@ end
 -- маршруты: общий канал аддона + гильдия + группа + друзья онлайн (личным сообщением аддона).
 -- Если клиент не пускает служебные сообщения в канал, цены всё равно дойдут до друзей, гильдии и группы.
 ns.netStats = { sent = 0, recv = 0, fail = 0 }
-local function routes()
+-- кто из игроков сидит в канале аддона (от них приходили сообщения через канал) - им незачем дублировать
+-- цены шёпотом и через Battle.net: всё и так дойдёт по каналу
+local inChannel = {}   -- [короткое имя] = time() последнего сообщения через канал
+local function short(name) return name and (name:match("^[^%-%s]+") or name) end
+local function viaChannel(name) local t = inChannel[short(name) or ""]; return t and time() - t < 2 * 3600 end
+ns._netInChannel = inChannel
+local function routes(all)
   local r = {}
   local id = channel()
+  local dedup = id and not all
   if id then r[#r + 1] = { "CHANNEL", id } end
   if IsInGuild and IsInGuild() then r[#r + 1] = { "GUILD" } end
   if IsInRaid and IsInRaid() then r[#r + 1] = { "RAID" } elseif IsInGroup and IsInGroup() then r[#r + 1] = { "PARTY" } end
@@ -76,7 +83,7 @@ local function routes()
     local n = 0
     for i = 1, (safe(F.GetNumFriends) or 0) do
       local f = safe(F.GetFriendInfoByIndex, i)
-      if f and f.connected and f.name and n < 10 then r[#r + 1] = { "WHISPER", f.name }; seen[f.name] = true; n = n + 1 end
+      if f and f.connected and f.name and n < 10 and not (dedup and viaChannel(f.name)) then r[#r + 1] = { "WHISPER", f.name }; seen[f.name] = true; n = n + 1 end
     end
   end
   -- друзья Battle.net, которые сейчас в WoW: служебное сообщение через Battle.net (работает и между мирами)
@@ -86,7 +93,7 @@ local function routes()
     for i = 1, (safe(BNGetNumFriends) or 0) do
       for k = 1, (safe(B.GetFriendNumGameAccounts, i) or 0) do
         local g = safe(B.GetFriendGameAccountInfo, i, k)
-        if g and g.isOnline and g.gameAccountID and g.characterName and g.characterName ~= "" and not seen[g.characterName] and n < 10 then
+        if g and g.isOnline and g.gameAccountID and g.characterName and g.characterName ~= "" and not seen[g.characterName] and n < 10 and not (dedup and viaChannel(g.characterName)) then
           r[#r + 1] = { "BN", g.gameAccountID, g.characterName }; seen[g.characterName] = true; n = n + 1
         end
       end
@@ -173,9 +180,9 @@ end
 local sendTarget
 local function send(msg, big, onlyBig, t, rest)
   if sendTarget then
-    local short = sendTarget:match("^[^-]+")
-    for _, r in ipairs(routes()) do
-      if r[1] == "BN" and r[3] and r[3]:match("^[^-]+") == short then
+    local who = short(sendTarget)
+    for _, r in ipairs(routes(true)) do
+      if r[1] == "BN" and r[3] and short(r[3]) == who then
         if big ~= false then bnQueue[#bnQueue + 1] = { big or msg, r[1], r[2], r[3], t = t } end
         if not sending then sending = true; ns.After(0, pump) end
         return
@@ -500,6 +507,7 @@ local function onMessage(prefix, msg, dist, sender)
   ns.netStats.by = ns.netStats.by or {}
   local how = dist or "?"
   ns.netStats.by[how] = (ns.netStats.by[how] or 0) + 1
+  if how == "CHANNEL" and sender then inChannel[short(sender)] = time() end
   if S().netRecv == false then return end
   local me = UnitName and UnitName("player")
   if sender and me and (sender == me or sender:match("^[^-]+") == me) then return end
