@@ -2,11 +2,20 @@
 local _, ns = ...
 local L = ns.L
 
+-- рецепт, который делает этот предмет: сначала у текущего персонажа, потом у остальных (и у добавленных профессий)
 local function findRecipe(id)
-  local c = ns.DB.chars[ns.charKey or ""]
-  for _, p in pairs(c and c.profs or {}) do
-    for _, rec in ipairs(p.recipes or {}) do if rec.out == id and rec.learned ~= false then return rec end end
+  local function look(c, learnedOnly)
+    for _, p in pairs(c and c.profs or {}) do
+      for _, rec in ipairs(p.recipes or {}) do if rec.out == id and (not learnedOnly or rec.learned ~= false) and rec.reag and #rec.reag > 0 then return rec end end
+    end
   end
+  local cur = ns.DB.chars[ns.charKey or ""]
+  local r = look(cur, true)
+  if r then return r end
+  for _, c in pairs(ns.DB.chars or {}) do r = look(c, true); if r then return r end end
+  r = look(cur, false)
+  if r then return r end
+  for _, c in pairs(ns.DB.chars or {}) do r = look(c, false); if r then return r end end
 end
 
 local function addLines(tt, id)
@@ -14,7 +23,8 @@ local function addLines(tt, id)
   tt.wmDone = id
   local p, t = ns.AHPrice(id)
   local v = ns.DB.vendor[id]
-  if not p and not v and not ns.IsMarked(id) then return end
+  local rec = findRecipe(id)
+  if not p and not v and not rec and not ns.IsMarked(id) then return end
   local head = "|cffe6b450WolfichMarket|r" .. (ns.IsMarked(id) and " |cfff0c85a|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t|r" or "")
   if p then
     local avg = ns.AvgPrice(id, 24)
@@ -28,10 +38,16 @@ local function addLines(tt, id)
   if ns.SellWhere then where, net, sell = ns.SellWhere(id) end
   if where == "ah" then tt:AddDoubleLine(L"  |cff40ff4dВыгоднее: на аукцион|r", sell and ("|cffaaaaaa" .. L"торговец" .. " " .. ns.money(sell, true) .. "|r") or "")
   elseif where == "vendor" and net then tt:AddDoubleLine(L"  |cffffd919Выгоднее: торговцу|r", ns.money(ns.VendorSell(id))) end
-  local rec = findRecipe(id)
   if rec then
+    -- крафт: себестоимость, цена на аукционе (за вычетом 5%), прибыль
     local pr = ns.Profit(rec)
-    if pr.profit then tt:AddDoubleLine(L"|cffaaaaaa  прибыль крафта|r", (pr.profit >= 0 and "|cff78d98a" or "|cffff7a66") .. ns.money(pr.profit) .. "|r") end
+    local q = pr.qty or 1
+    local qs = (q ~= 1) and (" |cffaaaaaa(×" .. (math.floor(q * 10 + 0.5) / 10) .. ")|r") or ""
+    tt:AddDoubleLine(L"  Стоимость крафта", pr.missing == 0 and ns.money(pr.cost) or ("|cff777777" .. L"нет цен материалов: " .. pr.missing .. "|r"))
+    tt:AddDoubleLine(L"  На аукционе" .. qs, pr.sell and ns.money(pr.sell * q) or L"|cff777777нет|r")
+    if pr.profit then
+      tt:AddDoubleLine(L"  Прибыль |cffaaaaaa(-5% аукциона)|r", (pr.profit >= 0 and ("|cff78d98a+" .. ns.money(pr.profit)) or ("|cffff7a66-" .. ns.money(-pr.profit))) .. "|r")
+    end
   end
   tt:Show()
 end

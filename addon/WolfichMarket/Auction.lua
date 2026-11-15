@@ -773,11 +773,6 @@ local function pageSettings(f)
     f["m" .. m] = b
   end
   y = y - 32
-  local l2 = UI.Font(f, 11); l2:SetPoint("TOPLEFT", 6, y - 4); l2:SetText(L"Порог скачка цены, %:")
-  local e = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); e:SetSize(50, 20); e:SetPoint("TOPLEFT", 160, y); e:SetAutoFocus(false); e:SetNumeric(true)
-  e:SetScript("OnShow", function(self) self:SetText(S.alertPct) end)
-  e:SetScript("OnTextChanged", function(self, user) if user then local v = tonumber(self:GetText()); if v and v > 0 then S.alertPct = v end end end)
-  y = y - 34
   -- язык
   local l3 = UI.Font(f, 11); l3:SetPoint("TOPLEFT", 6, y - 4); l3:SetText(L"Язык / Language:")
   f.langBtns = {}

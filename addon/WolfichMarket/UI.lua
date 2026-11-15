@@ -313,19 +313,23 @@ function UI.List(parent, rowH, makeRow, fillRow)
 end
 
 -- поле ввода денег: золото / серебро / медь
-function UI.MoneyInput(parent, onChange)
-  local f = CreateFrame("Frame", nil, parent); f:SetSize(170, 22)
+function UI.MoneyInput(parent, onChange, compact)
+  local f = CreateFrame("Frame", nil, parent); f:SetSize(compact and 132 or 170, 22)
   local boxes = {}
   local labels = { L"|cffffd100з|r", L"|cffc7c7cfс|r", L"|cffeda55fм|r" }
   local x = 0
   for i = 1, 3 do
     local e = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-    e:SetSize(i == 1 and 50 or 28, 20); e:SetPoint("LEFT", x + 6, 0); e:SetAutoFocus(false); e:SetNumeric(true); e:SetMaxLetters(i == 1 and 6 or 2)
+    e:SetSize(compact and (i == 1 and 38 or 22) or (i == 1 and 50 or 28), compact and 18 or 20); e:SetPoint("LEFT", x + 6, 0); e:SetAutoFocus(false); e:SetNumeric(true); e:SetMaxLetters(i == 1 and 6 or 2)
+    e:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     local l = UI.Font(f, 11); l:SetPoint("LEFT", e, "RIGHT", 2, 0); l:SetText(labels[i])
     e:SetScript("OnTextChanged", function(_, user) if user and onChange then onChange(f:Get()) end end)
     boxes[i] = e
-    x = x + (i == 1 and 70 or 46)
+    x = x + (compact and (i == 1 and 54 or 36) or (i == 1 and 70 or 46))
   end
+  f.boxes = boxes
+  function f:HasFocus() for _, e in ipairs(boxes) do if e:HasFocus() then return true end end return false end
+  function f:Clear() for _, e in ipairs(boxes) do e:SetText("") end end
   function f:Get() return (tonumber(boxes[1]:GetText()) or 0) * 10000 + (tonumber(boxes[2]:GetText()) or 0) * 100 + (tonumber(boxes[3]:GetText()) or 0) end
   function f:Set(c) c = math.max(0, math.floor((c or 0) + 0.5)); boxes[1]:SetText(math.floor(c / 10000)); boxes[2]:SetText(math.floor(c % 10000 / 100)); boxes[3]:SetText(c % 100) end
   return f

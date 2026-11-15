@@ -47,8 +47,9 @@ for i, r in ipairs({}) do end
 C_AuctionHouse.GetReplicateItemInfo = (function(old) return function(i) local a = { old(i) }; if a[17] == 2840 then a[10] = a[10] * 2 end; return table.unpack(a, 1, 18) end end)(C_AuctionHouse.GetReplicateItemInfo)
 ns.DB.ahLastReq = 0
 played = false
+ns.DB.target[2840] = { sell = 1 } -- своя цена продажи (1 медь): после снимка цена выше - сигнал
 ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end
-check(played, "уведомление со звуком о скачке цены отмеченного")
+check(played, "уведомление со звуком: цена дошла до своей цены продажи")
 local found = false; for _, e in ipairs(ns.log) do if e.msg:find("Медный слиток") and e.msg:find("media\\up", 1, true) and e.imp then found = true end end
 check(found, "строка о подорожании меди в журнале (сигнал)")
 -- поиск на аукционе
@@ -106,6 +107,13 @@ check(#md >= 4 and md[1].header == "Кузнечное дело", "покупк�
 ns.OpenChart(2840)
 -- подсказка
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
+do
+  local outId
+  for _, p in pairs(ns.DB.chars[ns.charKey].profs) do for _, r in ipairs(p.recipes or {}) do if not outId and r.out and r.reag and #r.reag > 0 then outId = r.out end end end
+  local t2 = table.concat(tooltip(outId or 0), "\n")
+  check((t2:find("Стоимость крафта", 1, true) or t2:find("Crafting cost", 1, true)) and (t2:find("На аукционе", 1, true) or t2:find("On the auction", 1, true)), "подсказка крафтового предмета: стоимость крафта и аукцион")
+  check(t2:find("Прибыль", 1, true) or t2:find("Profit", 1, true), "подсказка крафтового предмета: прибыль ±")
+end
 -- закрытие
 fire("AUCTION_HOUSE_CLOSED"); check(not ns.AHIsOpen(), "аукцион закрыт")
 -- рецепты перечитываются только после нового снимка аукциона
@@ -133,14 +141,17 @@ check(cr.card.craft.shown and cr.card.alarm.shown and cr.card.chart.shown, "в �
 local recA = row.data.rec
 local okA, errA = pcall(cr.openAlarms, recA); check(okA and WolfichMarketAlarmDialog and WolfichMarketAlarmDialog.shown, "окно сигналов для рецепта" .. (okA and "" or (": " .. tostring(errA))))
 local D = WolfichMarketAlarmDialog
-for _, r in ipairs(D.rows) do if r.shown then r.chk:SetChecked(true); r.thr:SetText("12") end end
+for _, r in ipairs(D.rows) do if r.shown then r.chk:SetChecked(true); r.money:Set(1234) end end
 D.save.scripts.OnClick(D.save)
 local allMarked = true
-for _, r in ipairs(D.rows) do if r.shown and r.id and not (ns.IsMarked(r.id) and ns.DB.alarm[r.id] == 12) then allMarked = false end end
-check(allMarked and not D.shown, "сигналы на предмет и ингредиенты сохранены с порогом")
+for _, r in ipairs(D.rows) do
+  local t = r.id and ns.DB.target[r.id]
+  if r.shown and r.id and not (ns.IsMarked(r.id) and t and t[r.out and "sell" or "buy"] == 1234) then allMarked = false end
+end
+check(allMarked and not D.shown, "сигналы на предмет и ингредиенты сохранены со своей ценой")
+for _, r in ipairs(D.rows) do if r.id then ns.DB.target[r.id] = nil end end
 SlashCmdList.WOLFICHMARKET("")
 check(not WolfichMarketMainFrame.shown, "/wm закрывает окно")
-ns.DB.alarm[2840] = 5
 -- кнопка «Крафт»: окно профессии открыто — сразу рецепт; закрыто — сначала профессия
 openedRecipe = nil; ns.OpenRecipeInGame(recs[1], "Кузнечное дело"); check(openedRecipe == recs[1].id, "«Крафт» открывает рецепт")
 ProfessionsFrame.shown = false; openedRecipe, openedLine = nil, nil
@@ -425,19 +436,31 @@ end
 -- сигналы общие для персонажей; у сигнала видна цена срабатывания
 do
   ns.AddSignal(3470, "sell")
-  ns.DB.alarm[3470] = 10
   WolfichMarketMainFrame.tabs[2].scripts.OnClick(WolfichMarketMainFrame.tabs[2])
   local row; for _, r in ipairs(ns._mainSig and ns._mainSig.sell.rows or {}) do if r.data and r.data.id == 3470 then row = r end end
-  check(row and (row.target.text:find("выше", 1, true) or row.target.text:find("above", 1, true)), "у сигнала видна цена срабатывания: " .. tostring(row and row.target.text))
+  check(row and row.money, "в строке сигнала - поле своей цены продажи")
+  -- ввод цены «с клавиатуры»: 1 золотой
+  local box = row and row.money.boxes[1]
+  if box then box:SetText("1"); box.scripts.OnTextChanged(box, true) end
+  check(ns.DB.target[3470] and ns.DB.target[3470].sell == 10000, "своя цена продажи сохранена: " .. tostring(ns.DB.target[3470] and ns.DB.target[3470].sell))
   -- твинк делает снимок - сигнал по отметке основы приходит
   local main = ns.charKey
   ns.charKey = "Твинк-CAMWOWEU4Realm6PvP"; ns.DB.chars[ns.charKey] = ns.DB.chars[ns.charKey] or { profs = {} }
-  local avg = ns.AvgPrice(3470, 24) or ns.AHPrice(3470) or 100
   played = false
-  ns.Fire("SCAN_DONE", { t = time(), items = { [3470] = { math.floor(avg * 1.5), 5, 1 } } }, nil)
-  check(played, "твинк при снимке получает сигнал по общему списку")
+  ns.Fire("SCAN_DONE", { t = time(), items = { [3470] = { 9000, 5, 1 } } }, nil)
+  check(not played, "цена ниже своей цены продажи - сигнала нет")
+  ns.Fire("SCAN_DONE", { t = time(), items = { [3470] = { 12000, 5, 1 } } }, nil)
+  check(played, "твинк при снимке получает сигнал по общему списку (цена дошла до своей)")
+  played = false
+  ns.Fire("SCAN_DONE", { t = time(), items = { [3470] = { 12500, 5, 1 } } }, nil)
+  check(not played, "повторно, пока цена выше, сигнал не дублируется")
+  -- покупка: цена опустилась до своей
+  ns.AddSignal(2840, "buy"); ns.DB.target[2840] = { buy = 500 }
+  ns.Fire("SCAN_DONE", { t = time(), items = { [2840] = { 450, 5, 1 } } }, nil)
+  check(played, "сигнал покупки - цена опустилась до своей")
   ns.charKey = main
-  ns.RemoveSignal(3470, "sell"); ns.DB.alarm[3470] = nil
+  ns.RemoveSignal(3470, "sell"); ns.RemoveSignal(2840, "buy")
+  check(ns.DB.target[3470] == nil and ns.DB.target[2840] == nil, "убранный сигнал забывает свою цену")
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
 end
 -- общий рынок: свой снимок рассылается, чужие цены принимаются (только для своего аукциона)

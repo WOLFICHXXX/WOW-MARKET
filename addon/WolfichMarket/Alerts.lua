@@ -13,28 +13,32 @@ local function onScan(scan, prev)
   local S = ns.DB.settings
   -- скачки цен по отмеченным
   if S.alerts then
+    -- своя цена: покупка - когда цена опустилась до неё, продажа - когда поднялась до неё
     local hits = {}
-    for id in pairs(ns.DB.marked) do
-      local r = scan.items[id]
-      local p = r and r[1] > 0 and r[1]
-      local base = ns.AvgPrice(id, 24)
-      if not base and prev and prev.items and prev.items[id] and prev.items[id][1] > 0 then base = prev.items[id][1] end
-      if p and base and base > 0 then
-        local ch = (p - base) / base * 100
-        -- покупка - только снижение, продажа - только рост, без направления - оба
-        local dir = ns.DB.alarmDir and ns.DB.alarmDir[id]
-        local wanted = (dir == "buy" and ch < 0) or (dir == "sell" and ch > 0) or dir == nil
-        if wanted and math.abs(ch) >= (ns.DB.alarm[id] or S.alertPct or 20) then hits[#hits + 1] = { id = id, p = p, ch = ch } end
+    ns.DB.targetHit = ns.DB.targetHit or {}
+    for id, t in pairs(ns.DB.target or {}) do
+      local r = scan.items and scan.items[id]
+      local p = r and r[1] and r[1] > 0 and r[1]
+      if p then
+        for _, side in ipairs({ "buy", "sell" }) do
+          local v = t[side]
+          if v then
+            local ok = (side == "buy" and p <= v) or (side == "sell" and p >= v)
+            local key = id .. side
+            if ok and not ns.DB.targetHit[key] then hits[#hits + 1] = { id = id, p = p, side = side, v = v } end
+            ns.DB.targetHit[key] = ok or nil
+          end
+        end
       end
     end
-    table.sort(hits, function(a, b) return math.abs(a.ch) > math.abs(b.ch) end)
     if #hits > 0 then
       for _, h in ipairs(hits) do
-        ns.say(string.format("%s %s - %s %s", h.ch > 0 and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r", ns.itemLinkText(h.id), ns.money(h.p), ns.pct(h.ch)), true)
+        ns.say(string.format("%s %s - %s (%s %s)", h.side == "sell" and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r",
+          ns.itemLinkText(h.id), ns.money(h.p), h.side == "sell" and L"ваша цена продажи" or L"ваша цена покупки", ns.money(h.v)), true)
       end
       local top = hits[1]
-      UI.Toast(string.format("%s %s %s", top.ch > 0 and L"|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t Подорожало:" or L"|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t Подешевело:", ns.itemName(top.id), ns.pct(top.ch)),
-        ns.money(top.p) .. L" за шт" .. (#hits > 1 and (L"  /  ещё скачков: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
+      UI.Toast(string.format("%s %s", top.side == "sell" and L"Пора продавать:" or L"Пора покупать:", ns.itemName(top.id)),
+        ns.money(top.p) .. L" за шт" .. (#hits > 1 and (L"  /  ещё сигналов: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
       sound()
     end
   end

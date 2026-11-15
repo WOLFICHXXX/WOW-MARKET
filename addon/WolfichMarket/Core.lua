@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.24.0"
+ns.VERSION = "2.25.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -191,6 +191,7 @@ ns.On("ADDON_LOADED", function(name)
   DB.marked = DB.marked or {}      -- [itemID] = true
   DB.hist = DB.hist or {}          -- [itemID] = { {t, min, qty}, ... }
   DB.seen = DB.seen or {}
+  DB.target = DB.target or {}      -- [itemID] = { buy = медь, sell = медь } - свои цены сигналов
   DB.alarm = DB.alarm or {}        -- [itemID] = свой порог скачка, %          -- [itemID] = { p, t } - цены из поисков на аукционе
   DB.ahScans = DB.ahScans or {}
   DB.settings = DB.settings or {}
