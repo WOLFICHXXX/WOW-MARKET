@@ -154,7 +154,7 @@ local function unitValue(id, bound)
   local v = ns.VendorSell and ns.VendorSell(id) or 0
   if bound then return v end
   local a = ns.AHPrice(id)
-  local net = a and math.floor(a * (1 - (ns.AH_CUT or 0.05))) or 0
+  local net = a and math.floor(a * (1 - ns.Cut())) or 0
   return math.max(net, v or 0)
 end
 function ns.BagValue()
@@ -256,7 +256,7 @@ function ns.PlanProfit()
     local sell = p.out and ns.AHPrice(p.out)
     if sell then
       local q = ((p.qmin or 1) + (p.qmax or 1)) / 2
-      r.revenue = sell * q * (p.n or 1) * (1 - (ns.AH_CUT or 0.05))
+      r.revenue = sell * q * (p.n or 1) * (1 - ns.Cut())
     end
     if r.revenue and not r.missing then r.profit = r.revenue - r.cost end
     rows[i] = r

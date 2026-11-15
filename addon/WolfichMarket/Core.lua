@@ -8,9 +8,16 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.40.0"
+ns.VERSION = "2.40.1"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
-ns.AH_CUT = 0.05
+ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
+-- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
+ns.CUTS = { main = 0.05, neutral = 0.15 }
+function ns.Cut(kind)
+  kind = kind or ((ns.BMView and ns.BMView()) and "neutral" or "main")
+  return ns.CUTS[kind] or 0.05
+end
+function ns.CutPct(kind) return math.floor(ns.Cut(kind) * 100 + 0.5) .. "%" end
 
 local unpack = unpack or table.unpack
 local function pack(...) return { n = select("#", ...), ... } end
@@ -347,7 +354,7 @@ function ns.ProfitIn(rec, kind)
   local sell = ns.PriceIn(kind, rec.out)
   if not sell then return nil end
   local q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2
-  return sell * q * (1 - ns.AH_CUT) - cost, sell, cost
+  return sell * q * (1 - ns.Cut(kind)) - cost, sell, cost
 end
 -- цена фракционного аукциона (всегда, даже у окна общего)
 function ns.RegularPrice(id)

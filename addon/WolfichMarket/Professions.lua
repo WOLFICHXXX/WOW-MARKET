@@ -154,7 +154,7 @@ function ns.Profit(rec, stock, mult)
     local q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2 * mult
     res.sell, res.qty = sell, q
     if sell then
-      res.revenue = sell * q * (1 - ns.AH_CUT)
+      res.revenue = sell * q * (1 - ns.Cut())
       if missing == 0 then
         res.profit = res.revenue - cost
         res.margin = cost > 0 and res.profit / cost * 100 or nil
@@ -317,7 +317,7 @@ local function fillDetail(rec)
     r:Show()
   end
   local lines = { L"Себестоимость: " .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost)) }
-  if pr.revenue then lines[#lines + 1] = L"Доход (-5%): " .. ns.money(pr.revenue) end
+  if pr.revenue then lines[#lines + 1] = L"Доход" .. " (-" .. ns.CutPct() .. "): " .. ns.money(pr.revenue) end
   if pr.profit then lines[#lines + 1] = L"Прибыль: " .. profitText(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
   detail.total:SetText(table.concat(lines, "\n"))
 end
@@ -509,7 +509,7 @@ local function fillMarketTable(rec)
     end
     i = i + 1; local pl = mt.lines[i]
     if pl then
-      pl.name:SetText("|cffe6b450" .. L"Прибыль (-5%)" .. "|r")
+      pl.name:SetText("|cffe6b450" .. L"Прибыль" .. "|r |cff888888" .. L"(комиссия Ф 5%, Общ 15%)" .. "|r")
       for _, k in ipairs(KINDS) do
         local v = M.profit[k]
         pl.p[k]:SetText(v and ((v >= 0 and (k == M.best and "|cff5dff7a" or "|cff4f9a5c") or "|cffff7a66") .. short(v) .. "|r") or "|cff555555-|r")

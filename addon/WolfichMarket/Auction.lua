@@ -642,7 +642,7 @@ local DURS = { { 1, "2 ч" }, { 2, "8 ч" }, { 3, "24 ч" } } -- сроки ау
 local function sellVerdict(id, unit)
   local cost = ns.CraftCost(id)
   local vendor = ns.VendorSell(id)
-  local net = unit and unit > 0 and unit * (1 - ns.AH_CUT) or nil
+  local net = unit and unit > 0 and unit * (1 - ns.Cut()) or nil
   local r = { cost = cost, vendor = vendor, net = net }
   if net and cost then r.profit = net - cost end
   if net and vendor and vendor >= net then r.text, r.color = L"Торговцу выгоднее, чем на аукцион", "|cffffd060"
@@ -773,12 +773,12 @@ local function pageSell(f)
     lines[#lines + 1] = L"Себестоимость крафта: " .. (v.cost and (ns.money(v.cost) .. (rec and ("  |cffaaaaaa(" .. rec.name .. ")|r") or "")) or L"|cffaaaaaaвы не крафтите этот предмет|r")
     lines[#lines + 1] = L"На аукционе: " .. (p and (L"мин " .. ns.money(p)) or L"|cffaaaaaaнет цены|r") .. (v.vendor and (L"   |cffaaaaaaторговцу: " .. ns.money(v.vendor) .. "|r") or "")
     -- итог одной строкой с выводом, чтобы рамка с ценой была ниже, а список выше
-    lines[#lines + 1] = (v.net and (L"Вам за шт после 5%: " .. ns.money(v.net) .. (v.profit and (L"   прибыль: " .. (v.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v.profit) .. L"|r за шт") or "") .. "  ") or "") .. v.color .. v.text .. "|r"
+    lines[#lines + 1] = (v.net and (L"Вам за шт после комиссии " .. ns.CutPct() .. ": " .. ns.money(v.net) .. (v.profit and (L"   прибыль: " .. (v.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v.profit) .. L"|r за шт") or "") .. "  ") or "") .. v.color .. v.text .. "|r"
     f.analysis:SetText(table.concat(lines, "\n"))
     local dep
     if d.commodity then dep = safe(C_AuctionHouse.CalculateCommodityDeposit, d.id, f.dur, q)
     else dep = d.loc and safe(C_AuctionHouse.CalculateItemDeposit, d.loc, f.dur, q) end
-    f.info:SetText(string.format(L"Выручка за %d шт: %s / залог: %s%s", q, ns.money(unit * q * (1 - ns.AH_CUT)), dep and ns.money(dep) or "?",
+    f.info:SetText(string.format(L"Выручка за %d шт: %s / залог: %s%s", q, ns.money(unit * q * (1 - ns.Cut())), dep and ns.money(dep) or "?",
       v.profit and (L"\nПрибыль всего: " .. (v.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v.profit * q) .. "|r") or ""))
     if q > 0 and q <= d.count and unit > 0 then f.post:Enable() else f.post:Disable() end
   end

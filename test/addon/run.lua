@@ -178,6 +178,17 @@ do
   check(okT and WolfichMarketMainFrame.pages[3]:IsShown() and ns.DB.settings.aucMode == "neutral", "вкладка «Аукционы» открывается, выбран общий")
   check(cheap and cheap.gain > 0, "общий: дешёвый лот - в «Лучше купить здесь»")
   check(dear and not has(B.buy.list, 2840), "общий: дорогой лот - в «Лучше продать здесь»")
+  -- на общем дороже на 10% - с комиссией 15% продавать там не выгоднее
+  do
+    local ah = ns.RegularPrice(2862) or 0
+    if ah > 0 then
+      ns.DB.ntah[ns.realmKey].items[2862] = { p = math.floor(ah * 1.10), q = 1 }
+      B.kind.neutral.scripts.OnClick(B.kind.neutral)
+      check(not has(B.dear.list, 2862) and not has(B.buy.list, 2862), "общий: +10% к цене не перекрывает комиссию 15% - лота нет")
+      ns.DB.ntah[ns.realmKey].items[2862] = { p = 1, q = 1 }
+      B.kind.neutral.scripts.OnClick(B.kind.neutral)
+    end
+  end
   check(not B.all:IsShown(), "у общего - только две колонки")
   ns.DB.names[2862] = "Грубое точило"
   B.search:SetText("ГРУБ"); B.search.scripts.OnTextChanged(B.search, true)
@@ -272,6 +283,10 @@ do
     nt.items[2840] = { p = 1, q = 9 }        -- медь на общем почти даром
     local by, best = ns.ProfitByKind(rec)
     check(by.main and by.neutral and by.bm == nil and best == "neutral", "выгода по аукционам: лучший - общий (" .. tostring(best) .. ")")
+    -- комиссия: фракционный 5%, общий 15%
+    check(ns.Cut("main") == 0.05 and ns.Cut("neutral") == 0.15, "комиссия: фракционный 5%, общий 15%")
+    local pN, sN, cN = ns.ProfitIn(rec, "neutral")
+    check(pN and math.abs(pN - (sN * 0.85 - cN)) < 1, "прибыль на общем - за вычетом 15%")
     local _, where = ns.BestBuy(2840)
     check(where == "neutral", "материал дешевле на общем аукционе")
     local M = ns.RecipeMarket(rec)

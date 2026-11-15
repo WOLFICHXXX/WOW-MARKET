@@ -51,7 +51,7 @@ local function addLines(tt, id)
     tt:AddDoubleLine(L"  Стоимость крафта", pr.missing == 0 and ns.money(pr.cost) or ("|cff777777" .. L"нет цен материалов: " .. pr.missing .. "|r"))
     tt:AddDoubleLine(L"  На аукционе" .. qs, pr.sell and ns.money(pr.sell * q) or L"|cff777777нет|r")
     if pr.profit then
-      tt:AddDoubleLine(L"  Прибыль |cffaaaaaa(-5% аукциона)|r", (pr.profit >= 0 and ("|cff78d98a+" .. ns.money(pr.profit)) or ("|cffff7a66-" .. ns.money(-pr.profit))) .. "|r")
+      tt:AddDoubleLine(L"  Прибыль" .. " |cffaaaaaa(-" .. ns.CutPct() .. ")|r", (pr.profit >= 0 and ("|cff78d98a+" .. ns.money(pr.profit)) or ("|cffff7a66-" .. ns.money(-pr.profit))) .. "|r")
     end
   end
   tt:Show()

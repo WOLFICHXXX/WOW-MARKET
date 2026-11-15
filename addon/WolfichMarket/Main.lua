@@ -102,7 +102,7 @@ local function fillCard(rec)
   end
   local lines = { (pr.stock and (N > 1 and string.format(L"Докупить на %d крафтов: ", N) or L"Докупить на 1 крафт: ") or (N > 1 and string.format(L"Себестоимость %d крафтов: ", N) or L"Себестоимость: ")) .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost))
     .. (pr.crafts and ("   |cffaaaaaa" .. L"из запаса хватит на " .. pr.crafts .. "|r") or "") }
-  if pr.revenue then lines[#lines + 1] = L"Доход (-5%): " .. ns.money(pr.revenue) end
+  if pr.revenue then lines[#lines + 1] = L"Доход" .. " (-" .. ns.CutPct() .. "): " .. ns.money(pr.revenue) end
   if pr.profit then lines[#lines + 1] = L"Прибыль: " .. profitStr(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
   card.total:SetText(table.concat(lines, "\n"))
   -- «Крафт» и «Поставить сигнал» — сразу под последней строкой рецепта
@@ -654,8 +654,10 @@ local function compareRows(mode, rk)
       if ah then
         total = total + 1
         local row = { id = id, here = r.p, there = ah }
-        if r.p < ah * (1 - ns.AH_CUT) then row.gain = ah * (1 - ns.AH_CUT) - r.p; buy[#buy + 1] = row        -- здесь дешевле: купить здесь, продать на фракционном
-        elseif r.p * (1 - ns.AH_CUT) > ah then row.gain = r.p * (1 - ns.AH_CUT) - ah; sell[#sell + 1] = row  -- здесь дороже: купить на фракционном, продать здесь
+        -- комиссия: на фракционном 5%, на общем 15%
+        local netMain, netHere = ah * (1 - ns.Cut("main")), r.p * (1 - ns.Cut("neutral"))
+        if r.p < netMain then row.gain = netMain - r.p; buy[#buy + 1] = row        -- здесь дешевле: купить здесь, продать на фракционном
+        elseif netHere > ah then row.gain = netHere - ah; sell[#sell + 1] = row    -- здесь дороже: купить на фракционном, продать здесь
         end
       end
     end
@@ -861,7 +863,7 @@ function refreshAuc()
   aucp.dear.list.empty:SetText(have and L"Здесь нет ничего дороже фракционного." or "")
   if not have then aucp.status:SetText(TEXTS[mode].none) return end
   local d = ns.AltData(mode, rk)
-  aucp.status:SetText(string.format(L"%s: снимок %s. Слева - здесь дешевле, чем на фракционном (с учётом 5%%), справа - здесь дороже. Справа число - сколько выгоднее.", KIND_TAB[mode], ns.ago(d.t)))
+  aucp.status:SetText(string.format(L"%s: снимок %s. Слева - здесь дешевле, чем на фракционном, справа - здесь дороже; с учётом комиссии (фракционный 5%%, общий 15%%). Справа число - сколько выгоднее.", KIND_TAB[mode], ns.ago(d.t)))
 end
 
 -- ---------- окно ----------
