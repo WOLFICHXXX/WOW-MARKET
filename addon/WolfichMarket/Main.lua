@@ -604,11 +604,38 @@ local TEXTS = {
     none = L"|cffff9966Чёрный рынок ещё не записан - отсканируйте аукцион в Лесоречье.|r" },
 }
 -- категории аукциона игры (классы предметов) в том же порядке, что на аукционе
-local CATS = { 2, 4, 1, 3, 8, 0, 16, 7, 9, 17, 12, 15 }
+-- (самоцветы, улучшения и символы в этой версии игры устаревшие - их нет)
+local CATS = { 2, 4, 1, 0, 7, 9, 17, 12, 15 }
 local CAT_RU = { [2] = "Оружие", [4] = "Доспехи", [1] = "Сумки", [3] = "Самоцветы", [8] = "Улучшения", [0] = "Расходуемые", [16] = "Символы",
   [7] = "Хозяйственные товары", [9] = "Рецепты", [17] = "Боевые питомцы", [12] = "Задания", [15] = "Разное" }
+-- предметы профессии: готовые (результаты рецептов) и ингредиенты (материалы), по данным рецептов игры
+local profSets = {}
+local function profSet(slug)
+  local ps = profSets[slug]
+  if ps then return ps end
+  ps = { out = {}, reag = {} }
+  local P = ns.RS and ns.RS.prof and ns.RS.prof[slug]
+  for _, id in ipairs(P and P.ids or {}) do
+    local d = ns.RS.r[id]
+    if d then
+      if d.cr and d.cr[1] then ps.out[d.cr[1]] = true end
+      for _, r in ipairs(d.rg or {}) do ps.reag[r[1]] = true end
+    end
+  end
+  profSets[slug] = ps
+  return ps
+end
+local function profLabel(slug)
+  for _, p in ipairs(ns.AllProfessions()) do if p.slug == slug then return p.name end end
+  return slug
+end
+local PART = { out = L"готовые предметы", reag = L"ингредиенты", all = L"всё" }
 local function catName(c)
   if c == nil then return L"Все категории" end
+  if type(c) == "string" then
+    local slug, part = c:match("^p:(.-):(%a+)$")
+    if slug then return profLabel(slug) .. ": " .. (PART[part] or "") end
+  end
   local n = (C_Item and C_Item.GetItemClassInfo and ns.safe(C_Item.GetItemClassInfo, c)) or (GetItemClassInfo and ns.safe(GetItemClassInfo, c))
   return (n and n ~= "") and n or L(CAT_RU[c] or ("#" .. c))
 end
@@ -691,28 +718,54 @@ local function buildAuc(f)
   aucp.cat = UI.Button(f, L"Все категории", 200, 22, function(self) aucp.openCats(self) end)
   aucp.cat:SetPoint("TOPRIGHT", 0, 0)
   local cl = UI.Font(f, 11, UI.DIM); cl:SetPoint("RIGHT", aucp.cat, "LEFT", -6, 0); cl:SetText(L"Категория:")
-  function aucp.openCats(anchor)
+  -- меню категорий: слева - категории аукциона, справа - профессии (выбор: готовые предметы / ингредиенты / всё)
+  function aucp.openCats(anchor, profSlug)
     local m = aucp.menu
     if not m then
       m = CreateFrame("Frame", "WolfichMarketCatMenu", f); m:SetFrameStrata("DIALOG"); m:EnableMouse(true)
       UI.Skin(m, { theme = "acard", scale = 0.25 })
-      m.btns = {}
+      m.btns = {}; m.heads = {}
       aucp.menu = m
     end
-    if m:IsShown() then m:Hide() return end
-    local list = { false }
-    for _, c in ipairs(CATS) do list[#list + 1] = c end
+    if m:IsShown() and not profSlug then m:Hide() return end
     local mode = S.aucMode or "main"
-    for i, c in ipairs(list) do
-      local b = m.btns[i] or UI.Button(m, "", 200, 22); m.btns[i] = b
-      b:SetPoint("TOPLEFT", 12, -12 - (i - 1) * 24)
-      local cat = c ~= false and c or nil
-      b:SetLabel(catName(cat)); b:SetGold(S.aucCat[mode] == cat)
-      b:SetScript("OnClick", function() m:Hide(); S.aucCat[mode] = cat; refreshAuc() end)
-      b:Show()
+    local used = 0
+    local function btn(label, col, row, onClick, gold)
+      used = used + 1
+      local b = m.btns[used] or UI.Button(m, "", 196, 22); m.btns[used] = b
+      b:ClearAllPoints(); b:SetPoint("TOPLEFT", 12 + (col - 1) * 204, -30 - (row - 1) * 24)
+      b:SetLabel(label); b:SetGold(gold and true or false); b:SetScript("OnClick", onClick); b:Show()
     end
-    for i = #list + 1, #m.btns do m.btns[i]:Hide() end
-    m:SetSize(224, 24 + #list * 24)
+    local function head(i, text, col)
+      local h = m.heads[i] or UI.Font(m, 11, UI.GOLD); m.heads[i] = h
+      h:ClearAllPoints(); h:SetPoint("TOPLEFT", 16 + (col - 1) * 204, -12); h:SetText(text); h:Show()
+    end
+    local cur = S.aucCat[mode]
+    local function pick(c) return function() m:Hide(); S.aucCat[mode] = c; refreshAuc() end end
+    head(1, L"Категории аукциона", 1)
+    btn(L"Все категории", 1, 1, pick(nil), cur == nil)
+    for i, c in ipairs(CATS) do btn(catName(c), 1, i + 1, pick(c), cur == c) end
+    local rows1 = #CATS + 1
+    local rows2
+    if type(profSlug) == "string" then
+      head(2, profLabel(profSlug), 2)
+      btn(L"готовые предметы", 2, 1, pick("p:" .. profSlug .. ":out"), cur == "p:" .. profSlug .. ":out")
+      btn(L"ингредиенты", 2, 2, pick("p:" .. profSlug .. ":reag"), cur == "p:" .. profSlug .. ":reag")
+      btn(L"всё", 2, 3, pick("p:" .. profSlug .. ":all"), cur == "p:" .. profSlug .. ":all")
+      btn("|cffaaaaaa< " .. L"все профессии" .. "|r", 2, 4, function() aucp.openCats(anchor, true) end)
+      rows2 = 4
+    else
+      head(2, L"Профессии", 2)
+      local list = ns.AllProfessions()
+      for i, p in ipairs(list) do
+        local pre = "p:" .. p.slug .. ":"
+        local isCur = type(cur) == "string" and cur:sub(1, #pre) == pre
+        btn(p.name .. " |cffaaaaaa>|r", 2, i, function() aucp.openCats(anchor, p.slug) end, isCur)
+      end
+      rows2 = #list
+    end
+    for i = used + 1, #m.btns do m.btns[i]:Hide() end
+    m:SetSize(12 + 2 * 204 + 4, 42 + math.max(rows1, rows2) * 24)
     m:ClearAllPoints(); m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -4); m:Show()
   end
   aucp.status = UI.Font(f, 11, UI.DIM); aucp.status:SetPoint("TOPLEFT", 4, -30); aucp.status:SetPoint("RIGHT", -4, 0); aucp.status:SetWordWrap(true)
@@ -762,12 +815,19 @@ function refreshAuc()
   local c = ns.DB.chars[charKey] or {}
   local rk = c.realmKey or ns.realmKey or ""
   local buy, dear, noAH, total, have = compareRows(mode, rk)
-  -- категория и поиск
+  -- категория (класс предмета или профессия: готовое / ингредиенты) и поиск
+  local inCat
+  if cat == nil then inCat = function() return true end
+  elseif type(cat) == "string" then
+    local slug, part = cat:match("^p:(.-):(%a+)$")
+    local ps = slug and profSet(slug) or { out = {}, reag = {} }
+    inCat = function(id) return (part ~= "reag" and ps.out[id]) or (part ~= "out" and ps.reag[id]) or false end
+  else inCat = function(id) return itemClass(id) == cat end end
   local function filter(list, box)
     local q = ns.lower(box and box:GetText() or "")
     local out = {}
     for _, x in ipairs(list) do
-      if (cat == nil or itemClass(x.id) == cat) and (q == "" or ns.lower(ns.itemName(x.id) or ""):find(q, 1, true)) then out[#out + 1] = x end
+      if inCat(x.id) and (q == "" or ns.lower(ns.itemName(x.id) or ""):find(q, 1, true)) then out[#out + 1] = x end
     end
     return out
   end

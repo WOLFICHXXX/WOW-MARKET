@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.37.1"
+ns.VERSION = "2.37.2"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05
 
@@ -276,7 +276,7 @@ ns.On("PLAYER_LOGIN", function()
   -- до 2.34 снимок чёрного рынка (несколько сотен лотов) мог записаться вместо обычного аукциона (сотни тысяч лотов):
   -- такой маленький «снимок аукциона» переносим в чёрный рынок, а его точки убираем из графиков
   if not ns.DB.bmFixV then ns.FixBMScans() end
-  -- 2.37.1 ошибочно переносил большой снимок чёрного рынка в обычный аукцион (у такого снимка нет отметки персонажа) - вернуть
+  -- 2.37.2 ошибочно переносил большой снимок чёрного рынка в обычный аукцион (у такого снимка нет отметки персонажа) - вернуть
   if ns.DB.bmFixV == 2 then
     for rk, sc in pairs(ns.DB.ahScans) do
       if not sc.char and sc.items and (not ns.DB.bmah or not ns.DB.bmah[rk] or (ns.DB.bmah[rk].t or 0) < (sc.t or 0)) then

@@ -205,6 +205,26 @@ do
   -- фракционный: сравнение с лучшим из общего и чёрного рынка
   local dd = has(B.dear.list, 2862)
   check(not ns.RegularPrice(2862) or (dd and dd.thereKind == "bm"), "фракционный: точило дешевле на чёрном - в «на фракционном дороже, купить на ЧР»")
+  -- категория по профессии: готовые предметы / ингредиенты
+  do
+    local slug, P = next(ns.RS.prof)
+    local outId, reagId
+    for _, rid in ipairs(P.ids) do local d = ns.RS.r[rid]; if d and d.cr and d.rg and d.rg[1] then outId, reagId = d.cr[1], d.rg[1][1]; break end end
+    if outId then
+      ns.DB.bmah[ns.realmKey].items[outId] = { p = 1, q = 1 }; ns.DB.bmah[ns.realmKey].items[reagId] = { p = 1, q = 1 }
+      ns.DB.seen[outId] = { p = 999999, t = time(), r = ns.realmKey, q = 1 }; ns.DB.seen[reagId] = { p = 999999, t = time(), r = ns.realmKey, q = 1 }
+      ns.DB.settings.aucCat = { bm = "p:" .. slug .. ":out" }
+      B.kind.bm.scripts.OnClick(B.kind.bm)
+      check(has(B.buy.list, outId) and not has(B.buy.list, reagId), "категория «профессия: готовые предметы»")
+      ns.DB.settings.aucCat = { bm = "p:" .. slug .. ":reag" }
+      B.kind.bm.scripts.OnClick(B.kind.bm)
+      check(has(B.buy.list, reagId) ~= nil, "категория «профессия: ингредиенты»")
+      local okM = pcall(B.openCats, B.cat); local okM2 = pcall(B.openCats, B.cat, slug)
+      check(okM and okM2, "меню категорий с профессиями открывается")
+      ns.DB.bmah[ns.realmKey].items[outId], ns.DB.bmah[ns.realmKey].items[reagId] = nil, nil
+      ns.DB.seen[outId], ns.DB.seen[reagId] = nil, nil
+    end
+  end
   C_Item = oldC; ns.DB.settings.aucCat = {}; ns.DB.settings.aucMode = nil
   WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
   C_BlackMarket = nil
