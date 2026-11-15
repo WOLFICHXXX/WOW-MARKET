@@ -530,6 +530,9 @@ do
   check(bytes / cnt < 8, string.format("плотная запись: %.1f символа на цену (было ~14)", bytes / cnt))
   local hasR = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "R^" then hasR = true end end
   check(hasR, "остальной аукцион - без количества (R)")
+  local clean = true
+  for _, m in ipairs(sent) do if m:find("[^%w%^~,;%.]") then clean = false; print("BAD", m) end end
+  check(clean, "в сообщениях только буквы, цифры и разделители")
   -- приём: другой игрок разбирает эти же сообщения
   local rk = ns.NetKey()
   for _, m in ipairs(sent) do ns._netReceive("WolfMkt2", m, "CHANNEL", "Зеркало-Realm") end

@@ -210,11 +210,11 @@ end
 
 -- разослать свой снимок (только свой, не пересланный чужой)
 -- ---------- плотная запись: самоограниченные числа без разделителей ----------
--- 90 печатных символов (без «|», «^», «\» и пробела): 45 «продолжающих» цифр и 45 «последних».
--- Последняя цифра числа берётся из второй половины - так видно, где число кончается.
+-- Только буквы и цифры (62 символа): знаки препинания игра может не пропустить в служебных сообщениях.
+-- 31 «продолжающая» цифра и 31 «последняя» - последняя цифра числа показывает, где оно кончается.
 local A = {}
-for c = 33, 126 do local ch = string.char(c); if ch ~= "|" and ch ~= "^" and ch ~= "\\" and ch ~= "`" then A[#A + 1] = ch end end
-local HALF = 45
+for ch in ("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"):gmatch(".") do A[#A + 1] = ch end
+local HALF = 31
 local IDX = {}; for i, ch in ipairs(A) do IDX[ch] = i - 1 end
 local function zenc(n)
   n = math.max(0, math.floor(n or 0))
@@ -504,6 +504,8 @@ local function onMessage(prefix, msg, dist, sender)
   if not kind or rk ~= RK() then return end -- чужой аукцион (другой режим или фракция)
   -- кто-то рассылает снимок: свою рассылку придержим (см. ns.ShareScan)
   if kind == "H" or kind == "C" or kind == "R" or kind == "P" then netSeen.active = GetTime() end
+  ns.netStats.kinds = ns.netStats.kinds or {}
+  ns.netStats.kinds[kind] = (ns.netStats.kinds[kind] or 0) + 1
   if kind == "H" and rest:match("%^f$") then netSeen.lastFull = time() end
   if kind == "W" then
     local w = wants[sender] or { ids = {} }

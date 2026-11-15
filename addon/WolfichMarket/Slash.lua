@@ -47,6 +47,10 @@ local function slash(msg)
     local by = {}
     for k, v in pairs(st.by or {}) do by[#by + 1] = (k == "CHANNEL" and L"канал" or k == "BN" and "Battle.net" or k == "WHISPER" and L"личные" or k == "GUILD" and L"гильдия" or k) .. " " .. v end
     if #by > 0 then ns.out("  " .. L"пришло через" .. ": " .. table.concat(by, ", ")) end
+    local ks = {}
+    for k, v in pairs(st.kinds or {}) do ks[#ks + 1] = k .. " " .. v end
+    table.sort(ks)
+    if #ks > 0 then ns.out("  " .. L"виды сообщений" .. ": " .. table.concat(ks, ", ") .. " |cffaaaaaa(H - начало, C/R - цены, E - конец)|r") end
     local t, from = ns.NetInfo and ns.NetInfo()
     ns.out("  " .. L"цены игроков" .. ": " .. (t and (ns.ago(t) .. " (" .. tostring(from) .. ")") or L"ещё не приходили"))
     ns.out("  " .. L"делиться" .. ": " .. (ns.DB.settings.netSend ~= false and L"вкл" or L"выкл") .. "   " .. L"принимать" .. ": " .. (ns.DB.settings.netRecv ~= false and L"вкл" or L"выкл") .. "   " .. L"турбо" .. ": " .. (ns.DB.settings.netTurbo ~= false and L"вкл" or L"выкл"))
