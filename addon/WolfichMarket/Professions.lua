@@ -429,6 +429,7 @@ end
 local mt
 local function buildMarketTable(form)
   mt = CreateFrame("Frame", nil, form)
+  ns._marketTable = mt
   -- сразу под списком реагентов игры, чтобы не налезать на него; высота - по числу строк
   local reag = type(form.Reagents) == "table" and form.Reagents.GetBottom and form.Reagents or nil
   if reag then mt:SetPoint("TOPLEFT", reag, "BOTTOMLEFT", 0, -8); mt:SetPoint("RIGHT", form, "RIGHT", -26, 0)
@@ -437,6 +438,22 @@ local function buildMarketTable(form)
   mt:SetHeight(160)
   mt.bg = mt:CreateTexture(nil, "BACKGROUND"); mt.bg:SetAllPoints(); mt.bg:SetColorTexture(0, 0, 0, 0.45)
   mt.title = mt:CreateFontString(nil, "OVERLAY", "GameFontNormal"); mt.title:SetPoint("TOPLEFT", 8, -6); mt.title:SetText(L"Где купить и где продать")
+  -- «В план»: +1 порция этого рецепта в план закупки (список покупок - во вкладке «План» у аукциониста)
+  mt.plan = UI.Button(mt, L"В план", 76, 18, function()
+    local rec = mt.rec
+    if not rec then return end
+    local cur = 0
+    for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then cur = p.n end end
+    ns.AddPlan(rec, ns.charKey, ns.curProf, cur + 1)
+  end)
+  mt.plan:SetPoint("LEFT", mt.title, "RIGHT", 10, 0)
+  mt.plan:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(L"Добавить в план закупки", 1, 0.82, 0)
+    GameTooltip:AddLine(L"Каждый клик - ещё одна порция. Список покупок - во вкладке «План» у аукциониста.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  mt.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
   mt.cols = {}
   local colX = { main = -72, neutral = -14 }
   mt.colX = colX
@@ -463,6 +480,10 @@ local function fillMarketTable(rec)
   if not mt then return end
   for _, ln in ipairs(mt.lines) do ln.icon:Hide(); ln.name:SetText(""); for _, fs in pairs(ln.p) do fs:SetText("") end end
   if not rec then mt:Hide() return end
+  mt.rec = rec
+  local inPlan = 0
+  for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then inPlan = p.n end end
+  mt.plan:SetLabel(inPlan > 0 and (L"В плане" .. " ×" .. inPlan) or L"В план"); mt.plan:SetGold(inPlan > 0)
   local M = ns.RecipeMarket(rec)
   local i = 0
   for _, r in ipairs(M.rows) do
@@ -510,6 +531,7 @@ local function fillMarketTable(rec)
   mt:Show()
 end
 ns._fillMarketTable = fillMarketTable
+ns._marketTable = nil
 local function recFromInfo(ri)
   if not ri then return end
   indexRecipes()
@@ -528,6 +550,7 @@ local function hookForm()
   pcall(hooksecurefunc, form, "Init", function(self, recipeInfo) fillMarketTable(recFromInfo(recipeInfo)) end)
   if form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) end
 end
+ns.Listen("PLAN", function() if mt and mt:IsVisible() and mt.rec then fillMarketTable(mt.rec) end end)
 ns.Listen("PRICES", function()
   local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
   local form = page and page.SchematicForm

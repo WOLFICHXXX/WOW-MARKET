@@ -391,11 +391,33 @@ local function pageMarked(f)
 end
 
 -- вкладка: прибыльный крафт
+-- сколько порций рецепта уже в плане у текущего персонажа
+local function planCount(rec)
+  for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then return p.n end end
+  return 0
+end
 local function pageCraft(f)
   local l = UI.List(f, 22, function(r)
     itemRow(r)
+    -- «План»: +1 порция рецепта в план закупки (каждый клик - ещё одна)
+    r.plan = UI.Button(r, L"План", 54, 18, function()
+      local d = r.data
+      if d then ns.AddPlan(d.pr.rec, ns.charKey, d.pr.prof, planCount(d.pr.rec) + 1) end
+    end)
+    r.plan:SetPoint("RIGHT", -2, 0)
+    r.plan:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      GameTooltip:AddLine(L"Добавить в план закупки", 1, 0.82, 0)
+      GameTooltip:AddLine(L"Каждый клик - ещё одна порция. Что докупить - во вкладке «План».", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    r.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.search:ClearAllPoints(); r.search:SetPoint("RIGHT", r.plan, "LEFT", -4, 0)
   end, function(r, d)
     fillItemRow(r, { id = d.id })
+    r.buy:Hide()
+    local n = planCount(d.pr.rec)
+    r.plan:SetLabel(n > 0 and (L"План" .. " ×" .. n) or L"План"); r.plan:SetGold(n > 0)
     r.name:SetText(ns.itemLinkText(d.id) .. (ns.IsLearned(d.pr.rec) and "" or L" |cffff9966(не изучен)|r"))
     r.chg:SetText(d.pr.profit and ((d.pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(d.pr.profit, true) .. "|r") or L"|cffaa8866нет цены|r")
     r.chg:SetWidth(80)
@@ -406,6 +428,7 @@ local function pageCraft(f)
   chk:SetPoint("TOPLEFT", -2, 2)
   l:SetPoint("TOPLEFT", 0, -22); l:SetPoint("BOTTOMRIGHT")
   f.list = l
+  ns.Listen("PLAN", function() if f:IsShown() then l:Refresh() end end)
   f.refresh = function()
     chk:SetChecked(ns.DB.settings.showUnlearned)
     local d = {}

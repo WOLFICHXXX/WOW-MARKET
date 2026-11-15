@@ -296,6 +296,19 @@ do
     end
     local okF = pcall(ns._fillMarketTable, rec)
     check(okF, "таблица «где купить, где продать» заполняется без ошибок")
+    -- «В план» из окна профессии: каждый клик +1 порция
+    do
+      local mtPlan
+      for _, p in ipairs(ns.Plans()) do if p.id == rec.id then mtPlan = p end end
+      local before = mtPlan and mtPlan.n or 0
+      local btn = ns._marketTable and ns._marketTable.plan
+      if btn then
+        btn.scripts.OnClick(btn); btn.scripts.OnClick(btn)
+        local n = 0; for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then n = p.n end end
+        check(n == before + 2, "окно профессии: «В план» - +1 порция за клик (" .. n .. ")")
+        for i, p in ipairs(ns.Plans()) do if p.id == rec.id then ns.RemovePlan(i); break end end
+      else check(false, "окно профессии: нет кнопки «В план»") end
+    end
     local row = CreateFrame("Frame")
     row.GetElementData = function() return { GetData = function() return { recipeInfo = { recipeID = 777001 } } end } end
     local okD, errD = pcall(ns._decorateRow, row)
@@ -463,6 +476,20 @@ do
   check(byId[2840] and byId[2840].need == 12 and byId[3470].need == 8, "план: сколько нужно материалов")
   check(byId[3470].buy == math.max(0, 8 - byId[3470].have), "план: докупить = нужно - есть")
   ns.ahOpen = true
+  -- «План» во вкладке «Крафт» у аукциониста
+  do
+    ns.AHSelectTab(2)
+    local pg = ns._ahPages[2]
+    local row = pg.list.rows[1]
+    if row and row.data then
+      local rid = row.data.pr.rec.id
+      local function cnt() for _, p in ipairs(ns.Plans()) do if p.id == rid and p.ck == ns.charKey then return p.n end end return 0 end
+      local b0 = cnt()
+      row.plan.scripts.OnClick(row.plan)
+      check(cnt() == b0 + 1, "«Крафт» у аукциониста: кнопка «План» добавляет порцию")
+      for i, p in ipairs(ns.Plans()) do if p.id == rid and p.ck == ns.charKey then if b0 == 0 then ns.RemovePlan(i) else p.n = b0 end break end end
+    else check(false, "«Крафт» у аукциониста: нет строк") end
+  end
   ns.AHSelectTab(7)
   check(ns._ahPages[7]:IsShown() and #ns._ahPages[7].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
   do
