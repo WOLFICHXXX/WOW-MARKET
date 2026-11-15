@@ -92,3 +92,123 @@ ns.Listen("LOGIN", function() hookFrames(); ns.UpdateBagGlow() end)
 ns.On("BAG_UPDATE_DELAYED", function() hookFrames(); ns.UpdateBagGlow() end)
 ns.On("BAG_OPEN", ns.UpdateBagGlow)
 ns.Listen("PRICES", ns.UpdateBagGlow)
+
+-- ===== сортировка: после обычной сортировки сумок - выгодное на аукцион наверх, торговцу вниз =====
+-- Порядок внутри групп остаётся как после сортировки игры. Переставляем по одному предмету, ждём, пока игра его «отпустит».
+local sorting
+local function bagList()
+  local out = {}
+  local last = NUM_BAG_SLOTS or 4
+  for b = 0, last do
+    local n = C_Container and safe(C_Container.GetContainerNumSlots, b) or 0
+    -- только обычные сумки (сумки для профессий и реагентов не трогаем)
+    local fam = 0
+    if b ~= 0 and C_Container then fam = select(2, safe(C_Container.GetContainerNumFreeSlots, b)) or 0 end
+    if n and n > 0 and (fam == 0 or fam == nil) then out[#out + 1] = { b, n } end
+  end
+  return out
+end
+-- порядок ячеек так, как их видно на экране: сверху вниз, слева направо
+local function visualOrder()
+  local pos, any = {}, false
+  eachButton(function(btn, bag, slot)
+    local t, l = btn.GetTop and btn:GetTop(), btn.GetLeft and btn:GetLeft()
+    if bag and slot and t and l then pos[bag .. ":" .. slot] = { t, l }; any = true end
+  end)
+  return any and pos or nil
+end
+local function info(b, s) return C_Container and safe(C_Container.GetContainerItemInfo, b, s) end
+
+function ns.SortBagsByValue(quiet)
+  if sorting then return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  if GetCursorInfo and GetCursorInfo() then return end
+  local pos = visualOrder()
+  local slots = {}
+  for _, bn in ipairs(bagList()) do for s = 1, bn[2] do slots[#slots + 1] = { b = bn[1], s = s, k = #slots } end end
+  if pos then
+    table.sort(slots, function(a, c)
+      local pa, pc = pos[a.b .. ":" .. a.s], pos[c.b .. ":" .. c.s]
+      if pa and pc then if math.abs(pa[1] - pc[1]) > 4 then return pa[1] > pc[1] end if pa[2] ~= pc[2] then return pa[2] < pc[2] end end
+      if (pa ~= nil) ~= (pc ~= nil) then return pa ~= nil end
+      return a.k < c.k
+    end)
+  end
+  -- занятые ячейки и предметы в них
+  local filled, items = {}, {}
+  for i, sl in ipairs(slots) do
+    local it = info(sl.b, sl.s)
+    if it and it.itemID then
+      local where = ns.SellWhere(it.itemID, it.isBound)
+      filled[#filled + 1] = sl
+      items[#items + 1] = { id = it.itemID, g = where == "ah" and 1 or where == "vendor" and 3 or 2, i = #items }
+    end
+  end
+  local want = {}
+  for i, it in ipairs(items) do want[i] = it end
+  table.sort(want, function(a, c) if a.g ~= c.g then return a.g < c.g end return a.i < c.i end)
+  -- план перестановок по номерам предметов (одинаковые предметы взаимозаменяемы)
+  local cur = {}
+  for i, it in ipairs(items) do cur[i] = it.id end
+  local moves = {}
+  for i = 1, #want do
+    if cur[i] ~= want[i].id then
+      for j = i + 1, #cur do
+        if cur[j] == want[i].id then
+          moves[#moves + 1] = { filled[j], filled[i], want[i].id }
+          cur[i], cur[j] = cur[j], cur[i]
+          break
+        end
+      end
+    end
+  end
+  if #moves == 0 then return 0 end
+  sorting = { moves = moves, n = 0, tries = 0 }
+  local function step()
+    if not sorting then return end
+    if (InCombatLockdown and InCombatLockdown()) or #sorting.moves == 0 then
+      local done = sorting.n; sorting = nil; ns.UpdateBagGlow()
+      if not quiet then ns.say(L"сумки: аукцион наверху, торговцу внизу (перестановок: " .. done .. ")") end
+      return
+    end
+    local m = sorting.moves[1]
+    local a, c = info(m[1].b, m[1].s), info(m[2].b, m[2].s)
+    if (a and a.isLocked) or (c and c.isLocked) or (GetCursorInfo and GetCursorInfo()) then
+      sorting.tries = sorting.tries + 1
+      if sorting.tries > 60 then sorting = nil; return end -- что-то держит предметы - бросаем
+      ns.After(0.1, step) return
+    end
+    sorting.tries = 0
+    if not a or a.itemID ~= m[3] then sorting = nil; return end -- сумки изменились во время перестановки - стоп
+    table.remove(sorting.moves, 1)
+    C_Container.PickupContainerItem(m[1].b, m[1].s)
+    C_Container.PickupContainerItem(m[2].b, m[2].s)
+    if GetCursorInfo and GetCursorInfo() and ClearCursor then ClearCursor() end
+    sorting.n = sorting.n + 1
+    ns.After(0.15, step)
+  end
+  step()
+  return #moves
+end
+function ns.BagSortBusy() return sorting ~= nil end
+
+-- после сортировки игры ждём, пока сумки успокоятся, и досортировываем
+local sortWait
+local function afterGameSort()
+  if not ns.DB or ns.DB.settings.sortByValue == false then return end
+  local quietFor, total = 0, 0
+  if sortWait then sortWait.stop = true end
+  local w = {}; sortWait = w
+  local lastUpd = GetTime()
+  w.mark = function() lastUpd = GetTime() end
+  local function tick()
+    if w.stop then return end
+    total = total + 0.25
+    if GetTime() - lastUpd >= 1.2 or total > 12 then sortWait = nil; ns.SortBagsByValue() return end
+    ns.After(0.25, tick)
+  end
+  ns.After(0.5, tick)
+end
+ns.On("BAG_UPDATE_DELAYED", function() if sortWait and sortWait.mark then sortWait.mark() end end)
+if C_Container and C_Container.SortBags then hooksecurefunc(C_Container, "SortBags", afterGameSort) end
+if SortBags then hooksecurefunc("SortBags", afterGameSort) end

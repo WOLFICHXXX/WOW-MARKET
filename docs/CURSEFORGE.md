@@ -23,7 +23,7 @@
 - **Подсказка предмета:** стоимость крафта, цена на аукционе и прибыль со знаком + или −.
 - **Стоимость сумок** над окном сумок, с кнопкой «Сбросить» перед фармом.
 - **Профессии, которых у вас нет,** можно добавить и следить за их ценами.
-- **Значки на предметах в сумках:** молоток аукциониста — выгоднее на аукцион, мешочек с монетой — торговцу.
+- **Значки на предметах в сумках:** молоток аукциониста — выгоднее на аукцион, мешочек с монетой — торговцу. После сортировки сумок выгодное на аукцион встаёт наверх, торговцу — вниз.
 - **Чат не засоряется:** все сообщения аддона — во вкладке «Журнал» главного окна, сигналы ещё и всплывают уведомлением.
 - **Автообновление для Windows:** `WolfichMarket-Updater.bat` с сайта — двойной клик, и свежая версия сама встаёт в папку игры.
 - **Два языка:** русский и английский.
@@ -59,7 +59,7 @@
 - **Item tooltip:** crafting cost, auction price and profit with a + or − sign.
 - **Bag value** above your bags, with a "Reset" button before farming.
 - **Professions you don't have** can be added to track their prices.
-- **Icons on bag items:** an auctioneer's gavel means sell at auction, a coin bag means sell to a vendor.
+- **Icons on bag items:** an auctioneer's gavel means sell at auction, a coin bag means sell to a vendor. After sorting your bags, auction items move to the top and vendor items to the bottom.
 - **No chat spam:** all addon messages go to the "Log" tab of the main window; alerts also pop up as notifications.
 - **Windows auto-updater:** `WolfichMarket-Updater.bat` from the site, double-click and the latest version installs itself into the game folder.
 - **Two languages:** English and Russian.

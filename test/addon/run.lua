@@ -72,6 +72,31 @@ do
   ns.UpdateBagGlow(); advance(1)
 end
 check(ns.SellWhere(2840) == "ah" and ns.SellWhere(2862) == "vendor", "медь - на аукцион (зелёный), точило - торговцу (жёлтый)")
+-- сортировка сумок: аукцион наверх, торговцу вниз (после обычной сортировки игры)
+do
+  local bag = { [1] = 2862, [2] = 99999, [3] = 2840, [4] = 2862, [5] = 3470, [6] = nil }
+  local oldN, oldI = C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo
+  local cursor, from
+  C_Container.GetContainerNumSlots = function(b) return b == 0 and 6 or 0 end
+  C_Container.GetContainerItemInfo = function(b, s) if b == 0 and bag[s] then return { itemID = bag[s], stackCount = 1 } end end
+  C_Container.PickupContainerItem = function(b, s)
+    if cursor then bag[from] = bag[s]; bag[s] = cursor; cursor = nil -- как в игре: предметы меняются местами
+    else cursor = bag[s]; from = s; bag[s] = nil end
+  end
+  GetCursorInfo = function() return cursor and "item" or nil end
+  ClearCursor = function() cursor = nil end
+  C_Container.SortBags = function() end
+  check(HOOKS.SortBags ~= nil, "сортировка игры перехвачена")
+  HOOKS.SortBags(); for _ = 1, 20 do advance(0.25) end
+  local g = {}
+  for s = 1, 6 do local id = bag[s]; g[s] = id and (ns.SellWhere(id) == "ah" and "A" or ns.SellWhere(id) == "vendor" and "V" or "o") or "_" end
+  local str = table.concat(g)
+  check(str == "AAoVV_", "после сортировки: аукцион наверху, торговцу внизу (" .. str .. ")")
+  check(not cursor, "на курсоре ничего не осталось")
+  check(ns.SortBagsByValue(true) == 0, "повторно переставлять нечего")
+  C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo = oldN, oldI
+  GetCursorInfo = nil
+end
 -- все вкладки панели аукциона
 for i = 1, 6 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
 -- продажа: выбрать предмет и выставить

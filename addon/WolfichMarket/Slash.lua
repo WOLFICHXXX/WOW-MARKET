@@ -10,6 +10,7 @@ local function help()
   ns.out(L"  |cffe6b450/wm best|r - лучший крафт сейчас")
   ns.out(L"  |cffe6b450/wm marks|r - отмеченные предметы")
   ns.out(L"  |cffe6b450/wm chat|r - куда писать сообщения: window - журнал окна (по умолчанию), main - чат, tab - своя вкладка, off - никуда")
+  ns.out(L"  |cffe6b450/wm sort|r - переставить сумки: аукцион наверх, торговцу вниз")
   ns.out(L"  |cffe6b450/wm net|r - проверка общего рынка, |cffe6b450/wm netsend|r - разослать свой снимок ещё раз")
   ns.out(L"  Клавиша для выставления по очереди: Настройки > Управление > WolfichMarket (или макрос /click WolfichMarketPostNextButton)")
   ns.out(L"  |cffe6b450/wm reset|r - очистить отметки и историю цен")
@@ -61,6 +62,9 @@ local function slash(msg)
     ns.DB.settings.bagValue = not (ns.DB.settings.bagValue ~= false)
     if ns.UpdateBagValue then ns.UpdateBagValue() end
     ns.tell(ns.DB.settings.bagValue ~= false and L"окошко стоимости сумок показано" or L"окошко стоимости сумок скрыто")
+  elseif msg == "sort" then
+    local n = ns.SortBagsByValue and ns.SortBagsByValue()
+    if n == 0 then ns.tell(L"сумки уже по порядку: аукцион наверху, торговцу внизу") elseif not n then ns.tell(L"сейчас нельзя: бой, предмет на курсоре или сортировка уже идёт") end
   elseif msg == "debug" then
     ns.DB.settings.debug = not ns.DB.settings.debug; ns.tell(L"отладка: " .. (ns.DB.settings.debug and L"вкл" or L"выкл"))
   else if ns.ToggleMain then ns.ToggleMain() else help() end end

@@ -66,7 +66,8 @@ Minimap = newObj("Frame"); Minimap.GetCenter = function() return 100, 100 end
 GetCursorPosition = function() return 0, 0 end
 function IsAltKeyDown() return false end; function IsShiftKeyDown() return false end; function IsControlKeyDown() return false end
 local hooks = {}
-function hooksecurefunc(a, b, c) if type(a) == "string" then hooks[a] = b else end end
+function hooksecurefunc(a, b, c) if type(a) == "string" then hooks[a] = b else hooks[b] = c end end
+HOOKS = hooks
 function HandleModifiedItemClick(link) if hooks.HandleModifiedItemClick then hooks.HandleModifiedItemClick(link) end end
 printed = {}; allPrinted = {}
 print = function(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring(select(i, ...)) end; local s = table.concat(t, " "); printed[#printed + 1] = s; allPrinted[#allPrinted + 1] = s; io.write("CHAT: ", s, "\n") end
@@ -119,7 +120,7 @@ C_AuctionHouse = {
   GetItemCommodityStatus = function() return 2 end, CalculateCommodityDeposit = function() return 15 end,
   PostCommodity = function(loc, d, q, u) postedLot = { d, q, u } end,
 }
-C_Container = { GetContainerNumSlots = function(b) return b == 0 and 2 or 0 end,
+C_Container = { SortBags = function() end, GetContainerNumSlots = function(b) return b == 0 and 2 or 0 end,
   GetContainerItemInfo = function(b, s) if s == 1 then return { itemID = 2840, stackCount = 12 } end; if s == 2 then return { itemID = 3470, stackCount = 5 } end end }
 local bagBtns = {}
 for s = 1, 2 do local b = newObj("Button"); b.GetBagID = function() return 0 end; b.GetID = function() return s end; b.GetWidth = function() return 37 end; bagBtns[#bagBtns + 1] = b end
