@@ -342,8 +342,26 @@ local function buildCraft(f)
   end)
   craft.list:SetPoint("TOPLEFT", 0, -78); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
   -- карточка рецепта
-  local card = CreateFrame("Frame", nil, f)
-  card:SetPoint("TOPLEFT", f, "TOP", 10, -78); card:SetPoint("BOTTOMRIGHT")
+  -- карточка: рамка (box) с прокруткой; всё содержимое - на прокручиваемом листе card, который на EXTRA выше
+  -- видимой части - туда, вниз, вытягивается график. Прокрутка - колёсиком мыши.
+  local EXTRA = 210
+  local box = CreateFrame("Frame", nil, f)
+  box:SetPoint("TOPLEFT", f, "TOP", 10, -78); box:SetPoint("BOTTOMRIGHT")
+  local sf = CreateFrame("ScrollFrame", nil, box)
+  sf:SetPoint("TOPLEFT", 2, -2); sf:SetPoint("BOTTOMRIGHT", -2, 2)
+  local card = CreateFrame("Frame", nil, sf)
+  card:SetSize(400, 400)
+  sf:SetScrollChild(card)
+  local function resize() local w, h = sf:GetWidth(), sf:GetHeight(); if w and w > 0 then card:SetSize(w, h + EXTRA) end end
+  sf:SetScript("OnSizeChanged", resize); resize()
+  sf:EnableMouseWheel(true)
+  local hint = UI.Font(box, 10, UI.DIM, "OVERLAY"); hint:SetPoint("BOTTOMRIGHT", -16, 8); hint:SetText(L"колёсико мыши - ниже график")
+  local cur = 0
+  sf:SetScript("OnMouseWheel", function(self, delta)
+    cur = math.max(0, math.min(EXTRA, cur - delta * 50))
+    self:SetVerticalScroll(cur); hint:SetShown(cur < EXTRA * 0.5)
+  end)
+  card.scroll = sf
   -- второй ряд профессий сдвигает фильтры, список и карточку вниз
   function craft.setTop(dy)
     c1:ClearAllPoints(); c1:SetPoint("TOPLEFT", 0, -48 - dy)
@@ -351,9 +369,9 @@ local function buildCraft(f)
     c3:ClearAllPoints(); c3:SetPoint("TOPLEFT", 400, -48 - dy)
     bM:ClearAllPoints(); bM:SetPoint("TOPRIGHT", 0, -48 - dy)
     craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", 0, -78 - dy); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
-    card:ClearAllPoints(); card:SetPoint("TOPLEFT", f, "TOP", 10, -78 - dy); card:SetPoint("BOTTOMRIGHT")
+    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 10, -78 - dy); box:SetPoint("BOTTOMRIGHT")
   end
-  UI.Skin(card, { theme = "mcard" })
+  UI.Skin(box, { theme = "mcard" })
   -- «Цены» - обновить цены всего рецепта (результат и материалы) поиском у аукциониста
   card.prices = UI.Button(card, L"Цены", 64, 20, function()
     if not sel then return end
@@ -426,38 +444,6 @@ local function buildCraft(f)
   card.chart = UI.Chart(card); card.chart.showPeaks = true; card.chart.noLegend = true
   card.chart:SetPoint("TOPLEFT", card.chartTitle, "BOTTOMLEFT", -8, -4); card.chart:SetPoint("BOTTOMRIGHT", -10, 10)
   craft.card = card
-  -- прокрутка карточки: всё содержимое (кроме рамки) переносится в прокручиваемую область,
-  -- которая на EXTRA выше видимой - туда и вытягивается график
-  do
-    local EXTRA = 210
-    local sf = CreateFrame("ScrollFrame", nil, card)
-    sf:SetPoint("TOPLEFT", 4, -6); sf:SetPoint("BOTTOMRIGHT", -4, 6)
-    local content = CreateFrame("Frame", nil, sf)
-    content:SetSize(400, 400)
-    sf:SetScrollChild(content)
-    local function move(obj)
-      if obj == sf then return end
-      local pts = {}
-      for i = 1, (obj.GetNumPoints and obj:GetNumPoints() or 0) do pts[i] = { obj:GetPoint(i) } end
-      obj:SetParent(content)
-      if #pts > 0 then
-        obj:ClearAllPoints()
-        for _, p in ipairs(pts) do obj:SetPoint(p[1], p[2] == card and content or p[2], p[3], p[4], p[5]) end
-      end
-    end
-    for _, ch in ipairs({ card:GetChildren() }) do move(ch) end
-    for _, rg in ipairs({ card:GetRegions() }) do if rg.GetObjectType and rg:GetObjectType() == "FontString" then move(rg) end end
-    local function resize() local w, h = sf:GetWidth(), sf:GetHeight(); if w and w > 0 then content:SetSize(w, h + EXTRA) end end
-    sf:SetScript("OnSizeChanged", resize); resize()
-    sf:EnableMouseWheel(true)
-    local hint = UI.Font(card, 10, UI.DIM, "OVERLAY"); hint:SetPoint("BOTTOMRIGHT", -16, 8); hint:SetText(L"колёсико мыши - ниже график")
-    local cur = 0
-    sf:SetScript("OnMouseWheel", function(self, delta)
-      cur = math.max(0, math.min(EXTRA, cur - delta * 50))
-      self:SetVerticalScroll(cur); hint:SetShown(cur < EXTRA * 0.5)
-    end)
-    card.scroll = sf
-  end
 end
 
 -- ---------- вкладка «Сигналы» ----------
