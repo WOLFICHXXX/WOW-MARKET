@@ -2,7 +2,10 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.17
+## 2.43.18
+
+- Profession window: the "where to buy and where to sell" block never goes below the window - the rest scrolls with the mouse wheel.
+- Bag sorting waits until the game finishes its own sort (no more "Locked" errors).
 
 - Settings: "Reload UI (/reload)" button.
 - Farm window: counts looted money too; the triangle has "Items" and "Currency" checkboxes.

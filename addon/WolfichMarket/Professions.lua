@@ -526,9 +526,20 @@ local function buildMarketTable(form)
     h:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
   end
   local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(0.42, 0.33, 0.17, 0.8)
+  -- строки, график и итог - на прокручиваемом листе: блок не выходит за низ окна профессии
+  local sf = CreateFrame("ScrollFrame", nil, mt); sf:SetPoint("TOPLEFT", 0, -44); sf:SetPoint("BOTTOMRIGHT", 0, 26)
+  if sf.SetClipsChildren then sf:SetClipsChildren(true) end
+  local body = CreateFrame("Frame", nil, sf); body:SetSize(300, 200); sf:SetScrollChild(body)
+  sf:SetScript("OnSizeChanged", function(self, w) if w and w > 0 then body:SetWidth(w) end end)
+  sf:EnableMouseWheel(true)
+  sf:SetScript("OnMouseWheel", function(self, d)
+    local max = math.max(0, (body:GetHeight() or 0) - (self:GetHeight() or 0))
+    mt.scroll = math.max(0, math.min(max, (mt.scroll or 0) - d * 30)); self:SetVerticalScroll(mt.scroll)
+  end)
+  mt.sf, mt.body = sf, body
   mt.lines = {}
   for i = 1, 10 do
-    local ln = CreateFrame("Button", nil, mt); ln:SetHeight(ROW); ln:SetPoint("LEFT", 4, 0); ln:SetPoint("RIGHT", -4, 0)
+    local ln = CreateFrame("Button", nil, body); ln:SetHeight(ROW); ln:SetPoint("LEFT", 4, 0); ln:SetPoint("RIGHT", -4, 0)
     ln.bg = ln:CreateTexture(nil, "BACKGROUND", nil, 1); ln.bg:SetAllPoints(); ln.bg:Hide()
     local hl = ln:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.45, 0.07)
     ln.tri = ln:CreateTexture(nil, "ARTWORK"); ln.tri:SetSize(9, 9); ln.tri:SetPoint("LEFT", 2, 0); UI.WinTex(ln.tri, "tri")
@@ -552,14 +563,13 @@ local function buildMarketTable(form)
     ln:Hide(); mt.lines[i] = ln
   end
   -- график раскрытой строки: продано за 24 ч и лотов - сверху
-  local det = CreateFrame("Frame", nil, mt); det:SetHeight(96); det:SetPoint("LEFT", 6, 0); det:SetPoint("RIGHT", -6, 0)
+  local det = CreateFrame("Frame", nil, body); det:SetHeight(96); det:SetPoint("LEFT", 6, 0); det:SetPoint("RIGHT", -6, 0)
   local dbg = det:CreateTexture(nil, "BACKGROUND"); dbg:SetAllPoints(); dbg:SetColorTexture(0, 0, 0, 0.35)
   det.info = UI.Font(det, 10, UI.DIM); det.info:SetPoint("TOPLEFT", 6, -3); det.info:SetPoint("RIGHT", -6, 0)
   det.chart = UI.Chart(det); det.chart.compact = true; det.chart.noLegend = true
   det.chart:SetPoint("TOPLEFT", -14, -10); det.chart:SetPoint("BOTTOMRIGHT", 4, -2)
   det:Hide(); mt.det = det
-  mt.foot = UI.Font(mt, 10, UI.TEXT); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
-  mt.foot:SetPoint("BOTTOMLEFT", 8, 28); mt.foot:SetPoint("RIGHT", -8, 0)
+  mt.foot = UI.Font(body, 10, UI.TEXT); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
   local l1 = mt:CreateTexture(nil, "ARTWORK"); l1:SetHeight(1); l1:SetPoint("BOTTOMLEFT", 6, 24); l1:SetPoint("BOTTOMRIGHT", -6, 24); l1:SetColorTexture(0.42, 0.33, 0.17, 0.8)
   -- сортировка списка рецептов: одна галочка всегда стоит (по умолчанию - Ф)
   local S = ns.DB.settings
@@ -580,17 +590,18 @@ local function fillMarketTable(rec)
   if not mt then return end
   for _, ln in ipairs(mt.lines) do ln:Hide(); ln.id = nil end
   if not rec or ns.DB.settings.profUI == false then mt:Hide() return end
-  if mt.rec ~= rec then mt.open = nil end
+  if mt.rec ~= rec then mt.open = nil; mt.scroll = 0 end
   mt.rec = rec
   local inPlan = 0
   for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then inPlan = p.n end end
   mt.plan:SetLabel(inPlan > 0 and (L"В плане" .. " ×" .. inPlan) or L"В план"); mt.plan:SetGold(inPlan > 0)
   local M = ns.RecipeMarket(rec)
-  local y, i = -46, 0
+  local y, i = -2, 0
+  local body = mt.body
   local function line(id, name, vals, bg, tip)
     i = i + 1; local ln = mt.lines[i]; if not ln then return end
     ln.id, ln.tip = id, tip
-    ln:ClearAllPoints(); ln:SetPoint("TOPLEFT", 4, y); ln:SetPoint("RIGHT", -4, 0); y = y - ROW
+    ln:ClearAllPoints(); ln:SetPoint("TOPLEFT", body, "TOPLEFT", 4, y); ln:SetPoint("RIGHT", body, "RIGHT", -4, 0); y = y - ROW
     ln.icon:SetShown(id ~= nil); ln.tri:SetShown(id ~= nil); ln.star:SetShown(id ~= nil); ln.bell:SetShown(id ~= nil)
     if id then
       ln.icon:SetTexture(ns.itemIcon(id)); ln.bell:Update(id); ln.star:SetIcon(ns.IsMarked(id) and "star-on" or "star-off")
@@ -603,7 +614,7 @@ local function fillMarketTable(rec)
     -- график раскрытой строки - сразу под ней
     if id and mt.open == id then
       local d = mt.det
-      d:ClearAllPoints(); d:SetPoint("TOPLEFT", 6, y - 2); d:SetPoint("RIGHT", -6, 0); y = y - d:GetHeight() - 4
+      d:ClearAllPoints(); d:SetPoint("TOPLEFT", body, "TOPLEFT", 6, y - 2); d:SetPoint("RIGHT", body, "RIGHT", -6, 0); y = y - d:GetHeight() - 4
       local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
       local p = ns.AHPrice(id)
       d.info:SetText("|cfff2c761" .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
@@ -640,8 +651,17 @@ local function fillMarketTable(rec)
   table.sort(parts)
   mt.foot:SetText((#parts > 0 and (L"Дешевле купить: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
     .. (M.best and ("   ·   " .. L"Продать: " .. ns.ALT_COLOR[M.best] .. KSHORT[M.best] .. "|r " .. short(M.profit[M.best])) or ""))
+  mt.foot:ClearAllPoints(); mt.foot:SetPoint("TOPLEFT", body, "TOPLEFT", 6, y - 4); mt.foot:SetPoint("RIGHT", body, "RIGHT", -6, 0)
   local fh = mt.foot:GetStringHeight(); if type(fh) ~= "number" or fh < 10 then fh = 13 end
-  mt:SetHeight(-y + 8 + fh + 30)
+  local need = -y + 8 + fh
+  body:SetHeight(need)
+  -- высота блока: по содержимому, но не ниже низа окна профессии; лишнее - прокруткой колёсиком
+  local form = mt:GetParent()
+  local top, bot = mt:GetTop(), form and form:GetBottom()
+  local avail = (top and bot) and (top - bot - 58) or 400 -- над «Отслеживать» и кнопками «Создать»
+  mt:SetHeight(math.max(110, math.min(need + 44 + 26, avail)))
+  local max = math.max(0, need - (mt.sf:GetHeight() or need))
+  mt.scroll = math.min(mt.scroll or 0, max); mt.sf:SetVerticalScroll(mt.scroll)
   mt:Show()
 end
 ns._fillMarketTable = fillMarketTable

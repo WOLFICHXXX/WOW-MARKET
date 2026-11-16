@@ -119,10 +119,23 @@ local function visualOrder()
 end
 local function info(b, s) return C_Container and safe(C_Container.GetContainerItemInfo, b, s) end
 
+-- хоть один предмет в сумках сейчас переносится игрой
+local function anyLocked()
+  for _, bn in ipairs(bagList()) do
+    for sl = 1, bn[2] do local it = info(bn[1], sl); if it and it.isLocked then return true end end
+  end
+  return false
+end
 function ns.SortBagsByValue(quiet)
   if sorting then return end
   if InCombatLockdown and InCombatLockdown() then return end
   if GetCursorInfo and GetCursorInfo() then return end
+  if anyLocked() then
+    ns._sortRetry = (ns._sortRetry or 0) + 1
+    if ns._sortRetry <= 40 then ns.After(0.5, function() ns.SortBagsByValue(quiet) end) end
+    return
+  end
+  ns._sortRetry = 0
   local pos = visualOrder()
   local slots = {}
   for _, bn in ipairs(bagList()) do for s = 1, bn[2] do slots[#slots + 1] = { b = bn[1], s = s, k = #slots } end end
@@ -173,10 +186,11 @@ function ns.SortBagsByValue(quiet)
     end
     local m = sorting.moves[1]
     local a, c = info(m[1].b, m[1].s), info(m[2].b, m[2].s)
-    if (a and a.isLocked) or (c and c.isLocked) or (GetCursorInfo and GetCursorInfo()) then
+    -- пока игра что-то двигает (любой предмет «заперт») - ждём, иначе игра пишет «Заперто»
+    if anyLocked() or (GetCursorInfo and GetCursorInfo()) then
       sorting.tries = sorting.tries + 1
-      if sorting.tries > 60 then sorting = nil; return end -- что-то держит предметы - бросаем
-      ns.After(0.1, step) return
+      if sorting.tries > 100 then sorting = nil; return end -- что-то держит предметы - бросаем
+      ns.After(0.2, step) return
     end
     sorting.tries = 0
     if not a or a.itemID ~= m[3] then sorting = nil; return end -- сумки изменились во время перестановки - стоп
@@ -185,7 +199,7 @@ function ns.SortBagsByValue(quiet)
     C_Container.PickupContainerItem(m[2].b, m[2].s)
     if GetCursorInfo and GetCursorInfo() and ClearCursor then ClearCursor() end
     sorting.n = sorting.n + 1
-    ns.After(0.15, step)
+    ns.After(0.3, step)
   end
   step()
   return #moves
@@ -204,7 +218,7 @@ local function afterGameSort()
   local function tick()
     if w.stop then return end
     total = total + 0.25
-    if GetTime() - lastUpd >= 1.2 or total > 12 then sortWait = nil; ns.SortBagsByValue() return end
+    if (GetTime() - lastUpd >= 2 and not anyLocked()) or total > 20 then sortWait = nil; ns.SortBagsByValue() return end
     ns.After(0.25, tick)
   end
   ns.After(0.5, tick)
