@@ -243,6 +243,17 @@ ab[last + 1:, :, 3] = 0
 BN = Image.fromarray(ab); BN = BN.crop(BN.getbbox())
 BANNER = BN.size
 save(BN, 'banner', size=(96, round(96 * BN.height / BN.width)))
+# значки мини-окна фарма: «сбросить» (круговая стрелка) и «вся стоимость» (сумка с монетой)
+def ic_reset(d, k):
+    w = 3 * k
+    d.arc((5 * k, 5 * k, 27 * k, 27 * k), 40, 330, fill=(242, 199, 97, 255), width=w)
+    d.polygon([(24 * k, 2 * k), (30 * k, 11 * k), (19 * k, 12 * k)], fill=(242, 199, 97, 255))
+def ic_full(d, k):
+    d.ellipse((5 * k, 11 * k, 27 * k, 30 * k), fill=(196, 150, 74, 255), outline=(90, 60, 20, 255), width=k)
+    d.polygon([(11 * k, 4 * k), (21 * k, 4 * k), (18 * k, 11 * k), (14 * k, 11 * k)], fill=(170, 125, 60, 255), outline=(90, 60, 20, 255))
+    d.ellipse((12 * k, 15 * k, 20 * k, 23 * k), fill=(255, 215, 90, 255), outline=(120, 80, 10, 255), width=k)
+save(supersample(ic_reset, 32, 32), 'ic-reset', size=(20, 20))
+save(supersample(ic_full, 32, 32), 'ic-full', size=(20, 20))
 # медальон уведомления (воющий волк) - круг
 hw = Image.open(os.path.join(SRC, 'howl.png')).convert('RGBA')
 c = min(hw.size)

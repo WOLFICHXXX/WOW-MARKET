@@ -683,4 +683,5 @@ ns.EN = {
   ["по аукциону"] = "auction value",
   ["этот предмет нельзя выставить на аукцион."] = "this item cannot be posted on the auction house.",
   ["У аукциониста: своя сумка под окном аукциона"] = "At the auctioneer: addon bag under the auction window",
+  ["Восстановить"] = "Restore",
 }

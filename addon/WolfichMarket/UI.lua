@@ -831,14 +831,14 @@ function UI.MainChrome(win, onNav, navTips)
   local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(k(175), k(692))
   -- название - жирным, по центру тёмной полосы шапки, с отступом от кристалла
   local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.BOLD, 21, "")
-  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", k(412), -k(53)); title:SetText("WolfichMarket")
+  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", k(412), -k(58)); title:SetText("WolfichMarket")
   if title.SetShadowOffset then title:SetShadowOffset(1, -2); title:SetShadowColor(0, 0, 0, 1) end
   local sub = UI.Font(top, 13, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 16, 0)
   -- флажок с лапой - заглушка на правом конце шапки (слегка заходит на рамку, крестик не закрывает)
   if ns.WIN and ns.WIN.banner then
     local bw = k(64); local bh = math.floor(bw * ns.WIN.banner[2] / ns.WIN.banner[1] + 0.5)
     local fl = tex(top, "banner", "OVERLAY", 3); fl:SetSize(bw, bh)
-    fl:SetPoint("TOP", win, "TOPLEFT", WIN_W - k(113) - k(6), k(2))
+    fl:SetPoint("TOP", win, "TOPLEFT", WIN_W - k(113) - k(6), -k(16))
     win.banner = fl
   end
   win.chromeTitle, win.chromeSub = title, sub
