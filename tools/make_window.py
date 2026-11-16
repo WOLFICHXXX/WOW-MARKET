@@ -114,6 +114,24 @@ PARTS = {
 FSIZE = {}
 for k, bb in PARTS.items():
     im = F.crop(bb)
+    if k == 'f-em':
+        # щиток с лапой в исходнике обрезан краем листа: ставим поверх целый щиток из низа колонки
+        sk = SIDE_W / 256.0
+        poly = [(127, 852), (176, 882), (172, 962), (127, 996), (82, 962), (78, 882)]
+        poly = [(x * sk, y * sk) for x, y in poly]
+        xs = [p[0] for p in poly]; ys = [p[1] for p in poly]
+        bx = (int(min(xs)) - 2, int(min(ys)) - 2, int(max(xs)) + 3, int(max(ys)) + 3)
+        sh = S.crop(bx)
+        m = Image.new('L', (sh.width * 4, sh.height * 4))
+        ImageDraw.Draw(m).polygon([((x - bx[0]) * 4, (y - bx[1]) * 4) for x, y in poly], fill=255)
+        m = m.resize(sh.size, Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.6))
+        sh.putalpha(ImageChops.multiply(sh.split()[3], m))
+        sw = 70
+        sh = sh.resize((sw, round(sh.height * sw / sh.width)), Image.LANCZOS)
+        big = Image.new('RGBA', (im.width, max(im.height, 70 + sh.height + 4)))
+        big.paste(im, (0, 0))
+        big.alpha_composite(sh, ((im.width - sw) // 2, 70))
+        im = big
     FSIZE[k] = im.size
     # части рамки - в 0.6 размера макета: в игре окна рисуют их в 0.42-0.74, без сильного уменьшения (иначе «лесенка»)
     save(im, k, size=(max(1, round(im.width * 0.6)), max(1, round(im.height * 0.6))))

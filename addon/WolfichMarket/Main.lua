@@ -598,6 +598,8 @@ local function buildSignals(f)
       if not r.money:HasFocus() then if t and t[side] then r.money:Set(t[side]) else r.money:Clear() end end
     end)
     list:SetPoint("TOPLEFT", 10, -74); list:SetPoint("BOTTOMRIGHT", -10, 10)
+    -- треугольник у предмета: себестоимость, прибыль и график цены
+    list:EnableDetail(4, function(det) UI.ItemDetail(det, { leftW = 130, compact = true }) end, function(det, d) det:Set(d.id) end)
     list.empty:SetText(side == "buy" and L"Пусто. Добавьте то, что хотите купить дешевле." or L"Пусто. Добавьте то, что хотите продать дороже.")
     return list
   end

@@ -126,7 +126,8 @@ function UI.FrameSkin(f, s)
   q = tex("f-tr", "BORDER", 1); q:SetSize(trw, tlh); q:SetPoint("TOPRIGHT")
   q = tex("f-bl", "BORDER", 1); q:SetSize(blw, bh); q:SetPoint("BOTTOMLEFT")
   q = tex("f-br", "BORDER", 1); q:SetSize(brw, bh); q:SetPoint("BOTTOMRIGHT")
-  q = tex("f-em", "BORDER", 2); q:SetSize(emw, bh); q:SetPoint("BOTTOM")
+  -- щиток с лапой ниже рамки - выступает вниз, верх совпадает с нижней кромкой
+  local _, emh = sz("f-em"); q = tex("f-em", "BORDER", 2); q:SetSize(emw, emh); q:SetPoint("TOP", f, "BOTTOM", 0, bh)
   return f
 end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
@@ -442,7 +443,7 @@ function UI.List(parent, rowH, makeRow, fillRow)
       local d = view[i + self.offset]
       if d and not d._det and i <= self.visible then
         r.data = d; fillRow(r, d); r:Show()
-        if r.tri then pcall(r.tri.tex.SetRotation, r.tri.tex, self:IsOpen(d) and -math.pi / 2 or 0) end
+        if r.tri then r.tri:SetShown(not d.header); pcall(r.tri.tex.SetRotation, r.tri.tex, self:IsOpen(d) and -math.pi / 2 or 0) end
       else r.data = nil; r:Hide() end
     end
     local det = self.det
