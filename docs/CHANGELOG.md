@@ -2,7 +2,7 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.14
+## 2.43.15
 
 - At the auctioneer: the auction window and the addon panel fit on the screen right away; instead of the standard bags - the addon bag under the auction window (click - post, right-click - as in the game).
 - Professions: the recipe card as in the design - income and profit on F and N, Craft / Where to get / On the auction buttons, the chart without scrolling; bigger main window, longer auctioneer panel; smooth chart lines.

@@ -654,7 +654,7 @@ ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function() bought(true) end)
 local function bagItems()
   local out, byId = {}, {}
   if not C_Container then return out end
-  for bag = 0, (NUM_BAG_SLOTS or 4) do
+  for bag = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4) do -- с сумкой реагентов (трав)
     for slot = 1, (safe(C_Container.GetContainerNumSlots, bag) or 0) do
       local info = safe(C_Container.GetContainerItemInfo, bag, slot)
       if info and info.itemID and not info.isBound and not info.isLocked then -- заблокированный (уже выставляется) - пропускаем
