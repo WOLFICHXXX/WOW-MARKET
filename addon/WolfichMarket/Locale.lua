@@ -694,4 +694,9 @@ ns.EN = {
   ["клик - выставить в панели аддона, ПКМ - на аукционе игры"] = "click - post in the addon panel, right-click - in the game's auction",
   ["Перезагрузить интерфейс (/reload)"] = "Reload UI (/reload)",
   ["Сумка ресурсов"] = "Reagent bag",
+  ["починка: не хватает денег (нужно %s)"] = "repair: not enough money (need %s)",
+  ["снаряжение починено"] = "gear repaired",
+  ["хлам продан: %d шт. - %s"] = "junk sold: %d items - %s",
+  ["У торговца: продавать хлам автоматически"] = "At a merchant: sell junk automatically",
+  ["У торговца: чинить снаряжение автоматически"] = "At a merchant: repair gear automatically",
 }

@@ -1244,6 +1244,24 @@ do
   check(ns._ahPages[3]:IsShown(), "клик по предмету в сумке аддона - вкладка «Продать»")
   local okP = pcall(ns.PlaceAH); check(okP, "окно аукциона и панель размещаются на экране")
 end
+-- у торговца: починка и продажа хлама
+do
+  local repaired, used = false, {}
+  CanMerchantRepair = function() return true end; GetRepairAllCost = function() return 500, true end; RepairAllItems = function() repaired = true end
+  GetMoney = function() return 100000 end
+  MerchantFrame = CreateFrame("Frame")
+  local oldI, oldU = C_Container.GetContainerItemInfo, C_Container.UseContainerItem
+  C_Container.GetContainerItemInfo = function(b, s2) if b == 0 and s2 == 2 then return { itemID = 2862, quality = 0, stackCount = 1 } end return oldI(b, s2) end
+  C_Container.UseContainerItem = function(b, s2) used[#used + 1] = b .. ":" .. s2 end
+  ns.DB.settings.autoRepair, ns.DB.settings.autoJunk = false, false
+  fire("MERCHANT_SHOW"); advance(1)
+  check(not repaired and #used == 0, "торговец: без галочек ничего не делается")
+  ns.DB.settings.autoRepair, ns.DB.settings.autoJunk = true, true
+  fire("MERCHANT_SHOW"); advance(2)
+  check(repaired and #used >= 1 and used[1] == "0:2", "торговец: починка и продажа хлама (" .. table.concat(used, ",") .. ")")
+  C_Container.GetContainerItemInfo, C_Container.UseContainerItem = oldI, oldU
+  ns.DB.settings.autoRepair, ns.DB.settings.autoJunk = false, false
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

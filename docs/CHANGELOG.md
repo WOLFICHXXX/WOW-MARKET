@@ -2,7 +2,9 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.21
+## 2.43.22
+
+- Settings: sell junk and repair gear automatically at a merchant (off by default).
 
 - Addon bag at the auctioneer: reagent bag slots have their own green frame.
 
