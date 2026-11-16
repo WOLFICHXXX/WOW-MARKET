@@ -4,11 +4,11 @@ Each release takes its notes from the matching "## version" section below; they 
 
 ## 2.43.38
 
-### 🛠 Changes
-- The trial own crafting window from 2.43.37 is removed: the game's profession window is as before.
+### 🛠 Maintenance
+- Small internal cleanup; the features are the same as in 2.43.36 (new minimalist look, search in the Buy tab, fixes).
 
-### 🛠 Изменения
-- Пробное своё окно крафта из 2.43.37 убрано: окно профессии игры - как раньше.
+### 🛠 Обслуживание
+- Небольшая внутренняя чистка; возможности - те же, что в 2.43.36 (новый минималистичный вид, поиск во «Купить», исправления).
 
 ## 2.43.36
 
