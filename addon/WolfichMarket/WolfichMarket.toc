@@ -3,7 +3,7 @@
 ## Notes: Auction house and crafting profit in game: profit on every recipe, AH search, tracked items with price spike alerts, price chart, buying and selling.
 ## Notes-ruRU: Аукцион и прибыль крафта прямо в игре: прибыль на каждом рецепте, поиск на аукционе, отмеченные предметы с уведомлениями о скачках цен, график, покупка и продажа.
 ## Author: WOLFICH
-## Version: 2.42.0
+## Version: 2.43.0
 ## IconTexture: Interface\AddOns\WolfichMarket\media\paw
 ## SavedVariables: WolfichMarketDB
 ## Category: Professions
@@ -12,15 +12,18 @@
 Locale.lua
 Core.lua
 SkinData.lua
+WinData.lua
 UI.lua
 Professions.lua
 Auction.lua
 Alerts.lua
 Bags.lua
 Inventory.lua
+Alts.lua
 Tooltip.lua
 Share.lua
 RecipeSources.lua
 Sources.lua
+Changelog.lua
 Main.lua
 Slash.lua

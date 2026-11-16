@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.42.0"
+ns.VERSION = "2.43.0"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -187,6 +187,11 @@ local DEFAULTS = {
   netTurbo = true,        -- общий рынок: 4 служебных имени, до 800 байт/с
   netRecv = true,         -- общий рынок: принимать цены других игроков
   minimapShown = true,         -- подсветка в сумках: жёлтый - торговцу, зелёный - аукцион
+  craftSort = "main",     -- главное окно: сортировка по прибыли на фракционном (по умолчанию)
+  profSort = "main",      -- окно профессии игры: то же
+  craftFlat = false,      -- «без уровней - общий список»
+  profUI = true,          -- таблица «Где купить и где продать» и столбики в окне профессии игры
+  cdNotify = true,        -- уведомление о готовом кулдауне (трансмутации)
   debug = false,
 }
 ns.On("ADDON_LOADED", function(name)
@@ -210,6 +215,15 @@ ns.On("ADDON_LOADED", function(name)
   DB._repl = nil
   -- 2.11: снимок аукциона - вручную (автоснимок можно включить в настройках)
   if not DB.settings.manualScanV then DB.settings.autoScan = false; DB.settings.manualScanV = 1 end
+  -- 2.43: сортировка по прибыли на фракционном - по умолчанию; избранное (звёзды) отдельно от сигналов (колокольчики)
+  if not DB.settings.sortV2 then
+    DB.settings.craftSort = DB.settings.craftSort or "main"; DB.settings.profSort = DB.settings.profSort or "main"
+    DB.alarmDir = DB.alarmDir or {}
+    for id, t in pairs(DB.target or {}) do
+      if t.buy and t.sell then DB.alarmDir[id] = "both" elseif t.buy then DB.alarmDir[id] = DB.alarmDir[id] or "buy" elseif t.sell then DB.alarmDir[id] = DB.alarmDir[id] or "sell" end
+    end
+    DB.settings.sortV2 = 1
+  end
   ns.Fire("DB_READY")
 end)
 
@@ -247,12 +261,18 @@ end
 -- нижний регистр с русскими буквами (string.lower меняет только латиницу)
 local RU_UP = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
 local RU_LO = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
-local RU_MAP = {}
+local RU_MAP, RU_UPMAP = {}, {}
 do
   local up, lo = {}, {}
   for ch in RU_UP:gmatch("[%z\1-\127\194-\244][\128-\191]*") do up[#up + 1] = ch end
   for ch in RU_LO:gmatch("[%z\1-\127\194-\244][\128-\191]*") do lo[#lo + 1] = ch end
-  for i, ch in ipairs(up) do RU_MAP[ch] = lo[i] end
+  for i, ch in ipairs(up) do RU_MAP[ch] = lo[i]; RU_UPMAP[lo[i]] = ch end
+end
+-- первая буква заглавная (и для русских букв)
+function ns.upperFirst(s)
+  if not s or s == "" then return s or "" end
+  local ch = s:match("^[%z\1-\127\194-\244][\128-\191]*")
+  return (RU_UPMAP[ch] or ch:upper()) .. s:sub(#ch + 1)
 end
 function ns.lower(s)
   if not s then return "" end

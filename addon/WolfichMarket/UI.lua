@@ -278,32 +278,93 @@ function UI.List(parent, rowH, makeRow, fillRow)
   local th = bar:CreateTexture(nil, "OVERLAY"); th:SetColorTexture(0.85, 0.66, 0.32, 0.9); th:SetSize(8, 28)
   bar:SetThumbTexture(th)
   box.bar = bar
+  -- раскрытие строки (box:EnableDetail): слева треугольник, под строкой - панель на n строк
+  local DX = 0
   function box:Layout()
     local n = math.max(1, math.floor((self:GetHeight() or 100) / rowH))
     for i = #self.rows + 1, n do
       local r = CreateFrame("Button", nil, self)
+      r.box = self
       r:SetHeight(rowH)
-      r:SetPoint("TOPLEFT", 0, -(i - 1) * rowH); r:SetPoint("RIGHT", bar, "LEFT", -2, 0)
+      r:SetPoint("TOPLEFT", DX, -(i - 1) * rowH); r:SetPoint("RIGHT", bar, "LEFT", -2, 0)
       local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetTexture(M .. "row-hl")
       if i % 2 == 0 then local z = r:CreateTexture(nil, "BACKGROUND"); z:SetAllPoints(); z:SetColorTexture(1, 1, 1, 0.025) end
+      if self.detailN then
+        local t = CreateFrame("Button", nil, r); t:SetSize(14, rowH); t:SetPoint("RIGHT", r, "LEFT", -1, 0)
+        t.tex = t:CreateTexture(nil, "ARTWORK"); t.tex:SetSize(11, 11); t.tex:SetPoint("CENTER"); UI.WinTex(t.tex, "tri")
+        local th = t:CreateTexture(nil, "HIGHLIGHT"); th:SetSize(11, 11); th:SetPoint("CENTER"); UI.WinTex(th, "tri"); th:SetBlendMode("ADD")
+        t:SetScript("OnClick", function() local d = r.data; if d then box:Toggle(d) end end)
+        t:SetScript("OnEnter", function(self2) GameTooltip:SetOwner(self2, "ANCHOR_LEFT"); GameTooltip:AddLine(L"Подробнее: себестоимость, прибыль и график", 1, 1, 1); GameTooltip:Show() end)
+        t:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        r.tri = t
+      end
       makeRow(r)
       self.rows[i] = r
     end
     self.visible = n
   end
+  function box:EnableDetail(n, make, fill, keyOf)
+    self.detailN, self.keyOf = n, keyOf or function(d) return d.id end
+    DX = 16
+    for _, r in ipairs(self.rows) do r:Hide() end
+    self.rows = {}; self.visible = nil
+    local det = CreateFrame("Frame", nil, self)
+    det:SetHeight(n * rowH)
+    local bg = det:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.42)
+    local ln = det:CreateTexture(nil, "BORDER"); ln:SetHeight(1); ln:SetPoint("BOTTOMLEFT"); ln:SetPoint("BOTTOMRIGHT"); ln:SetColorTexture(0.55, 0.42, 0.2, 0.6)
+    make(det); det.fill = fill; det:Hide()
+    self.det = det
+    if self.SetClipsChildren then self:SetClipsChildren(true) end
+  end
+  -- строка раскрыта? / раскрыть-свернуть
+  function box:IsOpen(d) return self.openKey ~= nil and d and self.keyOf(d) == self.openKey end
+  function box:Toggle(d)
+    local k = d and self.keyOf(d)
+    if k == nil or self.openKey == k then self.openKey = nil else self.openKey = k; self.openData = d end
+    self:Refresh()
+  end
+  -- данные с пустыми местами под раскрытой строкой
+  function box:View()
+    if not self.detailN or self.openKey == nil then return self.data end
+    local v, found = {}, false
+    for _, d in ipairs(self.data) do
+      v[#v + 1] = d
+      if not found and self.keyOf(d) == self.openKey then
+        found = true; self.openData = d
+        for k = 1, self.detailN do v[#v + 1] = { _det = d, _k = k } end
+      end
+    end
+    if not found then self.openKey = nil end
+    return v
+  end
   function box:Refresh()
     if not self.visible then self:Layout() end
-    local max = math.max(0, #self.data - self.visible)
+    local view = self:View()
+    self.view = view
+    local max = math.max(0, #view - self.visible)
     if self.offset > max then self.offset = max end
     bar:SetMinMaxValues(0, max); bar:SetValue(self.offset)
     if max == 0 then bar:Hide() else bar:Show() end
+    local first
+    for i, d in ipairs(view) do if d._det then first = i; break end end
     for i, r in ipairs(self.rows) do
-      local d = self.data[i + self.offset]
-      if d and i <= self.visible then r.data = d; fillRow(r, d); r:Show() else r.data = nil; r:Hide() end
+      local d = view[i + self.offset]
+      if d and not d._det and i <= self.visible then
+        r.data = d; fillRow(r, d); r:Show()
+        if r.tri then pcall(r.tri.tex.SetRotation, r.tri.tex, self:IsOpen(d) and -math.pi / 2 or 0) end
+      else r.data = nil; r:Hide() end
+    end
+    local det = self.det
+    if det then
+      local slot = first and (first - self.offset) or nil
+      if slot and slot > -self.detailN + 1 and slot <= self.visible then
+        det:ClearAllPoints(); det:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -(slot - 1) * rowH); det:SetPoint("RIGHT", bar, "LEFT", -2, 0)
+        if det.key ~= self.openKey or not det:IsShown() then det.key = self.openKey; det:Show(); det.fill(det, self.openData) end
+      else det:Hide(); det.key = nil end
     end
     if self.empty then if #self.data == 0 then self.empty:Show() else self.empty:Hide() end end
   end
-  function box:SetData(d) self.data = d or {}; self:Refresh() end
+  function box:SetData(d) self.data = d or {}; if self.det then self.det.key = nil end; self:Refresh() end
   box:SetScript("OnMouseWheel", function(self, delta) self.offset = math.max(0, self.offset - delta * 3); self:Refresh() end)
   bar:SetScript("OnValueChanged", function(_, v) v = math.floor(v + 0.5); if v ~= box.offset then box.offset = v; box:Refresh() end end)
   box:SetScript("OnSizeChanged", function(self) self.visible = nil; self:Refresh() end)
@@ -506,4 +567,201 @@ function UI.Toast(title, text, icon)
     if left < 1 then self:SetAlpha(math.max(0, left)) end
     if left <= 0 then self:Hide(); self:SetScript("OnUpdate", nil) end
   end)
+end
+
+-- ---------- новое главное окно (2.43): текстуры media\win ----------
+function UI.WinTex(t, name)
+  if not t then return end
+  t:SetTexture(M .. "win\\" .. name)
+  local tc = ns.WIN_TC and ns.WIN_TC[name]
+  if tc then t:SetTexCoord(0, tc[1], 0, tc[2]) else t:SetTexCoord(0, 1, 0, 1) end
+end
+
+-- надпись сверху по центру экрана (как предупреждение рейда)
+function UI.TopNotice(text, icon)
+  local msg = (icon and ("|T" .. icon .. ":26:26|t ") or "") .. text
+  if RaidNotice_AddMessage and RaidWarningFrame then
+    local ok = pcall(RaidNotice_AddMessage, RaidWarningFrame, msg, { r = 1, g = 0.82, b = 0.3 }, 6)
+    if ok then return end
+  end
+  if UIErrorsFrame and UIErrorsFrame.AddMessage then UIErrorsFrame:AddMessage(msg, 1, 0.82, 0.3) end
+end
+
+-- колокольчик сигнала у предмета: горит, если на предмет стоит сигнал; клик - окно своей цены
+function ns.HasSignal(id)
+  if not id then return false end
+  local t = ns.DB.target and ns.DB.target[id]
+  local d = ns.DB.alarmDir and ns.DB.alarmDir[id]
+  return (t and (t.buy or t.sell)) and true or (d ~= nil)
+end
+function UI.Bell(parent, size, getId)
+  local b = CreateFrame("Button", nil, parent)
+  b:SetSize(size or 16, size or 16)
+  b.tex = b:CreateTexture(nil, "ARTWORK"); b.tex:SetAllPoints()
+  local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); UI.WinTex(hl, "bell-on"); hl:SetBlendMode("ADD"); hl:SetAlpha(0.45)
+  function b:Update(id) UI.WinTex(self.tex, ns.HasSignal(id or getId(self)) and "bell-on" or "bell-off") end
+  b:SetScript("OnClick", function(self) local id = getId(self); if id then ns.OpenSignalDialog(id) end end)
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT"); GameTooltip:AddLine(L"Сигнал по цене", 1, 0.82, 0)
+    GameTooltip:AddLine(L"Своя цена покупки или продажи: уведомление придёт, когда цена на аукционе до неё дойдёт.", 1, 1, 1, true); GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  UI.WinTex(b.tex, "bell-off")
+  return b
+end
+
+-- окно сигнала: купить, если не дороже / продать, если не дешевле
+local sigDlg
+function ns.OpenSignalDialog(id)
+  if not id then return end
+  if not sigDlg then
+    sigDlg = CreateFrame("Frame", "WolfichMarketSignalDialog", UIParent)
+    sigDlg:SetSize(400, 178); sigDlg:SetPoint("CENTER"); sigDlg:SetFrameStrata("DIALOG"); sigDlg:EnableMouse(true); sigDlg:SetToplevel(true)
+    sigDlg:SetMovable(true); sigDlg:RegisterForDrag("LeftButton"); sigDlg:SetClampedToScreen(true)
+    sigDlg:SetScript("OnDragStart", sigDlg.StartMoving); sigDlg:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    tinsert(UISpecialFrames, "WolfichMarketSignalDialog")
+    UI.Skin(sigDlg, { theme = "acard", scale = 0.3 })
+    sigDlg.icon = sigDlg:CreateTexture(nil, "ARTWORK"); sigDlg.icon:SetSize(26, 26); sigDlg.icon:SetPoint("TOPLEFT", 18, -16)
+    sigDlg.name = UI.Font(sigDlg, 13, UI.GOLD); sigDlg.name:SetPoint("TOPLEFT", sigDlg.icon, "TOPRIGHT", 8, -1); sigDlg.name:SetPoint("RIGHT", -18, 0)
+    sigDlg.now = UI.Font(sigDlg, 10, UI.DIM); sigDlg.now:SetPoint("TOPLEFT", sigDlg.name, "BOTTOMLEFT", 0, -2)
+    local l1 = UI.Font(sigDlg, 11); l1:SetPoint("TOPLEFT", 20, -58); l1:SetText(L"Купить, если цена не выше:")
+    sigDlg.buy = UI.MoneyInput(sigDlg, nil, true); sigDlg.buy:SetPoint("TOPRIGHT", -18, -54)
+    local l2 = UI.Font(sigDlg, 11); l2:SetPoint("TOPLEFT", 20, -86); l2:SetText(L"Продать, если цена не ниже:")
+    sigDlg.sell = UI.MoneyInput(sigDlg, nil, true); sigDlg.sell:SetPoint("TOPRIGHT", -18, -82)
+    sigDlg.save = UI.Button(sigDlg, L"Сохранить", 110, 24, function()
+      ns.SetSignal(sigDlg.id, sigDlg.buy:Get(), sigDlg.sell:Get()); sigDlg:Hide()
+    end, true)
+    sigDlg.save:SetPoint("BOTTOMRIGHT", -18, 16)
+    sigDlg.del = UI.Button(sigDlg, L"Убрать сигнал", 120, 24, function() ns.SetSignal(sigDlg.id, 0, 0); sigDlg:Hide() end)
+    sigDlg.del:SetPoint("RIGHT", sigDlg.save, "LEFT", -6, 0)
+    local cancel = UI.Button(sigDlg, L"Отмена", 80, 24, function() sigDlg:Hide() end); cancel:SetPoint("BOTTOMLEFT", 18, 16)
+  end
+  sigDlg.id = id
+  sigDlg.icon:SetTexture(ns.itemIcon(id)); sigDlg.name:SetText(ns.itemLinkText(id))
+  local p = ns.AHPrice(id)
+  sigDlg.now:SetText(L"сейчас на аукционе" .. ": " .. (p and ns.money(p, true) or L"нет цены"))
+  local t = ns.DB.target and ns.DB.target[id] or {}
+  if t.buy then sigDlg.buy:Set(t.buy) else sigDlg.buy:Clear() end
+  if t.sell then sigDlg.sell:Set(t.sell) else sigDlg.sell:Clear() end
+  sigDlg:Show()
+end
+-- записать сигнал: свои цены покупки и продажи (0 - нет); попадает в списки «Сигналы»
+function ns.SetSignal(id, buy, sell)
+  if not id then return end
+  ns.DB.target = ns.DB.target or {}; ns.DB.alarmDir = ns.DB.alarmDir or {}; ns.DB.targetHit = ns.DB.targetHit or {}
+  local t = {}
+  if buy and buy > 0 then t.buy = buy end
+  if sell and sell > 0 then t.sell = sell end
+  ns.DB.target[id] = next(t) and t or nil
+  ns.DB.alarmDir[id] = (t.buy and t.sell) and "both" or (t.buy and "buy") or (t.sell and "sell") or nil
+  ns.DB.targetHit[id .. "buy"], ns.DB.targetHit[id .. "sell"] = nil, nil
+  ns.Fire("MARKS")
+end
+
+-- раскрытая строка предмета: слева себестоимость и прибыль (или цены), справа - график цены и продаж
+function UI.ItemDetail(det, opts)
+  opts = opts or {}
+  local left = CreateFrame("Frame", nil, det); left:SetPoint("TOPLEFT", 16, -8); left:SetPoint("BOTTOMLEFT", 16, 8); left:SetWidth(opts.leftW or 170)
+  det.lbl, det.val = {}, {}
+  for i = 1, 3 do
+    local l = UI.Font(left, 10, UI.DIM); l:SetPoint("TOPLEFT", 0, -(i - 1) * 34)
+    local v = UI.Font(left, 13, UI.TEXT, "OVERLAY", "OUTLINE"); v:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2)
+    det.lbl[i], det.val[i] = l, v
+  end
+  det.btn = UI.Button(left, "", 120, 22); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
+  det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact
+  det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 4); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
+  det.legend = UI.Font(det, 9, UI.DIM); det.legend:SetPoint("TOPRIGHT", -46, -3)
+  det.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
+  function det:Set(id)
+    self.id = id
+    local unit, rec, _, ck, prof = ns.CraftCost(id)
+    local function pf(v) return v and ((v >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(v, true) .. "|r") or "|cff777777-|r" end
+    if rec then
+      self.lbl[1]:SetText(L"Себестоимость крафта"); self.val[1]:SetText(ns.money(unit, true))
+      self.lbl[2]:SetText(L"Прибыль на Ф"); self.val[2]:SetText(pf(ns.ProfitIn(rec, "main")))
+      self.lbl[3]:SetText(L"Прибыль на Общ"); self.val[3]:SetText(pf(ns.ProfitIn(rec, "neutral")))
+      self.btn:SetLabel(L"В план"); self.btn:Show()
+      self.btn:SetScript("OnClick", function() ns.AddPlan(rec, ck or ns.charKey, prof, 1) end)
+    else
+      self.lbl[1]:SetText(L"Себестоимость крафта"); self.val[1]:SetText(L"|cff888888не крафтится|r")
+      local v = ns.DB.vendor[id]
+      self.lbl[2]:SetText(L"Цена на Ф"); self.val[2]:SetText(ns.money(ns.PriceIn("main", id), true))
+      self.lbl[3]:SetText(L"Цена на Общ" .. (v and ("  |cffaaaaaa" .. L"торговец" .. " " .. ns.money(v, true) .. "|r") or "")); self.val[3]:SetText(ns.money(ns.PriceIn("neutral", id), true))
+      self.btn:SetLabel(L"Найти на аукционе"); self.btn:Show()
+      self.btn:SetScript("OnClick", function() ns.SearchAH(id) end)
+    end
+    local h = ns.History(id)
+    ns.After(0, function() if self.id == id then self.chart:SetPoints(h) end end)
+  end
+  return det
+end
+
+-- рамка нового главного окна: колонка разделов, шапка, рамка с тканью; возвращает область содержимого
+local WIN_W, WIN_H = 1080, 700
+UI.WIN_SIZE = { WIN_W, WIN_H }
+local NAV = { { 146, 66 }, { 212, 69 }, { 281, 71 }, { 352, 69 }, { 421, 71 }, { 492, 72 } }
+function UI.MainChrome(win, onNav, navTips)
+  win:SetSize(WIN_W, WIN_H)
+  local s = 0.74
+  local W = ns.WIN or {}
+  local fr = CreateFrame("Frame", nil, win); fr:SetPoint("TOPLEFT", 168, -90); fr:SetPoint("BOTTOMRIGHT", 0, 2)
+  win.frameBox = fr
+  local function tex(parent, name, layer, sub)
+    local t = parent:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t
+  end
+  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
+  local c = tex(fr, "f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 33, -43); c:SetPoint("BOTTOMRIGHT", -34, 25)
+  local tlw, tlh = sz("f-tl"); local trw = sz("f-tr"); local lw = sz("f-l"); local blw, bh = sz("f-bl"); local brw = sz("f-br"); local emw = sz("f-em")
+  local t = tex(fr, "f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
+  local l = tex(fr, "f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
+  local r = tex(fr, "f-r"); r:SetWidth(lw); r:SetPoint("TOPRIGHT", 0, -tlh); r:SetPoint("BOTTOMRIGHT", 0, bh)
+  local bf = tex(fr, "f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT"); bf:SetPoint("BOTTOMRIGHT")
+  local tl = tex(fr, "f-tl", "BORDER", 1); tl:SetSize(tlw, tlh); tl:SetPoint("TOPLEFT")
+  local tr = tex(fr, "f-tr", "BORDER", 1); tr:SetSize(trw, tlh); tr:SetPoint("TOPRIGHT")
+  local bl = tex(fr, "f-bl", "BORDER", 1); bl:SetSize(blw, bh); bl:SetPoint("BOTTOMLEFT")
+  local br = tex(fr, "f-br", "BORDER", 1); br:SetSize(brw, bh); br:SetPoint("BOTTOMRIGHT")
+  local em = tex(fr, "f-em", "BORDER", 2); em:SetSize(emw, bh); em:SetPoint("BOTTOM")
+  -- шапка и колонка - поверх рамки
+  local top = CreateFrame("Frame", nil, win); top:SetAllPoints(); top:SetFrameLevel((fr:GetFrameLevel() or 1) + 5)
+  local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", 150, -2); bar:SetSize(930, 102)
+  local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(175, 692)
+  local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.TITLE_FONT, 22, "OUTLINE")
+  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", 380, -52); title:SetText("WolfichMarket")
+  local sub = UI.Font(top, 12, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 12, -1)
+  win.chromeTitle, win.chromeSub = title, sub
+  -- крестик нарисован в правом верхнем углу рамки
+  local close = CreateFrame("Button", nil, top); close:SetSize(38, 38); close:SetPoint("TOPRIGHT", win, "TOPRIGHT", -13, -98)
+  local chl = close:CreateTexture(nil, "HIGHLIGHT"); chl:SetAllPoints(); chl:SetColorTexture(1, 0.85, 0.4, 0.2)
+  close:SetScript("OnClick", function() win:Hide() end)
+  win.closeBtn = close
+  -- кнопки разделов: свечение строго внутри клетки
+  local nav = {}
+  for i, p in ipairs(NAV) do
+    local b = CreateFrame("Button", nil, top); b:SetPoint("TOPLEFT", 36, -p[1]); b:SetSize(92, p[2])
+    b.glow = b:CreateTexture(nil, "OVERLAY"); b.glow:SetAllPoints(); UI.WinTex(b.glow, "slot-glow"); b.glow:SetBlendMode("ADD"); b.glow:SetVertexColor(1, 0.8, 0.35); b.glow:SetAlpha(0)
+    b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 1); b.pulse:SetAllPoints(); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
+    b:SetScript("OnEnter", function(self)
+      if not self.on then self.glow:SetAlpha(0.45) end
+      if navTips and navTips[i] then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(navTips[i], 1, 0.82, 0); GameTooltip:Show() end
+    end)
+    b:SetScript("OnLeave", function(self) if not self.on then self.glow:SetAlpha(0) end; GameTooltip:Hide() end)
+    b:SetScript("OnClick", function() onNav(i) end)
+    function b:SetOn(on) self.on = on; self.glow:SetAlpha(on and 0.95 or 0) end
+    -- пульсирующее голубое свечение (готов кулдаун)
+    function b:SetPulse(on)
+      self.pulse:SetShown(on)
+      self:SetScript("OnUpdate", on and function(me) me.pulse:SetAlpha(0.35 + 0.45 * (0.5 + 0.5 * math.sin(GetTime() * 3.5))) end or nil)
+    end
+    nav[i] = b
+  end
+  win.nav = nav
+  -- перетаскивание за шапку и колонку
+  top:EnableMouse(true); top:RegisterForDrag("LeftButton")
+  top:SetScript("OnDragStart", function() win:StartMoving() end)
+  top:SetScript("OnDragStop", function() win:StopMovingOrSizing() end)
+  top:SetHitRectInsets(0, 0, 0, 0)
+  local content = CreateFrame("Frame", nil, win); content:SetPoint("TOPLEFT", 218, -144); content:SetPoint("BOTTOMRIGHT", -50, 62)
+  content:SetFrameLevel((top:GetFrameLevel() or 1) + 1)
+  return content
 end

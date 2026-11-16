@@ -98,11 +98,11 @@ do
   GetCursorInfo = nil
 end
 -- все вкладки панели аукциона
-for i = 1, 6 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
+for i = 1, 5 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
 -- продажа: выбрать предмет и выставить
-ns.AHSelectTab(4)
+ns.AHSelectTab(3)
 local P = ns._ahPages
-local sell = P[4]
+local sell = P[3]
 check(#sell.list.data == 2, "продажа: предметов в сумках " .. #sell.list.data)
 sell.select(sell.list.data[1])
 check(tonumber(sell.qty:GetText()) == sell.list.data[1].count, "продажа: количество по умолчанию = всё в сумках")
@@ -152,7 +152,7 @@ do
 
 end
 check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
-local buy = P[3]
+local buy = P[2]
 ns.OpenBuy(2840); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
 check(#buy.list.data == 2, "покупка: строк результатов " .. #buy.list.data)
 buy.qty:SetText("5"); buy.price.scripts.OnClick(buy.price)
@@ -179,13 +179,13 @@ do
   check(ns.AHPrice(2840) == ahBefore, "общий аукцион не смешивается с фракционным")
   ns.DB.ntah[ns.realmKey].items[2862] = { p = 1, q = 1 }   -- точило за 1 медь: выгодно купить на общем
   ns.ToggleMain()
-  local okT = pcall(WolfichMarketMainFrame.tabs[3].scripts.OnClick, WolfichMarketMainFrame.tabs[3])
+  local okT = pcall(WolfichMarketMainFrame.tabs[4].scripts.OnClick, WolfichMarketMainFrame.tabs[4])
   local B = ns._mainAuc
   check(B.kind.bm == nil, "кнопки «Чёрный рынок» больше нет")
   B.kind.neutral.scripts.OnClick(B.kind.neutral)
   local function has(list, id) for _, d in ipairs(list.data or {}) do if d.id == id then return d end end end
   local cheap, dear = has(B.buy.list, 2862), has(B.dear.list, 2840)
-  check(okT and WolfichMarketMainFrame.pages[3]:IsShown() and ns.DB.settings.aucMode == "neutral", "вкладка «Аукционы» открывается, выбран общий")
+  check(okT and WolfichMarketMainFrame.pages[4]:IsShown() and ns.DB.settings.aucMode == "neutral", "вкладка «Аукционы» открывается, выбран общий")
   check(cheap and cheap.gain > 0, "общий: дешёвый лот - в «Лучше купить здесь»")
   check(dear and not has(B.buy.list, 2840), "общий: дорогой лот - в «Лучше продать здесь»")
   -- на общем дороже на 10% - с комиссией 15% продавать там не выгоднее
@@ -243,7 +243,7 @@ do
     end
   end
   C_Item = oldC; ns.DB.settings.aucCat = {}; ns.DB.settings.aucMode = nil
-  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
+  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3]); ns.ToggleMain()
   ns.DB.ntah[ns.realmKey] = nil
   -- вид аукциона - по зоне: Лесоречье - чёрный рынок; Остров Зефрис, Тернистая долина, Танарис - общий; иначе - фракционный
   local oldUN, oldGUID, oldZ = UnitName, UnitGUID, GetRealZoneText
@@ -384,11 +384,11 @@ do
   end
   -- вкладка «Общий аук.» в главном окне
   ns.ToggleMain()
-  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
+  WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
   ns._mainAuc.kind.neutral.scripts.OnClick(ns._mainAuc.kind.neutral)
-  check(WolfichMarketMainFrame.pages[3]:IsShown() and ns._mainAuc.status.text ~= "", "«Аукционы» - общий аукцион открывается")
+  check(WolfichMarketMainFrame.pages[4]:IsShown() and ns._mainAuc.status.text ~= "", "«Аукционы» - общий аукцион открывается")
   ns.DB.settings.aucMode = nil
-  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1]); ns.ToggleMain()
+  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3]); ns.ToggleMain()
   UnitName, UnitGUID, GetRealZoneText = oldUN, oldGUID, oldZ
   -- данные чёрного рынка из прошлых версий удаляются при входе
   ns.DB.bmah = { x = {} }; ns.DB.bmLastReq = 1; fire("PLAYER_LOGIN"); advance(3)
@@ -416,8 +416,11 @@ local okW, errW = pcall(ns.ToggleMain); check(okW and WolfichMarketMainFrame and
 local alt = ns.AllRecipeProfits(nil, false, "Альт-CAMWOWEU4Realm6PvP")
 check(#alt == 1 and alt[1].profit, "прибыль по рецептам другого персонажа")
 local W = WolfichMarketMainFrame
-local okS, errS = pcall(W.tabs[2].scripts.OnClick, W.tabs[2]); check(okS, "вкладка «Сигналы»" .. (okS and "" or (": " .. tostring(errS))))
-local okC, errC = pcall(W.tabs[1].scripts.OnClick, W.tabs[1]); check(okC, "вкладка «Крафт»" .. (okC and "" or (": " .. tostring(errC))))
+ns.DB.settings.aucView = "signals"
+local okS, errS = pcall(W.tabs[4].scripts.OnClick, W.tabs[4]); check(okS and ns._mainAuc.sig:IsShown(), "«Аукцион» - «Сигналы»" .. (okS and "" or (": " .. tostring(errS))))
+ns.DB.settings.aucView = "all"
+for i = 1, 6 do local ok, err = pcall(W.tabs[i].scripts.OnClick, W.tabs[i]); check(ok and W.pages[i]:IsShown(), "раздел " .. i .. (ok and "" or (": " .. tostring(err)))) end
+local okC, errC = pcall(W.tabs[3].scripts.OnClick, W.tabs[3]); check(okC, "раздел «Профессии»" .. (okC and "" or (": " .. tostring(errC))))
 -- карточка: выбор рецепта, график, окно сигналов для рецепта
 local cr = ns._mainCraft
 local function recRow(list) for _, r in ipairs(list.rows) do if r.data and r.data.rec then return r end end end
@@ -433,10 +436,10 @@ D.save.scripts.OnClick(D.save)
 local allMarked = true
 for _, r in ipairs(D.rows) do
   local t = r.id and ns.DB.target[r.id]
-  if r.shown and r.id and not (ns.IsMarked(r.id) and t and t[r.out and "sell" or "buy"] == 1234) then allMarked = false end
+  if r.shown and r.id and not (ns.HasSignal(r.id) and t and t[r.out and "sell" or "buy"] == 1234) then allMarked = false end
 end
 check(allMarked and not D.shown, "сигналы на предмет и ингредиенты сохранены со своей ценой")
-for _, r in ipairs(D.rows) do if r.id then ns.DB.target[r.id] = nil end end
+for _, r in ipairs(D.rows) do if r.id then ns.DB.target[r.id] = nil; ns.DB.alarmDir[r.id] = nil end end
 SlashCmdList.WOLFICHMARKET("")
 check(not WolfichMarketMainFrame.shown, "/wm закрывает окно")
 -- кнопка «Крафт»: окно профессии открыто — сразу рецепт; закрыто — сначала профессия
@@ -516,9 +519,10 @@ do
   check(own.cost < full.cost and own.crafts == 0 and own.parts[1].buy == 0 and own.parts[2].buy == 5, "свои материалы не идут в себестоимость, недостающее - докупить")
   C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo = oldN, oldI
   ns.DB.settings.useBank = true
-  WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
-  check(WolfichMarketMainFrame.pages[4]:IsShown(), "вкладка «Банк» открывается")
-  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
+  ns._openBank(ns.charKey)
+  check(ns._mainPops.bank and ns._mainPops.bank.dim:IsShown(), "окно «Банк» персонажа открывается")
+  ns._mainPops.bank.dim:Hide()
+  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
   local row = recRow(ns._mainCraft.list)
   if row and row.data then row.scripts.OnClick(row) end
   check(ns._mainCraft.card.total.text ~= "", "карточка рецепта с учётом банка строится")
@@ -540,8 +544,8 @@ do
   ns.ahOpen = true
   -- «План» во вкладке «Крафт» у аукциониста
   do
-    ns.AHSelectTab(2)
-    local pg = ns._ahPages[2]
+    ns.AHSelectTab(4)
+    local pg = ns._ahPages[4]
     local row = pg.list.rows[1]
     if row and row.data then
       local rid = row.data.pr.rec.id
@@ -552,21 +556,21 @@ do
       for i, p in ipairs(ns.Plans()) do if p.id == rid and p.ck == ns.charKey then if b0 == 0 then ns.RemovePlan(i) else p.n = b0 end break end end
     else check(false, "«Крафт» у аукциониста: нет строк") end
   end
-  ns.AHSelectTab(7)
-  check(ns._ahPages[7]:IsShown() and #ns._ahPages[7].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
+  ns.AHSelectTab(5)
+  check(ns._ahPages[5]:IsShown() and #ns._ahPages[5].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
   do
     ns.DB.ntah = ns.DB.ntah or {}
     ns.DB.ntah[ns.realmKey] = ns.DB.ntah[ns.realmKey] or { t = time(), items = {} }
     ns.DB.ntah[ns.realmKey].items[3470] = { p = 1, q = 5 }
-    ns._ahPages[7].refresh()
+    ns._ahPages[5].refresh()
     local txt
     local ids = {}
-    for _, r in ipairs(ns._ahPages[7].items.rows or {}) do if r.data then ids[#ids + 1] = r.data.id .. ":" .. r.data.buy; if r.data.id == 3470 then txt = r.cnt.text end end end
+    for _, r in ipairs(ns._ahPages[5].items.rows or {}) do if r.data then ids[#ids + 1] = r.data.id .. ":" .. r.data.buy; if r.data.id == 3470 then txt = r.cnt.text end end end
     check(txt and (txt:find("Общ", 1, true) or txt:find("N", 1, true)), "план: пометка, где материал дешевле (" .. tostring(txt) .. ")")
     ns.DB.ntah[ns.realmKey].items[3470] = nil
   end
   ns.OpenBuy(3470, 5, true)
-  check(ns._ahPages[3].qty:GetText() == 5, "«Купить» из плана подставляет количество")
+  check(ns._ahPages[2].qty:GetText() == 5, "«Купить» из плана подставляет количество")
   ns.ClearPlans()
   check(#ns.Plans() == 0, "план очищается")
   local row = recRow(ns._mainCraft.list)
@@ -579,17 +583,18 @@ do
     ns.ClearPlans()
   end
 end
--- «Продать»: лупа и график у выбранного предмета
+-- «Продать»: лупа у выбранного предмета, график - в раскрытии строки
 do
-  ns.AHSelectTab(4)
-  local f = ns._ahPages[4]
+  ns.AHSelectTab(3)
+  local f = ns._ahPages[3]
   local row = f.list.rows[1]
   if row and row.data then
     row.scripts.OnClick(row)
-    check(f.searchBtn:IsShown() and f.chartBtn:IsShown(), "«Продать»: у выбранного предмета есть лупа и график")
-    if WolfichMarketChartDialog then WolfichMarketChartDialog:Hide() end
-    f.chartBtn.scripts.OnClick(f.chartBtn)
-    check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown(), "«Продать»: график цены открывается")
+    check(f.searchBtn:IsShown() and f.chartBtn == nil, "«Продать»: у выбранного предмета лупа, кнопки графика нет")
+    row.tri.scripts.OnClick(row.tri)
+    check(f.list.det and f.list.det:IsShown() and f.list.det.id == row.data.id, "«Продать»: треугольник раскрывает подробности и график")
+    row.tri.scripts.OnClick(row.tri)
+    check(not f.list.det:IsShown(), "«Продать»: повторный клик сворачивает")
     do
       local ch = ns.UI.Chart(UIParent)
       if ch then
@@ -620,7 +625,7 @@ do
   ns.ahOpen = true
   ns.OpenBuy(2840)
   fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
-  local f = ns._ahPages[3]
+  local f = ns._ahPages[2]
   startedBuy = nil
   f.qty:SetText("15"); f.qty.scripts.OnTextChanged(f.qty, true)
   check(startedBuy and startedBuy[2] == 15, "при изменении количества цена запрашивается сама")
@@ -639,7 +644,7 @@ do
   ns.ahOpen = true
   local rec = { id = 9002, name = "Тест", out = 2841, reag = { { 2840, 3 }, { 3470, 2 } } }
   ns.ClearPlans(); ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 2)
-  ns.AHSelectTab(7)
+  ns.AHSelectTab(5)
   local asked = {}
   local oldQ = C_AuctionHouse.SendSearchQuery
   C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
@@ -663,10 +668,10 @@ do
   ns.DB.settings.planUseStock = nil
   local prs, tot = ns.PlanProfit()
   check(prs[1] and prs[1].cost > 0 and tot.cost == prs[1].cost, "план: стоимость материалов партии")
-  check(ns._ahPages[7].profit and ns._ahPages[7].upd, "план: строка прибыли и своя кнопка обновления цен")
-  ns.AHSelectTab(7)
+  check(ns._ahPages[5].profit and ns._ahPages[5].upd, "план: строка прибыли и своя кнопка обновления цен")
+  ns.AHSelectTab(5)
   asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
-  ns._ahPages[7].upd.scripts.OnClick(ns._ahPages[7].upd)
+  ns._ahPages[5].upd.scripts.OnClick(ns._ahPages[5].upd)
   for _ = 1, 20 do advance(1) end
   C_AuctionHouse.SendSearchQuery = oldQ
   check(#asked == 3, "«Обновить цены плана» - только рецепты плана")
@@ -731,12 +736,13 @@ do
   ns.RemoveProfession(ns.charKey, name)
   ns.AddSignal(3470, "buy")
   check(ns.DB.alarmDir[3470] == "buy", "сигнал покупки")
+  local fav = ns.IsMarked(3470)
   ns.AddSignal(3470, "sell")
-  check(ns.DB.alarmDir[3470] == nil and ns.IsMarked(3470), "предмет в обоих списках")
+  check(ns.DB.alarmDir[3470] == "both" and ns.IsMarked(3470) == fav, "предмет в обоих списках, избранное не тронуто")
   ns.RemoveSignal(3470, "buy")
   check(ns.DB.alarmDir[3470] == "sell", "убран из покупки - остался в продаже")
   ns.RemoveSignal(3470, "sell")
-  check(not ns.IsMarked(3470), "убран из обоих - отметка снята")
+  check(ns.DB.alarmDir[3470] == nil and not ns.HasSignal(3470), "убран из обоих - сигнала нет")
 end
 -- удалённая профессия сразу пропадает из очереди «Обновить цены»
 do
@@ -762,7 +768,9 @@ end
 -- сигналы общие для персонажей; у сигнала видна цена срабатывания
 do
   ns.AddSignal(3470, "sell")
-  WolfichMarketMainFrame.tabs[2].scripts.OnClick(WolfichMarketMainFrame.tabs[2])
+  ns.DB.settings.aucView = "signals"
+  WolfichMarketMainFrame.tabs[4].scripts.OnClick(WolfichMarketMainFrame.tabs[4])
+  ns.DB.settings.aucView = "all"
   local row; for _, r in ipairs(ns._mainSig and ns._mainSig.sell.rows or {}) do if r.data and r.data.id == 3470 then row = r end end
   check(row and row.money, "в строке сигнала - поле своей цены продажи")
   -- ввод цены «с клавиатуры»: 1 золотой
@@ -787,7 +795,7 @@ do
   ns.charKey = main
   ns.RemoveSignal(3470, "sell"); ns.RemoveSignal(2840, "buy")
   check(ns.DB.target[3470] == nil and ns.DB.target[2840] == nil, "убранный сигнал забывает свою цену")
-  WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
+  WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
 end
 -- разбор плотных сообщений C/R (2.29+): список номеров предметов
 function zids(m)
@@ -1115,7 +1123,7 @@ end
 -- вкладка «Настройки» в главном окне
 WolfichMarketMainFrame.tabs[6].scripts.OnClick(WolfichMarketMainFrame.tabs[6])
 check(WolfichMarketMainFrame.pages[6]:IsShown(), "вкладка «Настройки» в главном окне")
-WolfichMarketMainFrame.tabs[1].scripts.OnClick(WolfichMarketMainFrame.tabs[1])
+WolfichMarketMainFrame.tabs[3].scripts.OnClick(WolfichMarketMainFrame.tabs[3])
 -- весь аукцион: сначала важное; отправитель вышел - сообщение, сколько успело прийти
 do
   local enc = function(x) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; x = math.floor(x); repeat local d = x % 36; s2 = D:sub(d + 1, d + 1) .. s2; x = math.floor(x / 36) until x == 0; return s2 end
@@ -1138,6 +1146,104 @@ do
   check(msg and ns.AHPrice(2840) == 175, "общий рынок: отправитель вышел - пришедшее применено и есть сообщение: " .. tostring(msg))
   ns.DB.net = nil
 end
+-- 2.43: новое главное окно - разделы, твинки, лоты, кулдауны, раскрытие строк, колокольчик
+do
+  local W = WolfichMarketMainFrame
+  -- твинки: золото и место записываются, лоты читаются с аукциона, продажа - по сообщению игры и письму
+  GetMoney = function() return 1506100 end; UnitLevel = function() return 10 end; UnitRace = function() return "Человек" end; GetRealZoneText = function() return "Штормград" end
+  ns.SnapshotChar()
+  local me = ns.DB.chars[ns.charKey]
+  check(me.money == 1506100 and me.level == 10 and me.zone == "Штормград" and me.seen, "твинки: золото, уровень и место персонажа записаны")
+  local owned = { { auctionID = 11, itemKey = { itemID = 2840 }, quantity = 20, buyoutAmount = 310, timeLeftSeconds = 3600, status = 0 },
+                  { auctionID = 12, itemKey = { itemID = 3470 }, quantity = 10, buyoutAmount = 140, timeLeftSeconds = 7200, status = 0 } }
+  C_AuctionHouse.GetNumOwnedAuctions = function() return #owned end
+  C_AuctionHouse.GetOwnedAuctionInfo = function(i) return owned[i] end
+  fire("OWNED_AUCTIONS_UPDATED")
+  check(#me.lots == 2 and me.lots[1].q == 20 and not me.lotsNew, "лоты персонажа прочитаны с аукциона (" .. #me.lots .. ")")
+  ERR_AUCTION_SOLD_S = "Найден покупатель для вашего лота: %s."
+  fire("CHAT_MSG_SYSTEM", "Найден покупатель для вашего лота: " .. ns.itemName(2840) .. ".")
+  local soldN = 0; for _, l in ipairs(me.lots) do if l.st == "sold" then soldN = soldN + 1 end end
+  check(soldN == 1 and me.lotsNew, "сообщение игры о продаже отмечает лот проданным и зажигает конверт")
+  GetInboxNumItems = function() return 1 end
+  GetInboxInvoiceInfo = function() return "seller", ns.itemName(3470), "Покупатель", 0, 1400 end
+  fire("MAIL_INBOX_UPDATE")
+  soldN = 0; for _, l in ipairs(me.lots) do if l.st == "sold" then soldN = soldN + 1 end end
+  check(soldN == 2, "письмо аукциона о продаже отмечает лот, проданный без игрока")
+  check(ns.LotStatus(me.lots[1]):find(ns.L"Продано", 1, true) ~= nil, "состояние лота: продано")
+  -- раздел «Твинки»: карточки, конверт, окна банка и лотов
+  W.tabs[2].scripts.OnClick(W.tabs[2])
+  local card; for _, c in ipairs(ns._mainAlts.cards) do if c.ck == ns.charKey then card = c end end
+  check(card and card.env:IsShown() and card.rows[1][2].text ~= "", "«Твинки»: карточка персонажа с золотом и конвертом")
+  card.auc.scripts.OnClick(card.auc)
+  check(ns._mainPops.lots.dim:IsShown() and #ns._mainPops.lots.list.data == 2 and not me.lotsNew, "окно «Аукцион» персонажа: его лоты, конверт гаснет")
+  ns._mainPops.lots.dim:Hide()
+  card.bank.scripts.OnClick(card.bank)
+  check(ns._mainPops.bank.dim:IsShown(), "окно «Банк» с карточки персонажа")
+  ns._mainPops.bank.dim:Hide()
+  -- «Аукцион»: мои лоты всех персонажей, раскрытие строки с графиком
+  ns.DB.settings.aucView = "lots"; W.tabs[4].scripts.OnClick(W.tabs[4])
+  local A = ns._mainAuc
+  check(A.lots:IsShown() and #A.lots.list.data == 2, "«Аукцион» - «Мои лоты» всех персонажей")
+  ns.DB.settings.aucView = "all"; ns.DB.settings.aucMode = "main"; W.tabs[4].scripts.OnClick(W.tabs[4])
+  local r1 = A.all.list.rows[1]
+  if r1 and r1.data then
+    r1.scripts.OnClick(r1)
+    local det = A.all.list.det
+    check(det and det:IsShown() and det.id == r1.data.id and det.val[1].text ~= "", "строка аукциона раскрывается: себестоимость, прибыль, график")
+    local n0 = #A.all.list.view
+    check(n0 == #A.all.list.data + 7, "под раскрытой строкой - место под подробности")
+    r1.scripts.OnClick(r1)
+    check(not det:IsShown() and #A.all.list.view == #A.all.list.data, "повторный клик сворачивает строку")
+  else check(false, "весь аукцион: нет строк") end
+  -- колокольчик: своя цена покупки/продажи
+  ns.OpenSignalDialog(2840)
+  local SD = WolfichMarketSignalDialog
+  SD.buy:Set(120); SD.sell:Set(0)
+  SD.save.scripts.OnClick(SD.save)
+  check(ns.DB.target[2840] and ns.DB.target[2840].buy == 120 and ns.DB.alarmDir[2840] == "buy" and ns.HasSignal(2840), "колокольчик: сигнал покупки со своей ценой")
+  ns.OpenSignalDialog(2840); SD.del.scripts.OnClick(SD.del)
+  check(not ns.HasSignal(2840) and ns.DB.target[2840] == nil, "колокольчик: сигнал убран")
+  -- «Профессии»: без уровней - общий список; сортировка по Ф по умолчанию
+  W.tabs[3].scripts.OnClick(W.tabs[3])
+  local C = ns._mainCraft
+  check(ns.DB.settings.craftSort == "main" or ns.DB.settings.craftSort == nil, "сортировка по прибыли на фракционном по умолчанию")
+  C.flat:SetChecked(true); C.flat.scripts.OnClick(C.flat)
+  local hdr = false; for _, d in ipairs(C.list.data) do if d.header then hdr = true end end
+  check(ns.DB.settings.craftFlat and not hdr and #C.list.data > 0, "«без уровней»: общий список без групп")
+  local sorted = true
+  for i = 2, #C.list.data do local a, b = C.list.data[i - 1].profit or -1e12, C.list.data[i].profit or -1e12; if a < b then sorted = false end end
+  check(sorted, "общий список отсортирован по прибыли сквозь все рецепты")
+  C.flat:SetChecked(false); C.flat.scripts.OnClick(C.flat)
+  -- «Часы»: кулдаун трансмутации, уведомление сверху экрана, свечение
+  local cdLeft = 3600
+  local oldIds, oldInfo = C_TradeSkillUI.GetAllRecipeIDs, C_TradeSkillUI.GetRecipeInfo
+  C_TradeSkillUI.GetAllRecipeIDs = function() return { 17187 } end
+  C_TradeSkillUI.GetRecipeInfo = function() return { name = "Трансмутация: арканит", learned = true, icon = 1 } end
+  C_TradeSkillUI.GetRecipeCooldown = function() return cdLeft end
+  ns.ScanCooldowns()
+  check(me.cds and me.cds[17187] and me.cds[17187].ready > time(), "кулдаун трансмутации записан")
+  W.tabs[5].scripts.OnClick(W.tabs[5])
+  check(#ns._mainCd.list.data == 1 and not W.nav[5].pulse:IsShown(), "«Часы»: трансмутация в списке, пока не готова - без свечения")
+  local notice
+  RaidWarningFrame = CreateFrame("Frame"); RaidNotice_AddMessage = function(_, m) notice = m end
+  me.cds[17187].ready = time() - 1
+  ns.CooldownTick()
+  check(notice and notice:find("Арканит", 1, true) and notice:find("трансмутации", 1, true), "уведомление сверху экрана: " .. tostring(notice))
+  check(W.nav[5].pulse:IsShown(), "значок часов светится, пока трансмутация доступна")
+  notice = nil; ns.CooldownTick()
+  check(notice == nil, "уведомление не повторяется")
+  C_TradeSkillUI.GetAllRecipeIDs, C_TradeSkillUI.GetRecipeInfo, C_TradeSkillUI.GetRecipeCooldown = oldIds, oldInfo, nil
+  me.cds = nil; ns.Fire("CD")
+  -- «Главная»: что нового
+  W.tabs[1].scripts.OnClick(W.tabs[1])
+  local h = ns._mainHome.cards[1]
+  check(h and h.v.text == ns.VERSION and h.lines[1] and h.lines[1].text ~= "", "«Главная»: что нового в текущей версии " .. tostring(h and h.v.text))
+  -- окно профессии игры: таблицу можно выключить
+  ns.DB.settings.profUI = false
+  if ns._marketTable then ns.RefreshMarketTable(); check(not ns._marketTable:IsShown(), "настройка выключает таблицу в окне профессии игры") end
+  ns.DB.settings.profUI = true
+  W.tabs[3].scripts.OnClick(W.tabs[3])
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end
@@ -1145,6 +1251,9 @@ for _, e in ipairs(ns.log) do if e.msg:find("ошибка в") or e.msg:find("er
 -- сообщения аддона по умолчанию не идут в чат, а только в журнал главного окна
 local leaked; for _, s in ipairs(allPrinted) do if s:find("общий рынок: отправляю", 1, true) then leaked = s end end
 check(not leaked, "сообщения аддона не засоряют чат (только журнал окна)")
-WolfichMarketMainFrame.tabs[5].scripts.OnClick(WolfichMarketMainFrame.tabs[5])
-check(WolfichMarketMainFrame.pages[5]:IsShown() and #ns.log > 0, "вкладка «Журнал» с сообщениями аддона (" .. #ns.log .. ")")
+WolfichMarketMainFrame.tabs[6].scripts.OnClick(WolfichMarketMainFrame.tabs[6])
+ns._mainPops = ns._mainPops or {}
+local jb = ns._mainPops and WolfichMarketMainFrame.pages[6]
+ns.OpenLog()
+check(ns._mainPops.log and ns._mainPops.log.dim:IsShown() and #ns.log > 0, "«Журнал» открывается кнопкой в настройках (" .. #ns.log .. ")")
 check(not bad, "нет ошибок при сборке окон" .. (bad and (": " .. bad) or ""))

@@ -216,22 +216,23 @@ function ns.AllRecipeProfits(profFilter, withUnlearned, charKey)
   if charKey and charKey ~= ns.charKey and c.realmKey then return ns.WithRealm(c.realmKey, collect, c, profFilter, withUnlearned, stock) end
   return collect(c, profFilter, withUnlearned, stock)
 end
+-- лучшая себестоимость предмета среди изученных рецептов всех персонажей: цена за шт, рецепт, расчёт, персонаж, профессия
 function ns.CraftCost(id)
-  local best, bestRec, bestPr
-  for _, c in pairs(ns.DB.chars) do
-    for _, p in pairs(c.profs or {}) do
+  local best, bestRec, bestPr, bestCk, bestProf
+  for ck, c in pairs(ns.DB.chars) do
+    for pname, p in pairs(c.profs or {}) do
       for _, rec in ipairs(p.recipes or {}) do
         if rec.out == id and ns.IsLearned(rec) then
           local pr = ns.Profit(rec)
           if pr.missing == 0 then
             local unit = pr.cost / math.max(1, ((rec.qmin or 1) + (rec.qmax or 1)) / 2)
-            if not best or unit < best then best, bestRec, bestPr = unit, rec, pr end
+            if not best or unit < best then best, bestRec, bestPr, bestCk, bestProf = unit, rec, pr, ck, pname end
           end
         end
       end
     end
   end
-  return best, bestRec, bestPr
+  return best, bestRec, bestPr, bestCk, bestProf
 end
 function ns.BestCraft()
   local best
@@ -381,6 +382,12 @@ local function decorate(frame)
     -- название рецепта не должно залезать под столбики
     if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", COLR - NK * COLW, 0) end
   end
+  -- столбики Ф / Общ выключены в настройках - окно профессии как в игре
+  if ns.DB.settings.profUI == false then
+    for _, fs in pairs(frame.wmCols) do fs:Hide() end
+    frame:SetAlpha(1)
+    return
+  end
   local pr = ri and recipeIndex[ri.recipeID]
   if pr and pr.rec.out then
     local by, best = ns.ProfitByKind(pr.rec)
@@ -521,8 +528,9 @@ local function buildMarketTable(form)
   mt.foot = mt:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); mt.foot:SetPoint("BOTTOMLEFT", 8, 28); mt.foot:SetPoint("BOTTOMRIGHT", -8, 28); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
   -- галочки: упорядочить список рецептов по прибыли на фракционном или на общем аукционе
   local S = ns.DB.settings
-  local function setSort(k, v)
-    S.profSort = v and k or nil
+  -- одна галочка всегда стоит (по умолчанию - Ф)
+  local function setSort(k)
+    S.profSort = k
     mt.sortMain:SetChecked(S.profSort == "main"); mt.sortNt:SetChecked(S.profSort == "neutral")
     ns.ApplyRecipeSort()
   end
@@ -535,7 +543,7 @@ local function sm(c) return c and ns.money(c, true) or nil end
 local function fillMarketTable(rec)
   if not mt then return end
   for _, ln in ipairs(mt.lines) do ln.icon:Hide(); ln.name:SetText(""); for _, fs in pairs(ln.p) do fs:SetText("") end end
-  if not rec then mt:Hide() return end
+  if not rec or ns.DB.settings.profUI == false then mt:Hide() return end
   mt.rec = rec
   local inPlan = 0
   for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then inPlan = p.n end end
@@ -587,6 +595,14 @@ local function fillMarketTable(rec)
   mt:Show()
 end
 ns._fillMarketTable = fillMarketTable
+-- настройка «таблица в окне профессии» переключена - показать/спрятать сразу
+function ns.RefreshMarketTable()
+  if not mt then return end
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local form = page and page.SchematicForm
+  if ns.DB.settings.profUI == false then mt:Hide() return end
+  if form and form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) elseif mt.rec then fillMarketTable(mt.rec) end
+end
 ns._marketTable = nil
 local function recFromInfo(ri)
   if not ri then return end

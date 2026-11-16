@@ -1,4 +1,4 @@
--- WolfichMarket: аукцион — снимок по кнопке и по таймеру, панель: отмеченные, крафт, покупка, продажа, график, настройки
+-- WolfichMarket: аукцион — снимок по кнопке и по таймеру, панель: избранное, покупка, продажа, мой крафт, план
 local _, ns = ...
 local L = ns.L
 local safe, UI = ns.safe, ns.UI
@@ -9,7 +9,9 @@ local COOLDOWN = 15 * 60
 local busy, processing, wanted = false, false, false
 local panel
 local tabs, pages = nil, {}
-local chartItem, buyItem, sellSel
+-- вкладки панели у аукциониста
+local TAB_BUY, TAB_SELL, TAB_PLAN = 2, 3, 5 -- 1 избранное, 4 мой крафт
+local buyItem, sellSel
 
 local function setStatus() ns.Fire("SCAN_STATE") end
 
@@ -341,7 +343,7 @@ local function header()
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     panel.kindBtn[k[1]] = b
   end
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -142); panel.state:SetPoint("RIGHT", -24, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -118); panel.state:SetPoint("RIGHT", -24, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
 local function updateHeader()
@@ -369,25 +371,28 @@ end
 
 -- строка списка предметов: звезда, иконка, имя, цена, изменение, кнопки
 local function itemRow(r, withBuy)
-  r.star = UI.Icon(r, "star-off", 14, L"Отметить / снять", function(self) local d = self:GetParent().data; if d then ns.ToggleMark(d.id) end end); r.star:SetPoint("LEFT", 2, 0)
+  r.star = UI.Icon(r, "star-off", 14, L"Избранное", function(self) local d = self:GetParent().data; if d then ns.ToggleMark(d.id) end end); r.star:SetPoint("LEFT", 2, 0)
   r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
-  r.buy = UI.Icon(r, "bag", 16, L"Купить", function(self) local d = self:GetParent().data; if d then ns.OpenBuy(d.id) end end); r.buy:SetPoint("RIGHT", -2, 0)
+  r.bell = UI.Bell(r, 15, function(self) local d = self:GetParent().data; return d and d.id end); r.bell:SetPoint("RIGHT", -2, 0)
+  r.buy = UI.Icon(r, "bag", 16, L"Купить", function(self) local d = self:GetParent().data; if d then ns.OpenBuy(d.id) end end); r.buy:SetPoint("RIGHT", r.bell, "LEFT", -4, 0)
   r.search = UI.Icon(r, "search", 15, L"Найти в окне аукциона", function(self) local d = self:GetParent().data; if d then ns.SearchAH(d.id) end end); r.search:SetPoint("RIGHT", r.buy, "LEFT", -4, 0)
-  r.chart = UI.Icon(r, "chart", 15, L"График цены", function(self) local d = self:GetParent().data; if d then ns.OpenChart(d.id) end end); r.chart:SetPoint("RIGHT", r.search, "LEFT", -4, 0)
-  r.chg = UI.Font(r, 10); r.chg:SetPoint("RIGHT", r.chart, "LEFT", -6, 0); r.chg:SetWidth(52); r.chg:SetJustifyH("RIGHT")
+  r.chg = UI.Font(r, 10); r.chg:SetPoint("RIGHT", r.search, "LEFT", -6, 0); r.chg:SetWidth(52); r.chg:SetJustifyH("RIGHT")
   r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.chg, "LEFT", -4, 0); r.price:SetJustifyH("RIGHT")
   r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
   r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- клик по строке списка с раскрытием - подробности и график
+  r:SetScript("OnClick", function(self) local box = self.box; if self.data and box and box.detailN then box:Toggle(self.data) end end)
 end
 local function fillItemRow(r, d)
   local hdr = d.header ~= nil
-  for _, w in ipairs({ r.star, r.icon, r.buy, r.search, r.chart, r.chg }) do w:SetShown(not hdr) end
+  for _, w in ipairs({ r.star, r.icon, r.buy, r.search, r.chg, r.bell }) do w:SetShown(not hdr) end
   if hdr then
     r.name:SetText("|cffe6b450" .. d.header .. "|r"); r.price:SetText(d.headerRight or "")
     return
   end
   r.star:SetIcon(ns.IsMarked(d.id) and "star-on" or "star-off")
+  r.bell:Update(d.id)
   r.icon:SetTexture(ns.itemIcon(d.id))
   r.name:SetText(ns.itemLinkText(d.id) .. (d.extra or ""))
   local p = ns.AHPrice(d.id)
@@ -395,18 +400,21 @@ local function fillItemRow(r, d)
   local avg = ns.AvgPrice(d.id, 24)
   r.chg:SetText(p and avg and ns.pct((p - avg) / avg * 100) or "")
 end
+-- раскрытие строки: себестоимость, прибыль на Ф и Общ, график (вместо отдельной вкладки «График»)
+local function withDetail(l, n) l:EnableDetail(n or 7, function(det) UI.ItemDetail(det, { leftW = 130, compact = true }) end, function(det, d) det:Set(d.id) end) end
 
 -- вкладка: отмеченные
 local function pageMarked(f)
   local l = UI.List(f, 22, itemRow, fillItemRow)
   l:SetAllPoints()
+  withDetail(l)
   f.list = l
   f.refresh = function()
     local d = {}
     for id in pairs(ns.DB.marked) do d[#d + 1] = { id = id } end
     table.sort(d, function(a, b) return ns.itemName(a.id) < ns.itemName(b.id) end)
     l:SetData(d)
-    l.empty:SetText(L"Отметьте нужные материалы и предметы |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t -\nв окне профессии, во вкладке «Крафт»\nили Alt+клик по предмету в сумке.\nУведомления о скачках цены приходят только по ним.")
+    l.empty:SetText(L"Добавьте предметы в избранное |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t -\nв главном окне, во вкладке «Мой крафт»\nили Alt+клик по предмету в сумке.")
   end
 end
 
@@ -424,7 +432,7 @@ local function pageCraft(f)
       local d = r.data
       if d then ns.AddPlan(d.pr.rec, ns.charKey, d.pr.prof, planCount(d.pr.rec) + 1) end
     end)
-    r.plan:SetPoint("RIGHT", -2, 0)
+    r.plan:SetPoint("RIGHT", r.bell, "LEFT", -4, 0)
     r.plan:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
       GameTooltip:AddLine(L"Добавить в план закупки", 1, 0.82, 0)
@@ -447,6 +455,7 @@ local function pageCraft(f)
   end)
   chk:SetPoint("TOPLEFT", -2, 2)
   l:SetPoint("TOPLEFT", 0, -22); l:SetPoint("BOTTOMRIGHT")
+  withDetail(l)
   f.list = l
   ns.Listen("PLAN", function() if f:IsShown() then l:Refresh() end end)
   f.refresh = function()
@@ -529,7 +538,7 @@ local function pageBuy(f)
   end
   f.setCommodity(false)
   -- список материалов для всех рецептов персонажа, по профессиям
-  f.back = UI.Button(f, L"< Назад", 110, 20, function() buyItem = nil; if f.fromPlan then f.fromPlan = nil; tabs.select(7) else f.refresh() end end)
+  f.back = UI.Button(f, L"< Назад", 110, 20, function() buyItem = nil; if f.fromPlan then f.fromPlan = nil; tabs.select(TAB_PLAN) else f.refresh() end end)
   f.back:SetPoint("TOPRIGHT", 0, 0)
   f.mats = UI.List(f, 22, itemRow, fillItemRow)
   f.mats:SetPoint("TOPLEFT", 0, -42); f.mats:SetPoint("BOTTOMRIGHT")
@@ -593,8 +602,8 @@ function ns.OpenBuy(id, qty, fromPlan)
   if not panel then return end
   if not ns.ahOpen then ns.say(L"покупка доступна у аукциониста.") return end
   buyItem = id
-  tabs.select(3)
-  local f = pages[3]
+  tabs.select(TAB_BUY)
+  local f = pages[TAB_BUY]
   f.fromPlan = fromPlan
   if qty and qty > 0 then f.qty:SetText(qty) end
   f.icon:SetTexture(ns.itemIcon(id)); f.title:SetText(ns.itemLinkText(id)); f.sub:SetText(L"ищу на аукционе...")
@@ -604,7 +613,7 @@ end
 
 ns.Listen("SEARCH_RESULTS", function(itemID, commodity, itemKey)
   if not panel or itemID ~= buyItem then return end
-  local f = pages[3]
+  local f = pages[TAB_BUY]
   local d = {}
   if commodity then
     for k = 1, math.min(50, safe(C_AuctionHouse.GetNumCommoditySearchResults, itemID) or 0) do
@@ -624,7 +633,7 @@ ns.Listen("SEARCH_RESULTS", function(itemID, commodity, itemKey)
 end)
 ns.On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if not panel then return end
-  local f = pages[3]
+  local f = pages[TAB_BUY]
   f.total:SetText(L"Итого: " .. ns.money(totalPrice) .. "  |cffaaaaaa(" .. ns.money(unitPrice) .. L" за шт)|r")
   f.quoteQty = f.reqQty -- точная цена получена для этого количества - следующее нажатие покупает
   f.confirm:SetLabel(L"Купить за " .. ns.money(totalPrice, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
@@ -705,6 +714,7 @@ local function pageSell(f)
     else r.prof:SetText("|cff555555-|r") end
   end)
   f.list:SetPoint("TOPLEFT", 0, -18); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 194)
+  withDetail(f.list, 6)
   f.checked = {}
   f.allBtn = UI.Button(f, L"Отметить все", 110, 22, function()
     local any = next(f.checked) ~= nil
@@ -728,9 +738,7 @@ local function pageSell(f)
   -- лупа и график у выбранного предмета: найти на аукционе и посмотреть динамику цены перед продажей
   f.searchBtn = UI.Icon(box, "search", 18, L"Найти этот предмет на аукционе", function() if sellSel then ns.SearchAH(sellSel.id) end end)
   f.searchBtn:SetPoint("TOPRIGHT", -12, -6)
-  f.chartBtn = UI.Icon(box, "chart", 18, L"График цены", function() if sellSel and ns.ShowChartDialog then ns.ShowChartDialog(sellSel.id) end end)
-  f.chartBtn:SetPoint("RIGHT", f.searchBtn, "LEFT", -8, 0)
-  f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 10, -8); f.sel:SetPoint("RIGHT", f.chartBtn, "LEFT", -8, 0)
+  f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 10, -8); f.sel:SetPoint("RIGHT", f.searchBtn, "LEFT", -8, 0)
   -- разбор: себестоимость / аукцион / торговец / итог
   f.analysis = UI.Font(box, 10); f.analysis:SetPoint("TOPLEFT", 10, -24); f.analysis:SetPoint("RIGHT", -10, 0); f.analysis:SetWordWrap(true); f.analysis:SetJustifyV("TOP"); f.analysis:SetHeight(38); f.analysis:SetMaxLines(3)
   local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 10, -68); pl:SetText(L"Цена за шт:")
@@ -785,7 +793,7 @@ local function pageSell(f)
   f.calc = function()
     for i, b in ipairs(f.durBtns) do b:SetGold(DURS[i][1] == f.dur) end
     local d = sellSel
-    f.searchBtn:SetShown(d ~= nil); f.chartBtn:SetShown(d ~= nil)
+    f.searchBtn:SetShown(d ~= nil)
     if not d then f.analysis:SetText(""); f.info:SetText(L"Выберите предмет в списке."); f.post:Disable() return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
     local p = ns.AHPrice(d.id)
@@ -895,102 +903,17 @@ local function pageSell(f)
   f.refresh = function() f.list:SetData(bagItems()); f.calc(); f.updateBulk() end
 end
 local function posted()
-  local pg = pages[4]
+  local pg = pages[TAB_SELL]
   if pg and pg.pending then pg.onCreated() return end -- массовое выставление
   ns.say(L"|cff78d98aлот выставлен.|r"); sellSel = nil
   if pg and pg:IsShown() then pg.sel:SetText(""); pg.refresh() end
 end
 ns.On("AUCTION_HOUSE_AUCTION_CREATED", posted)
-ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() local pg = pages[4]; if pg and pg:IsShown() and not pg.pending then pg.updateBulk() end end)
-ns.On("BAG_UPDATE_DELAYED", function() if pages[4] and pages[4]:IsShown() then pages[4].refresh() end end)
+ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() local pg = pages[TAB_SELL]; if pg and pg:IsShown() and not pg.pending then pg.updateBulk() end end)
+ns.On("BAG_UPDATE_DELAYED", function() if pages[TAB_SELL] and pages[TAB_SELL]:IsShown() then pages[TAB_SELL].refresh() end end)
 
--- вкладка: график
-local function pageChart(f)
-  f.icon = f:CreateTexture(nil, "ARTWORK"); f.icon:SetSize(28, 28); f.icon:SetPoint("TOPLEFT", 4, -2)
-  f.title = UI.Font(f, 13, UI.GOLD, "OVERLAY", "OUTLINE"); f.title:SetPoint("TOPLEFT", f.icon, "TOPRIGHT", 8, 0); f.title:SetPoint("RIGHT", -4, 0)
-  f.stats = UI.Font(f, 10, UI.DIM); f.stats:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -3); f.stats:SetPoint("RIGHT", -4, 0)
-  f.chart = UI.Chart(f); f.chart.showPeaks = true; f.chart:SetPoint("TOPLEFT", 0, -40); f.chart:SetPoint("BOTTOMRIGHT", 0, 30)
-  f.star = UI.Button(f, "", 140, 22, function() if chartItem then ns.ToggleMark(chartItem) end end); f.star:SetPoint("BOTTOMLEFT", 2, 2)
-  f.search = UI.Button(f, L"Найти на аукционе", 140, 22, function() if chartItem then ns.SearchAH(chartItem) end end); f.search:SetPoint("BOTTOMRIGHT", -2, 2)
-  f.refresh = function()
-    if not chartItem then local k = next(ns.DB.marked); chartItem = k end
-    if not chartItem then f.title:SetText(L"Выберите предмет: кнопка графика в списках"); f.stats:SetText(""); f.chart:SetPoints(nil); f.star:Hide(); f.search:Hide() return end
-    f.star:Show(); f.search:Show()
-    f.icon:SetTexture(ns.itemIcon(chartItem)); f.title:SetText(ns.itemLinkText(chartItem))
-    local h = ns.History(chartItem) or {}
-    local p = ns.AHPrice(chartItem)
-    local a24, a7 = ns.AvgPrice(chartItem, 24), ns.AvgPrice(chartItem, 24 * 7)
-    local lo, hi
-    for _, x in ipairs(h) do lo = math.min(lo or x[2], x[2]); hi = math.max(hi or x[2], x[2]) end
-    f.stats:SetText(string.format(L"Сейчас %s / средняя 24 ч %s / 7 дн %s / мин %s / макс %s / точек %d",
-      p and ns.money(p, true) or "-", a24 and ns.money(a24, true) or "-", a7 and ns.money(a7, true) or "-", lo and ns.money(lo, true) or "-", hi and ns.money(hi, true) or "-", #h))
-    f.star:SetLabel(ns.IsMarked(chartItem) and L"|TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t Снять отметку" or L"|TInterface\\AddOns\\WolfichMarket\\media\\star-off:12:12|t Отметить")
-    ns.After(0, function() f.chart:SetPoints(h) end)
-  end
-end
-function ns.OpenChart(id) chartItem = id; if panel then tabs.select(5) end end
-
--- вкладка: настройки
-local function pageSettings(f)
-  local S = ns.DB.settings
-  local y = -4
-  local function chk(text, key, after)
-    local c = UI.Check(f, text, function() return S[key] end, function(v) S[key] = v; if after then after() end end)
-    c:SetPoint("TOPLEFT", 2, y); y = y - 26
-  end
-  chk(L"Уведомления сигналов (когда цена дошла до вашей)", "alerts")
-  chk(L"Звук уведомлений", "alertSound")
-  chk(L"Уведомление о лучшем крафте после снимка", "bestCraftAlert")
-  chk(L"Цена и прибыль в подсказке предмета", "tooltip")
-  chk(L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() ns.DB.settings.minimapHidden = not ns.DB.settings.minimapShown end)
-  chk(L"Значки в сумках: молоток - на аукцион, мешочек - торговцу", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
-  chk(L"Сортировка сумок: аукцион наверх, торговцу вниз", "sortByValue")
-  chk(L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end)
-  chk(L"Общий рынок: делиться своими снимками с игроками", "netSend")
-  chk(L"Общий рынок: принимать цены от игроков", "netRecv")
-  chk(L"Общий рынок: турбо (рассылка через 4 имени)", "netTurbo")
-  -- куда писать сообщения аддона
-  local cl = UI.Font(f, 11); cl:SetPoint("TOPLEFT", 6, y - 4); cl:SetText(L"Сообщения:")
-  f.chatBtns = {}
-  local cx = 90
-  for _, m in ipairs({ { "window", L"в журнал окна" }, { "main", L"в чат" }, { "off", L"никуда" } }) do
-    local b = UI.Button(f, m[2], 100, 20, function() S.chatMode = m[1]; f.refresh() end)
-    b:SetPoint("TOPLEFT", cx, y); b.mode = m[1]; cx = cx + 104
-    f.chatBtns[#f.chatBtns + 1] = b
-  end
-  y = y - 28
-  chk(L"Снимать аукцион автоматически, пока он открыт", "autoScan", updateHeader)
-  local l1 = UI.Font(f, 11); l1:SetPoint("TOPLEFT", 6, y - 4); l1:SetText(L"Автоснимок раз в:")
-  local x = 130
-  for _, m in ipairs({ 15, 30, 60 }) do
-    local b = UI.Button(f, m .. L" мин", 60, 20, function() S.autoScanMin = m; f.refresh(); updateHeader() end)
-    b:SetPoint("TOPLEFT", x, y); b.min = m; x = x + 64
-    f["m" .. m] = b
-  end
-  y = y - 32
-  -- язык
-  local l3 = UI.Font(f, 11); l3:SetPoint("TOPLEFT", 6, y - 4); l3:SetText(L"Язык / Language:")
-  f.langBtns = {}
-  local lx = 130
-  for _, o in ipairs({ { nil, L"авто" }, { "ru", "Русский" }, { "en", "English" } }) do
-    local b = UI.Button(f, o[2], 72, 20, function() S.lang = o[1]; f.refresh(); f.langNote:Show(); f.reload:Show() end)
-    b:SetPoint("TOPLEFT", lx, y); b.lang = o[1] or "auto"; lx = lx + 76
-    f.langBtns[#f.langBtns + 1] = b
-  end
-  y = y - 26
-  f.langNote = UI.Font(f, 10, UI.GOLD); f.langNote:SetPoint("TOPLEFT", 6, y - 4); f.langNote:SetText(L"Язык меняется после перезагрузки интерфейса."); f.langNote:Hide()
-  f.reload = UI.Button(f, L"Перезагрузить интерфейс", 170, 20, function() if ReloadUI then ReloadUI() end end, true)
-  f.reload:SetPoint("TOPRIGHT", -2, y); f.reload:Hide()
-  y = y - 30
-  local note = UI.Font(f, 10, UI.DIM); note:SetPoint("TOPLEFT", 6, y); note:SetPoint("RIGHT", -6, 0); note:SetWordWrap(true)
-  note:SetText(L"Сервер разрешает полный снимок аукциона не чаще раза в 15 минут. Это те же данные Blizzard, что и в API, только свежее.\nAlt+клик по предмету - отметить или снять отметку.")
-  local function hl(b, on) b:SetGold(on) end
-  f.refresh = function()
-    for _, m in ipairs({ 15, 30, 60 }) do hl(f["m" .. m], S.autoScanMin == m) end
-    for _, b in ipairs(f.langBtns) do hl(b, (S.lang or "auto") == b.lang) end
-    for _, b in ipairs(f.chatBtns or {}) do hl(b, (S.chatMode or "window") == b.mode) end
-  end
-end
+-- график цены - отдельным окном (вкладки «График» больше нет: график - в раскрытии каждой строки)
+function ns.OpenChart(id) if ns.ShowChartDialog then ns.ShowChartDialog(id) end end
 
 -- «План»: рецепты, запланированные в главном окне, и всё, что для них нужно докупить
 local function pagePlan(f)
@@ -1072,8 +995,8 @@ local function pagePlan(f)
   end
 end
 
-local BUILDERS = { pageMarked, pageCraft, pageBuy, pageSell, pageChart, pageSettings, pagePlan }
-local NAMES = { "Отмеченные", "Крафт", "Купить", "Продать", "График", "Настройки", "План" }
+local BUILDERS = { pageMarked, pageBuy, pageSell, pageCraft, pagePlan }
+local NAMES = { "Избранное", "Купить", "Продать", "Мой крафт", "План" }
 
 function ns.BuildAHPanel()
   local h = AuctionHouseFrame or AuctionFrame
@@ -1086,18 +1009,16 @@ function ns.BuildAHPanel()
   UI.Title(panel, "WolfichMarket")
   UI.Close(panel, function() panel:Hide() end)
   header()
-  -- вкладки в два ряда по три
+  -- вкладки в один ряд
   tabs = {}
   for i, n in ipairs(NAMES) do
-    -- 7 вкладок: 4 в первом ряду, 3 во втором
-    local w = i <= 4 and 96 or 130
-    local b = UI.Button(panel, L(n), w, 24, function() tabs.select(i) end)
-    b:SetPoint("TOPLEFT", 20 + (i <= 4 and (i - 1) * 100 or (i - 5) * 134), i <= 4 and -88 or -114)
+    local b = UI.Button(panel, L(n), 76, 24, function() tabs.select(i) end)
+    b:SetPoint("TOPLEFT", 20 + (i - 1) * 80, -88)
     tabs[i] = b
   end
   for i, build in ipairs(BUILDERS) do
     local f = CreateFrame("Frame", nil, panel)
-    f:SetPoint("TOPLEFT", 20, -170); f:SetPoint("BOTTOMRIGHT", -24, 16)
+    f:SetPoint("TOPLEFT", 20, -146); f:SetPoint("BOTTOMRIGHT", -24, 16)
     build(f); f:Hide()
     pages[i] = f
   end
@@ -1115,6 +1036,10 @@ function ns.BuildAHPanel()
   tg:SetPoint("RIGHT", h, "TOPRIGHT", -36, -16); tg:SetFrameStrata("HIGH")
   ns.DB.settings.ahPanelHidden = nil -- старый флаг «скрыта навсегда» больше не используется
   panel:Show()
+  if not ns.DB.settings.ahTabV2 then
+    ns.DB.settings.ahTab = ({ 1, 4, 2, 3, 1, 1, 5 })[ns.DB.settings.ahTab or 1] or 1; ns.DB.settings.ahTabV2 = true
+  end
+  if (ns.DB.settings.ahTab or 1) > #NAMES then ns.DB.settings.ahTab = 1 end
   tabs.select(ns.DB.settings.ahTab or 1)
   ns.AHSelectTab = function(i) tabs.select(i) end
   ns._ahPages = pages
@@ -1129,7 +1054,7 @@ ns.Listen("MARKS", refreshCurrent)
 ns.Listen("RECIPES", refreshCurrent)
 ns.Listen("NAMES", refreshCurrent)
 ns.Listen("PLAN", refreshCurrent)
-ns.Listen("INVENTORY", function() if tabs and tabs.current == 7 then refreshCurrent() end end) -- запас нужен только «Плану»
+ns.Listen("INVENTORY", function() if tabs and tabs.current == TAB_PLAN then refreshCurrent() end end) -- запас нужен только «Плану»
 
 -- игра запретила вызов (нужно нажатие игрока) - выключаем автозапрос цены
 ns.On("ADDON_ACTION_BLOCKED", function(addon) if addon == "WolfichMarket" then ns._quoteBlocked = true end end)
