@@ -242,7 +242,8 @@ function UI.Button(parent, text, w, h, onClick, gold)
   local FONT = UI.BOLD
   local base = math.max(10, math.min(12, math.floor(h * 0.42)))
   setFont(fs, FONT, base, "") -- шрифт до первого SetText, иначе игра выдаёт ошибку
-  fs:SetPoint("CENTER", 0, 0); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
+  -- надпись строго по центру кнопки: по горизонтали и по вертикали
+  fs:SetPoint("CENTER", 0, 0); fs:SetJustifyH("CENTER"); if fs.SetJustifyV then fs:SetJustifyV("MIDDLE") end; fs:SetWordWrap(false)
   b.label = fs
   local isGold
   local function sw() return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end

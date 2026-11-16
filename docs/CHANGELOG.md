@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.34
+
+### ✨ Look
+- Button labels are exactly centered, both horizontally and vertically.
+
+### ✨ Оформление
+- Надписи на кнопках - строго по центру и по горизонтали, и по вертикали.
+
 ## 2.43.33
 
 ### ✨ Look

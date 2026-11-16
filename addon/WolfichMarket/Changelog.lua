@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.34", d = "17.11.2026",
+    ru = { "Надписи на кнопках - строго по центру и по горизонтали, и по вертикали." },
+    en = { "Button labels are exactly centered, both horizontally and vertically." } },
   { v = "2.43.33", d = "17.11.2026",
     ru = { "Все кнопки аддона - свои, плоские: тёмная заливка с тонкой золотой кромкой, главная или выбранная - золотая. Стрелки выбора персонажа - такие же кнопки. Галочки остались прежние." },
     en = { "All addon buttons are its own flat ones: dark fill with a thin gold edge, the main or selected one gold. The character arrows are the same buttons. Checkboxes stay as before." } },
