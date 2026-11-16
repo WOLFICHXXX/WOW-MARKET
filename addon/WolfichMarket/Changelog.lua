@@ -2,8 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
-  { v = "2.43.1", d = "16.11.2026",
+  { v = "2.43.2", d = "16.11.2026",
     ru = {
+      "Оформление: шрифты нового макета (Inter и Forum), гладкие рамки и кнопки без «лесенки», надписи не залезают на края кнопок, выключенная кнопка читается.",
       "Новое главное окно: слева разделы - Главная, Твинки, Профессии, Аукцион, Часы, Настройки.",
       "Твинки: золото, уровень, место и профессии каждого персонажа; банк и выставленные лоты в отдельном окне; конверт с печатью, если что-то продалось.",
       "Профессии: галочка «без уровней - общий список» (сортировка по прибыли сквозь все рецепты), сортировка по прибыли на фракционном по умолчанию, столбики Ф и Общ.",
@@ -15,6 +16,7 @@ ns.CHANGELOG = {
       "Настройки: можно выключить таблицу «Где купить и где продать» и столбики в окне профессии игры; журнал сообщений открывается кнопкой.",
     },
     en = {
+      "Look: the new design's fonts (Inter and Forum), smooth frames and buttons without jagged edges, labels stay inside buttons, disabled buttons stay readable.",
       "New main window: sections on the left - Home, Alts, Professions, Auction, Cooldowns, Settings.",
       "Alts: gold, level, location and professions of every character; bank and posted auctions in a popup; a sealed envelope when something sold.",
       "Professions: \"no skill groups - one list\" checkbox (sort by profit across all recipes), faction profit sort by default, F and N columns.",

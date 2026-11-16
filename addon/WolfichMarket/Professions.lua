@@ -490,7 +490,7 @@ local function buildMarketTable(form)
   mt:SetHeight(160)
   -- оформление нового макета: тёмная панель с золотой кромкой
   UI.Box(mt, 0.78)
-  mt.title = mt:CreateFontString(nil, "OVERLAY"); mt.title:SetFont(UI.TITLE_FONT, 14, "OUTLINE"); mt.title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
+  mt.title = mt:CreateFontString(nil, "OVERLAY"); UI.SetFont(mt.title, UI.TITLE_FONT, 16, "OUTLINE"); mt.title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
   mt.title:SetPoint("TOPLEFT", 10, -8); mt.title:SetText(L"Где купить и где продать")
   -- «В план»: +1 порция этого рецепта в план закупки (список покупок - во вкладке «План» у аукциониста)
   mt.plan = UI.Button(mt, L"В план", 84, 22, function()

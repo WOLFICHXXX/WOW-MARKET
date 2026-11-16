@@ -2,8 +2,9 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.1
+## 2.43.2
 
+- Look: the new design's fonts (Inter and Forum, OFL), smooth frames and buttons without jagged edges, labels stay inside buttons, disabled buttons stay readable.
 - New main window: section icons on the left - Home, Alts, Professions, Auction, Cooldowns, Settings.
 - Home: what's new in every version, in the addon's language.
 - Alts: gold, level, location and professions of every character; their bank and posted auctions in a popup; a sealed envelope on the card when something sold (from the game message or the auction mail).

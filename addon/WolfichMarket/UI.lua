@@ -9,13 +9,20 @@ UI.GOLD = { 0.95, 0.80, 0.42 }
 UI.TEXT = { 0.93, 0.89, 0.80 }
 UI.DIM = { 0.66, 0.62, 0.53 }
 
--- шрифты: основной (FRIZ, с кириллицей) с лёгкой чёрной обводкой; заголовки окон - MORPHEUS
-UI.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-UI.TITLE_FONT = "Fonts\\MORPHEUS_CYR.TTF"
+-- шрифты нового макета (2.43): Inter - текст и кнопки, Forum - заголовки (оба с кириллицей, лицензия OFL - media\fonts).
+-- Без толстой обводки игры (она даёт «лесенку») - мягкая тень.
+UI.GAME_FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+UI.FONT = ns.MEDIA .. "fonts\\Inter-Regular.ttf"
+UI.BOLD = ns.MEDIA .. "fonts\\Inter-SemiBold.ttf"
+UI.TITLE_FONT = ns.MEDIA .. "fonts\\Forum-Regular.ttf"
+local OURS = { [UI.FONT] = true, [UI.BOLD] = true, [UI.TITLE_FONT] = true }
 local function setFont(fs, font, size, flags)
-  local ok = fs:SetFont(font, size, flags)
-  if ok == false and font ~= UI.FONT then fs:SetFont(UI.FONT, size, flags) end
+  if OURS[font] and flags == "OUTLINE" then flags = "" end
+  local ok = fs:SetFont(font, size, flags or "")
+  if ok == false then fs:SetFont(UI.GAME_FONT, size, "OUTLINE") return end
+  if OURS[font] and fs.SetShadowOffset then fs:SetShadowOffset(1, -1); fs:SetShadowColor(0, 0, 0, 0.85) end
 end
+UI.SetFont = setFont
 
 -- темы оформления (макеты пользователя, нарезанные tools/make_skin.py)
 -- scale - во сколько раз уменьшать части макета; title/close - места в пикселях макета
@@ -110,7 +117,8 @@ function UI.FrameSkin(f, s)
   local t = tex("f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
   local l = tex("f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
   local r = tex("f-r"); r:SetWidth(lw); r:SetPoint("TOPRIGHT", 0, -tlh); r:SetPoint("BOTTOMRIGHT", 0, bh)
-  local bf = tex("f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT"); bf:SetPoint("BOTTOMRIGHT")
+  -- нижняя планка - только между уголками (иначе её концы торчат за рамку)
+  local bf = tex("f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT", blw * 0.6, 0); bf:SetPoint("BOTTOMRIGHT", -brw * 0.6, 0)
   local q = tex("f-tl", "BORDER", 1); q:SetSize(tlw, tlh); q:SetPoint("TOPLEFT")
   q = tex("f-tr", "BORDER", 1); q:SetSize(trw, tlh); q:SetPoint("TOPRIGHT")
   q = tex("f-bl", "BORDER", 1); q:SetSize(blw, bh); q:SetPoint("BOTTOMLEFT")
@@ -231,47 +239,46 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local hl = b:CreateTexture(nil, "HIGHLIGHT"); place(hl, k); hl:SetBlendMode("ADD"); hl:SetAlpha(0.35); hls[k] = hl
   end
   local fs = b:CreateFontString(nil, "OVERLAY")
-  local base = math.max(11, math.min(13, math.floor(h * 0.55)))
-  setFont(fs, UI.FONT, base, "OUTLINE") -- шрифт до первого SetText, иначе игра выдаёт ошибку
+  local FONT = win and UI.BOLD or UI.FONT
+  local base = math.max(11, math.min(13, math.floor(h * 0.5)))
+  setFont(fs, FONT, base, "") -- шрифт до первого SetText, иначе игра выдаёт ошибку
   fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs
-  -- надпись уменьшается, пока не влезет в кнопку; если и на 8 не влезает - обрезается
   local isGold
-  -- на золотой кнопке тёмный текст без обводки
-  local function flags() return (win and isGold) and "" or "OUTLINE" end
+  local function sw() return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end
+  -- надпись - только между краями кнопки (рамки по бокам не заходит); не влезает - шрифт меньше, до 9
   local function fit()
-    local maxw = (b:GetWidth() or w) - math.max(8, cap)
+    local maxw = (b:GetWidth() or w) - cap - 8
     local size = base
-    setFont(fs, UI.FONT, size, flags()); fs:SetWidth(0)
-    local function sw() return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end
-    while sw() > maxw and size > 8 do size = size - 1; setFont(fs, UI.FONT, size, flags()) end
+    setFont(fs, FONT, size, ""); fs:SetWidth(0)
+    while sw() > maxw and size > 9 do size = size - 1; setFont(fs, FONT, size, "") end
     if sw() > maxw then fs:SetWidth(maxw) end
   end
-  function b:SetGold(on)
-    isGold = on and true or false
-    local kind = isGold and "-gold-" or "-dark-"
+  -- вид: золотая (выбрана) или тёмная; выключенная - всегда тёмная с приглушённым, но читаемым текстом
+  local function paint()
+    local en = b:IsEnabled() ~= false
+    local kind = (isGold and en) and "-gold-" or "-dark-"
     if win then for k, t in pairs(parts) do UI.WinTex(t, "btn" .. kind .. k); UI.WinTex(hls[k], "btn" .. kind .. k) end
     else for k, t in pairs(parts) do UI.SkinTex(t, pre .. kind .. k); UI.SkinTex(hls[k], pre .. kind .. k) end end
-    if win then local sz = select(2, fs:GetFont()); if sz then setFont(fs, UI.FONT, sz, flags()) end end
-    if self:IsEnabled() ~= false then local c = isGold and GOLD_TXT or DARK_TXT; fs:SetTextColor(c[1], c[2], c[3]) end
+    for _, t in pairs(parts) do t:SetDesaturated(not en); t:SetAlpha(en and 1 or 0.85) end
+    local c = not en and { 0.82, 0.78, 0.68 } or (isGold and GOLD_TXT or DARK_TXT)
+    fs:SetTextColor(c[1], c[2], c[3])
+    if fs.SetShadowColor then fs:SetShadowColor(0, 0, 0, (isGold and en) and 0 or 0.85) end
   end
+  function b:SetGold(on) isGold = on and true or false; paint() end
   function b:IsGold() return isGold end
   function b:SetLabel(t) fs:SetText(t or ""); fit() end
   -- ширина по тексту (шрифт base не уменьшается): для кнопок со своей шириной
   function b:FitWidth(minW, maxW)
-    setFont(fs, UI.FONT, base, flags()); fs:SetWidth(0)
-    local tw = (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0
-    self:SetWidth(math.max(minW or 0, math.min(maxW or 1000, math.floor(tw + cap * 2 + 14))))
+    setFont(fs, FONT, base, ""); fs:SetWidth(0)
+    local tw = sw()
+    self:SetWidth(math.max(minW or 0, math.min(maxW or 1000, math.floor(tw + cap + 18))))
     fit()
     return self:GetWidth()
   end
   b:SetGold(gold); b:SetLabel(text)
-  b:SetScript("OnDisable", function()
-    fs:SetTextColor(0.55, 0.52, 0.46); for _, t in pairs(parts) do t:SetDesaturated(true) end
-  end)
-  b:SetScript("OnEnable", function()
-    local c = isGold and GOLD_TXT or DARK_TXT; fs:SetTextColor(c[1], c[2], c[3]); for _, t in pairs(parts) do t:SetDesaturated(false) end
-  end)
+  b:SetScript("OnDisable", paint)
+  b:SetScript("OnEnable", paint)
   b:HookScript("OnMouseDown", function(self) if self:IsEnabled() ~= false then fs:SetPoint("CENTER", 1, 0) end end)
   b:HookScript("OnMouseUp", function() fs:SetPoint("CENTER", 0, 1) end)
   b:HookScript("OnSizeChanged", fit)
@@ -650,7 +657,9 @@ end
 -- ---------- новое главное окно (2.43): текстуры media\win ----------
 function UI.WinTex(t, name)
   if not t then return end
-  t:SetTexture(M .. "win\\" .. name)
+  t:SetTexture(M .. "win\\" .. name, nil, nil, "TRILINEAR")
+  -- без привязки к пикселям: уменьшенные картинки рамок и значков - гладкие, без «лесенки»
+  if t.SetSnapToPixelGrid then pcall(t.SetSnapToPixelGrid, t, false); pcall(t.SetTexelSnappingBias, t, 0) end
   local tc = ns.WIN_TC and ns.WIN_TC[name]
   if tc then t:SetTexCoord(0, tc[1], 0, tc[2]) else t:SetTexCoord(0, 1, 0, 1) end
 end
@@ -784,10 +793,11 @@ function UI.MainChrome(win, onNav, navTips)
   local s = 0.74
   -- мягкая чёрная подложка: заполняет просветы между колонкой, шапкой и рамкой
   -- (сплошная часть - под колонкой, шапкой и рамкой, её края не видны; вокруг - размытая тень)
-  local shade = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(shade, "shade")
-  shade:SetPoint("TOPLEFT", 40, 24); shade:SetPoint("BOTTOMRIGHT", 34, -34); shade:SetAlpha(0.8)
-  local fill = win:CreateTexture(nil, "BACKGROUND", nil, -7); fill:SetColorTexture(0.02, 0.02, 0.03, 0.92)
-  fill:SetPoint("TOPLEFT", 140, -30); fill:SetPoint("BOTTOMRIGHT", -20, 14)
+  -- (только в щелях: между шапкой и рамкой и между колонкой и рамкой; края мягкие и спрятаны под картинками - без углов)
+  local gapTop = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(gapTop, "shade")
+  gapTop:SetPoint("TOPLEFT", 120, -28); gapTop:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", 1010, -128)
+  local gapLeft = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(gapLeft, "shade")
+  gapLeft:SetPoint("TOPLEFT", 132, -60); gapLeft:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", 214, -640)
   local fr = CreateFrame("Frame", nil, win); fr:SetPoint("TOPLEFT", 168, -90); fr:SetPoint("BOTTOMRIGHT", 0, 2)
   win.frameBox = fr
   UI.FrameSkin(fr, s)

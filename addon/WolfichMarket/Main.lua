@@ -323,6 +323,7 @@ local function buildCraft(f)
   c4:HookScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Рецепты без групп по навыку: сортировка по прибыли сквозь все рецепты профессии.", 1, 1, 1, true); GameTooltip:Show() end)
   c4:HookScript("OnLeave", function() GameTooltip:Hide() end)
   craft.flat = c4
+  craft.listBox = CreateFrame("Frame", nil, f); UI.Box(craft.listBox)
   -- шапка списка: столбики Ф и Общ
   local lh = CreateFrame("Frame", nil, f); lh:SetHeight(14)
   local lh1 = UI.Font(lh, 10, UI.DIM); lh1:SetPoint("LEFT", 26, 0); lh1:SetText(L"Рецепт")
@@ -430,9 +431,11 @@ local function buildCraft(f)
     sortChecks.main:ClearAllPoints(); sortChecks.main:SetPoint("TOPLEFT", 110, -60 - dy)
     sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 320, -60 - dy)
     sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 500, -60 - dy)
-    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", 0, -86 - dy); lh:SetPoint("RIGHT", f, "CENTER", -8, 0)
-    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", 0, -100 - dy); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 16)
-    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 10, -86 - dy); box:SetPoint("BOTTOMRIGHT", 0, 16)
+    -- список и карточка - две панели одной высоты, сверху и снизу на одной линии
+    craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 18)
+    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 6, -4); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 4, -20); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -4, 4)
+    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
   end
   craft.setTop(0)
   UI.Skin(box, { theme = "mcard" })
@@ -794,20 +797,21 @@ local function buildAuc(f)
   aucp.kind = {}
   local x = 0
   for _, k in ipairs(KIND_LIST) do
-    local w = k == "main" and 104 or 76
-    local b = UI.Button(f, KIND_TAB[k], w, 22, function() S.aucMode = k; S.aucView = "all"; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
-    b:SetPoint("TOPLEFT", x, 0); x = x + w + 4
+    local b = UI.Button(f, KIND_TAB[k], 80, 26, function() S.aucMode = k; S.aucView = "all"; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+    local w = b:FitWidth(80, 170)
+    b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.kind[k] = b
   end
   -- что смотрим: весь аукцион, свои лоты всех персонажей или сигналы
   aucp.views = {}
   x = x + 10
   for _, v in ipairs({ { "all", L"Весь аукцион", 104 }, { "lots", L"Мои лоты", 128 }, { "signals", L"Сигналы", 84 } }) do
-    local b = UI.Button(f, v[2], v[3], 22, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
-    b:SetPoint("TOPLEFT", x, 0); x = x + v[3] + 4
+    local b = UI.Button(f, v[2] .. (v[1] == "lots" and " · 00 ● 0" or ""), v[3], 26, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+    local w = b:FitWidth(v[3], 200)
+    b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.views[v[1]] = b
   end
-  aucp.cat = UI.Button(f, L"Все категории", 150, 22, function(self) aucp.openCats(self) end)
+  aucp.cat = UI.Button(f, L"Все категории", 160, 26, function(self) aucp.openCats(self) end)
   aucp.cat:SetPoint("TOPRIGHT", 0, 0)
   aucp.search = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); aucp.search:SetHeight(20)
   aucp.search:SetPoint("LEFT", aucp.views.signals, "RIGHT", 10, 0); aucp.search:SetPoint("RIGHT", aucp.cat, "LEFT", -8, 0); aucp.search:SetAutoFocus(false)
