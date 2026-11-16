@@ -39,7 +39,7 @@ local function build()
     if C_Container and C_Container.SortBags then pcall(C_Container.SortBags) elseif SortBags then pcall(SortBags) end
   end)
   bagf.sort:SetPoint("TOPRIGHT", -52, -20)
-  local hint = UI.Font(bagf, 10, UI.DIM); hint:SetPoint("RIGHT", bagf.sort, "LEFT", -10, 0); hint:SetJustifyH("RIGHT")
+  local hint = UI.Font(bagf, 10, UI.DIM); hint:SetPoint("RIGHT", bagf.sort, "LEFT", -10, 0); hint:SetPoint("LEFT", bagf.value, "RIGHT", 14, 0); hint:SetJustifyH("RIGHT")
   hint:SetText(L"клик - выставить в панели аддона, ПКМ - на аукционе игры")
   bagf.btns = {}
   -- прокрутка колёсиком, если все ячейки не помещаются до низа экрана
@@ -62,12 +62,15 @@ local function slotButton(i)
   b.border = b:CreateTexture(nil, "BACKGROUND"); b.border:SetAllPoints(); UI.WinTex(b.border, "slot")
   b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetPoint("TOPLEFT", 4, -4); b.icon:SetPoint("BOTTOMRIGHT", -4, 4); b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   b.count = UI.Font(b, 10); b.count:SetPoint("BOTTOMRIGHT", -2, 2); b.count:SetJustifyH("RIGHT")
+  -- метка ячейки сумки ресурсов: зелёная полоска внизу
+  b.res = b:CreateTexture(nil, "OVERLAY", nil, 2); b.res:SetHeight(3); b.res:SetPoint("BOTTOMLEFT", 5, 3); b.res:SetPoint("BOTTOMRIGHT", -5, 3); b.res:SetColorTexture(0.35, 0.9, 0.65, 0.9); b.res:Hide()
   b.badge = b:CreateTexture(nil, "OVERLAY"); b.badge:SetSize(15, 15); b.badge:SetPoint("TOPRIGHT", 3, 3)
   local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.45, 0.18)
   b:SetScript("OnEnter", function(self)
     if not self.bag then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if GameTooltip.SetBagItem then pcall(GameTooltip.SetBagItem, GameTooltip, self.bag, self.slot) end
+    if self.special then GameTooltip:AddLine(L"Сумка ресурсов", 0.45, 0.95, 0.75) end
     GameTooltip:Show()
   end)
   b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -106,7 +109,10 @@ function ns.UpdateAHBags()
   -- все сумки, включая сумку реагентов (травы, руда)
   local items = {}
   for bag = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4) do
-    for slot = 1, (safe(C_Container.GetContainerNumSlots, bag) or 0) do items[#items + 1] = { bag, slot } end
+    -- сумка ресурсов: слот сумки реагентов или сумка профессии (травы, руда, кожа...)
+    local fam = bag > 0 and select(2, safe(C_Container.GetContainerNumFreeSlots, bag)) or 0
+    local special = bag > (NUM_BAG_SLOTS or 4) or (fam and fam ~= 0) or false
+    for slot = 1, (safe(C_Container.GetContainerNumSlots, bag) or 0) do items[#items + 1] = { bag, slot, special } end
   end
   local W = math.max(400, h:GetWidth() or 800)
   local cols = math.max(8, math.floor((W - 60 + GAP) / (SLOT + GAP)))
@@ -141,7 +147,7 @@ function ns.UpdateAHBags()
     local it = items[i]
     shown = shown + 1
     local b = slotButton(shown)
-    b.bag, b.slot = it[1], it[2]
+    b.bag, b.slot, b.special = it[1], it[2], it[3]
     b:ClearAllPoints(); b:SetPoint("TOPLEFT", x0 + ((shown - 1) % cols) * (SLOT + GAP), -50 - math.floor((shown - 1) / cols) * (SLOT + GAP))
     local info = safe(C_Container.GetContainerItemInfo, it[1], it[2])
     b.id, b.link = info and info.itemID, info and info.hyperlink
@@ -149,11 +155,14 @@ function ns.UpdateAHBags()
       b.icon:SetTexture(info.iconFileID or ns.itemIcon(b.id)); b.icon:Show(); b.icon:SetDesaturated(info.isLocked and true or false)
       b.count:SetText((info.stackCount or 1) > 1 and info.stackCount or "")
       local q = info.quality and QUALITY and QUALITY[info.quality]
-      if q and info.quality >= 2 then b.border:SetVertexColor(q.r * 1.2, q.g * 1.2, q.b * 1.2) else b.border:SetVertexColor(1, 1, 1) end
+      if q and info.quality >= 2 then b.border:SetVertexColor(q.r * 1.2, q.g * 1.2, q.b * 1.2)
+      elseif b.special then b.border:SetVertexColor(0.45, 0.95, 0.75) else b.border:SetVertexColor(1, 1, 1) end
+      b.res:SetShown(b.special)
       local where = ns.DB.settings.bagGlow ~= false and ns.SellWhere(b.id, info.isBound) or nil
       if where == "ah" or where == "vendor" then b.badge:SetTexture(ns.MEDIA .. (where == "ah" and "badge-ah" or "badge-vendor")); b.badge:Show() else b.badge:Hide() end
     else
-      b.icon:Hide(); b.count:SetText(""); b.badge:Hide(); b.border:SetVertexColor(0.7, 0.62, 0.5)
+      b.icon:Hide(); b.count:SetText(""); b.badge:Hide(); b.res:SetShown(b.special)
+      if b.special then b.border:SetVertexColor(0.35, 0.8, 0.62) else b.border:SetVertexColor(0.7, 0.62, 0.5) end
     end
     b:Show()
   end

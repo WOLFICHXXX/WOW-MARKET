@@ -2,7 +2,9 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.20
+## 2.43.21
+
+- Addon bag at the auctioneer: reagent bag slots have their own green frame.
 
 - The main window stays above everything; only the profession window and bags open on top of it (a click on the main window brings it back on top).
 - Profession window: the price block uses the free space down to the bottom buttons.

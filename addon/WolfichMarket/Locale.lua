@@ -693,4 +693,5 @@ ns.EN = {
   ["Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое (и деньги, поднятые с добычи)."] = "Before farming: what is already in the bags is no longer counted - only new items (and money looted) are shown.",
   ["клик - выставить в панели аддона, ПКМ - на аукционе игры"] = "click - post in the addon panel, right-click - in the game's auction",
   ["Перезагрузить интерфейс (/reload)"] = "Reload UI (/reload)",
+  ["Сумка ресурсов"] = "Reagent bag",
 }
