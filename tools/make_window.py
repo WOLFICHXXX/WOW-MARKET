@@ -221,6 +221,28 @@ def slot_img(k=4, N=48):
     a[..., :3][hi] = np.minimum(255, a[..., :3][hi] + 60)
     return Image.fromarray(a.clip(0, 255).astype(np.uint8)).resize((N, N), Image.LANCZOS)
 save(slot_img(), 'slot')
+# флажок с лапой - заглушка на правом конце шапки (шашечный фон картинки убираем заливкой от краёв)
+bn = np.array(Image.open(os.path.join(SRC, 'banner-src.png')).convert('RGB')).astype(int)
+mxn, mnn = bn.max(2), bn.min(2)
+candn = (mnn > 180) & ((mxn - mnn) < 16)
+labn, _ = ndimage.label(candn)
+edgen = set(np.unique(np.concatenate([labn[0], labn[-1], labn[:, 0], labn[:, -1]]))) - {0}
+bgn = np.isin(labn, list(edgen))
+for _ in range(2):
+    bgn = bgn | (ndimage.binary_dilation(bgn) & (mnn > 150) & ((mxn - mnn) < 24))
+An = Image.fromarray(np.where(bgn, 0, 255).astype(np.uint8)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.7))
+BN = Image.fromarray(bn.astype(np.uint8)).convert('RGBA'); BN.putalpha(An)
+# только сам флажок: самая большая связная часть, без случайных линий по краям картинки
+la, _ = ndimage.label(np.array(An) > 100)
+big = np.argmax(np.bincount(la.ravel())[1:]) + 1
+keep = ndimage.binary_dilation(la == big, iterations=3)
+ab = np.array(BN); ab[..., 3] = np.where(keep, ab[..., 3], 0)
+rw = (ab[..., 3] > 100).sum(1); top_w = rw.max()
+last = next((i for i in range(len(rw) // 2, len(rw)) if 0 < rw[i] < top_w * 0.1), len(rw) - 1)   # ниже - только тонкое древко, его не берём
+ab[last + 1:, :, 3] = 0
+BN = Image.fromarray(ab); BN = BN.crop(BN.getbbox())
+BANNER = BN.size
+save(BN, 'banner', size=(96, round(96 * BN.height / BN.width)))
 # медальон уведомления (воющий волк) - круг
 hw = Image.open(os.path.join(SRC, 'howl.png')).convert('RGBA')
 c = min(hw.size)
@@ -237,6 +259,7 @@ with open(LUA, 'w', encoding='utf-8') as f:
     f.write('ns.WIN = {\n')
     f.write('  side = { %d, %d },\n' % (SIDE_W, SIDE_H))
     f.write('  bar = { %d, %d },\n' % BAR.size)
+    f.write('  banner = { %d, %d },\n' % BANNER)
     for k, (w2, h2) in FSIZE.items():
         f.write('  ["%s"] = { %d, %d },\n' % (k, w2, h2))
     f.write('}\n')

@@ -829,9 +829,18 @@ function UI.MainChrome(win, onNav, navTips)
   local top = CreateFrame("Frame", nil, win); top:SetAllPoints(); top:SetFrameLevel((fr:GetFrameLevel() or 1) + 5)
   local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", k(150), -2); bar:SetSize(WIN_W - k(150) - k(113), k(102))
   local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(k(175), k(692))
-  local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.TITLE_FONT, 26, "OUTLINE")
-  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", k(380), -k(52)); title:SetText("WolfichMarket")
-  local sub = UI.Font(top, 13, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 14, -1)
+  -- название - жирным, по центру тёмной полосы шапки, с отступом от кристалла
+  local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.BOLD, 21, "")
+  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", k(412), -k(53)); title:SetText("WolfichMarket")
+  if title.SetShadowOffset then title:SetShadowOffset(1, -2); title:SetShadowColor(0, 0, 0, 1) end
+  local sub = UI.Font(top, 13, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 16, 0)
+  -- флажок с лапой - заглушка на правом конце шапки (слегка заходит на рамку, крестик не закрывает)
+  if ns.WIN and ns.WIN.banner then
+    local bw = k(64); local bh = math.floor(bw * ns.WIN.banner[2] / ns.WIN.banner[1] + 0.5)
+    local fl = tex(top, "banner", "OVERLAY", 3); fl:SetSize(bw, bh)
+    fl:SetPoint("TOP", win, "TOPLEFT", WIN_W - k(113) - k(6), k(2))
+    win.banner = fl
+  end
   win.chromeTitle, win.chromeSub = title, sub
   -- крестик нарисован в правом верхнем углу рамки
   local close = CreateFrame("Button", nil, top); close:SetSize(k(38), k(38)); close:SetPoint("TOPRIGHT", win, "TOPRIGHT", -k(13), -k(98))
