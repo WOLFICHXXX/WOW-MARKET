@@ -225,10 +225,12 @@ local function hasWinBtn() return ns.WIN_TC and ns.WIN_TC["btn-dark-l"] ~= nil e
 function UI.Button(parent, text, w, h, onClick, gold)
   local b = CreateFrame("Button", nil, parent)
   w, h = w or 100, h or 22
+  local win = hasWinBtn()
+  -- кнопки макета выше: надпись не сливается с рамкой кнопки
+  if win then h = h + 6 end
   b:SetSize(w, h)
   local th = themeOf(parent)
   local pre = (th and UI.THEMES[th] and UI.THEMES[th].btn) or "mbtn"
-  local win = hasWinBtn()
   local cap = win and math.max(4, math.floor(h * (ns.WIN_BTN_CAP or 0.4) + 0.5)) or math.max(4, math.floor(h * 36 / 82 + 0.5))
   if cap * 2 > w - 2 then cap = math.floor((w - 2) / 2) end
   local parts, hls = {}, {}
@@ -243,7 +245,8 @@ function UI.Button(parent, text, w, h, onClick, gold)
   end
   local fs = b:CreateFontString(nil, "OVERLAY")
   local FONT = win and UI.BOLD or UI.FONT
-  local base = math.max(11, math.min(13, math.floor(h * 0.5)))
+  -- шрифт - примерно треть высоты кнопки (с учётом увеличения шрифтов макета): между верхней и нижней кромкой остаётся воздух
+  local base = math.max(10, math.min(12, math.floor(h * 0.36)))
   setFont(fs, FONT, base, "") -- шрифт до первого SetText, иначе игра выдаёт ошибку
   fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs

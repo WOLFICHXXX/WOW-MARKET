@@ -53,16 +53,16 @@ local function refreshProfs()
       if d.virtual then b:SetLabel("|cffaaaaaa" .. p .. L" (не изучена)|r") else b:SetLabel(p .. " |cffaaaaaa" .. (d.skill or 0) .. "/" .. (d.max or 0) .. "|r") end
       local w = b:FitWidth(110, 240)
       if x > X0 and x + w > W then x = X0; row = row + 1 end
-      b:ClearAllPoints(); b:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -row * 30)
+      b:ClearAllPoints(); b:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -row * 36)
       x = x + w + 6
       b:Show(); b:SetGold(p == prof)
     else b:Hide() end
   end
   -- «+»: добавить профессию, которой у персонажа нет (для отслеживания цен)
   if x > X0 and x + 34 > W then x = X0; row = row + 1 end
-  craft.addBtn:ClearAllPoints(); craft.addBtn:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -row * 30)
+  craft.addBtn:ClearAllPoints(); craft.addBtn:SetPoint("TOPLEFT", craft.page, "TOPLEFT", x, -row * 36)
   if craft.charName then craft.charName:SetText(charLabel(charKey)) end
-  craft.setTop(row * 30)
+  craft.setTop(row * 36 + 6)
   craft.noProf:SetShown(#names == 0)
 end
 local function fillCard(rec)
@@ -105,7 +105,7 @@ local function fillCard(rec)
     r.price:SetText(it.unit and (qty > 0 and ns.money(it.unit * qty, true) or L"|cff78d98aсвоё|r") or (qty > 0 and L"|cffaa8866нет цены|r" or L"|cff78d98aсвоё|r"))
     r.star:SetIcon(ns.IsMarked(it.id) and "star-on" or "star-off")
     r.bell:Update(it.id)
-    if it.out then r.name:SetText(ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or "") .. "  |cff8a8070→ " .. L"продажа" .. "|r") end
+    if it.out then r.name:SetText(ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or "") .. "  |cff8a8070» " .. L"продажа" .. "|r") end
     r.search:SetAlpha(ns.AHIsOpen() and 1 or 0.35)
     r:Show()
   end
@@ -421,7 +421,7 @@ local function buildCraft(f)
     r:Hide(); card.rows[i] = r
   end
   -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
-  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(28); card.portRow = prow
+  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(34); card.portRow = prow
   local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 2, 0); pl:SetText(L"Порций:")
   local function setN(v)
     if not sel then return end
@@ -443,7 +443,7 @@ local function buildCraft(f)
   card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
   card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- кнопки: Крафт / Где взять / На аукционе - на всю ширину карточки, поровну
-  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(28)
+  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(34)
   brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)
   card.craft = UI.Button(brow, L"Крафт", 100, 28, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)

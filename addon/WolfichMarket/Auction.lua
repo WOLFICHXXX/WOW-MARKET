@@ -714,7 +714,7 @@ local function pageSell(f)
     elseif v.vendor and v.net and v.vendor >= v.net then r.prof:SetText(L"|cffffd060торговцу|r")
     else r.prof:SetText("|cff555555-|r") end
   end)
-  f.list:SetPoint("TOPLEFT", 0, -18); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 194)
+  f.list:SetPoint("TOPLEFT", 0, -18); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 214)
   withDetail(f.list, 6)
   f.checked = {}
   f.allBtn = UI.Button(f, L"Отметить все", 110, 22, function()
@@ -722,8 +722,8 @@ local function pageSell(f)
     wipe(f.checked)
     if not any then for _, d in ipairs(f.list.data) do if ns.AHPrice(d.id) then f.checked[d.id] = true end end end
     f.list:Refresh(); f.updateBulk()
-  end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 168)
-  f.bulk = UI.Button(f, L"Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 168)
+  end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 182)
+  f.bulk = UI.Button(f, L"Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 182)
   _G.WolfichMarketPostNextButton = f.bulk
   f.bulk:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -734,7 +734,7 @@ local function pageSell(f)
   ns.PostNext = function() if f:IsVisible() then f.postNext() else ns.say(L"откройте вкладку «Продать» у аукциониста.") end end
   f.bulkInfo = UI.Font(f, 10, UI.DIM); f.bulkInfo:SetPoint("TOPLEFT", f.allBtn, "BOTTOMLEFT", 2, -3); f.bulkInfo:SetPoint("RIGHT", f, "RIGHT", -2, 0); f.bulkInfo:SetWordWrap(false)
   f.list.empty:SetText(L"В сумках нет предметов, которые можно выставить.")
-  local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(152)
+  local box = CreateFrame("Frame", nil, f); box:SetPoint("BOTTOMLEFT"); box:SetPoint("BOTTOMRIGHT"); box:SetHeight(164)
   UI.Skin(box, { theme = "acard" })
   -- лупа и график у выбранного предмета: найти на аукционе и посмотреть динамику цены перед продажей
   f.searchBtn = UI.Icon(box, "search", 18, L"Найти этот предмет на аукционе", function() if sellSel then ns.SearchAH(sellSel.id) end end)
@@ -742,7 +742,7 @@ local function pageSell(f)
   f.sel = UI.Font(box, 12, UI.GOLD); f.sel:SetPoint("TOPLEFT", 10, -8); f.sel:SetPoint("RIGHT", f.searchBtn, "LEFT", -8, 0)
   -- разбор: себестоимость / аукцион / торговец / итог
   f.analysis = UI.Font(box, 10); f.analysis:SetPoint("TOPLEFT", 10, -24); f.analysis:SetPoint("RIGHT", -10, 0); f.analysis:SetWordWrap(true); f.analysis:SetJustifyV("TOP"); f.analysis:SetHeight(38); f.analysis:SetMaxLines(3)
-  local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 10, -68); pl:SetText(L"Цена за шт:")
+  local pl = UI.Font(box, 11); pl:SetPoint("TOPLEFT", 10, -70); pl:SetText(L"Цена за шт:")
   f.money = UI.MoneyInput(box, function() f.calc() end); f.money:SetPoint("LEFT", pl, "RIGHT", 4, 0)
   -- быстрые наценки к начальной цене (минимальная на аукционе − 1м)
   -- наценка действует и на выбранный предмет, и на «Выставить отмеченные»
@@ -761,7 +761,7 @@ local function pageSell(f)
   local b10 = UI.Button(box, "+10%", 44, 20, function() setMul(1.10) end); b10:SetPoint("LEFT", b5, "RIGHT", 3, 0)
   f.mulBtns = { bMin, b5, b10 }
   setMul(1)
-  local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 10, -94); ql:SetText(L"Количество:")
+  local ql = UI.Font(box, 11); ql:SetPoint("TOPLEFT", 10, -102); ql:SetText(L"Количество:")
   f.qty = CreateFrame("EditBox", nil, box, "InputBoxTemplate"); f.qty:SetSize(54, 20); f.qty:SetPoint("LEFT", ql, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true)
   f.qty:SetScript("OnTextChanged", function() f.calc() end)
   -- «Все» - всё количество этого предмета из сумок
