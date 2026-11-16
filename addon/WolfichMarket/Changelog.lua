@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.38", d = "17.11.2026",
+    ru = { "Пробное своё окно крафта из 2.43.37 убрано: окно профессии игры - как раньше, с блоком «Где купить и где продать» и столбиками Ф / Общ." },
+    en = { "The trial own crafting window from 2.43.37 is removed: the game's profession window is as before, with the where to buy and where to sell block and the F / N columns." } },
   { v = "2.43.36", d = "17.11.2026",
     ru = { "«Купить»: кнопка категории подстраивается под длину названия - «Хозяйственные товары» и другие длинные названия влезают целиком; меню категорий шире." },
     en = { "Buy: the category button fits the name length - long category names fit in full; the category menu is wider." } },

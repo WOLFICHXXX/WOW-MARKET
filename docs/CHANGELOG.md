@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.38
+
+### 🛠 Changes
+- The trial own crafting window from 2.43.37 is removed: the game's profession window is as before.
+
+### 🛠 Изменения
+- Пробное своё окно крафта из 2.43.37 убрано: окно профессии игры - как раньше.
+
 ## 2.43.36
 
 **🇬🇧 English** · 🇷🇺 Русский - ниже
