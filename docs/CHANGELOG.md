@@ -2,7 +2,7 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.0
+## 2.43.1
 
 - New main window: section icons on the left - Home, Alts, Professions, Auction, Cooldowns, Settings.
 - Home: what's new in every version, in the addon's language.
