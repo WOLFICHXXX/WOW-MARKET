@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.31", d = "17.11.2026",
+    ru = { "Окно профессии игры: блок «Где купить и где продать» в новом стиле - ткань с лапками, тонкая золотая кромка, лапа и заголовок шрифтом заголовков, тонкие разделители." },
+    en = { "Game profession window: the \"where to buy and where to sell\" block in the new style - cloth with paws, a thin gold edge, a paw and a title in the heading font, thin separators." } },
   { v = "2.43.30", d = "17.11.2026",
     ru = { "Сумка у аукциониста: минималистичная рамка (ткань с лапками, тонкая шапка), ячейки прежние; внизу справа - деньги персонажа значками монет." },
     en = { "Auctioneer bag: a minimalist frame (cloth with paws, thin header), the slots as before; the character's money with coin icons at the bottom right." } },

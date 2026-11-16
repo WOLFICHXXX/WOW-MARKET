@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.31
+
+### ✨ Look
+- **Game profession window:** the *where to buy and where to sell* block in the new style - cloth with paws, a thin gold edge, a paw and a title in the heading font, thin separators.
+
+### ✨ Оформление
+- **Окно профессии игры:** блок *«Где купить и где продать»* в новом стиле - ткань с лапками, тонкая золотая кромка, лапа и заголовок шрифтом заголовков, тонкие разделители.
+
 ## 2.43.30
 
 ### ✨ Look
