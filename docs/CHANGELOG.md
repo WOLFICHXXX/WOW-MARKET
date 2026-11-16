@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.24
+
+### 🛠 Fix
+- After visiting the auction house, usable bag items (bedroll and others) were blocked with *"only available to the Blizzard UI"*. The game's bags at the auction house are now only hidden, not closed by the addon.
+
+### 🛠 Исправлено
+- После аукциона предметы из сумок с действием (спальник и др.) блокировались сообщением *«доступно только интерфейсу Blizzard»*. Сумки игры у аукциона теперь только прячутся, а не закрываются аддоном.
+
 ## 2.43.23
 
 ![WolfichMarket 2.43](https://wolfichxxx.github.io/WOW-MARKET/news/2.43/01-professions.jpg)

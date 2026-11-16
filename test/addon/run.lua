@@ -1243,6 +1243,15 @@ do
   if btn then btn.scripts.OnClick(btn, "LeftButton") end
   check(ns._ahPages[3]:IsShown(), "клик по предмету в сумке аддона - вкладка «Продать»")
   local okP = pcall(ns.PlaceAH); check(okP, "окно аукциона и панель размещаются на экране")
+  -- сумки игры только прячутся, CloseAllBags не вызывается (иначе спальник и т.п. блокируются)
+  local closed = false; local oldC = CloseAllBags; CloseAllBags = function() closed = true end
+  ContainerFrameCombinedBags = CreateFrame("Frame", "ContainerFrameCombinedBags")
+  fire("AUCTION_HOUSE_SHOW"); advance(1)
+  check(not closed and ContainerFrameCombinedBags:GetAlpha() == 0, "у аукциона сумки игры спрятаны без CloseAllBags")
+  fire("AUCTION_HOUSE_CLOSED"); advance(1)
+  check(ContainerFrameCombinedBags:GetAlpha() == 1, "аукцион закрыт - сумки игры снова видны")
+  CloseAllBags = oldC; ContainerFrameCombinedBags = nil
+  fire("AUCTION_HOUSE_SHOW"); advance(1)
 end
 -- у торговца: починка и продажа хлама
 do

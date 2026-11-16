@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.24", d = "16.11.2026",
+    ru = { "Исправлено: после аукциона предметы из сумок с действием (спальник и т.п.) блокировались сообщением «доступно только интерфейсу Blizzard». Сумки игры у аукциона теперь только прячутся, а не закрываются аддоном." },
+    en = { "Fixed: after visiting the auction house, usable bag items (bedroll etc.) were blocked with \"only available to the Blizzard UI\". The game's bags at the auction house are now only hidden, not closed by the addon." } },
   { v = "2.43.23", d = "16.11.2026",
     ru = {
       "Новое главное окно: слева разделы Главная, Твинки, Профессии, Аукцион, Часы, Настройки; новые шрифты, гладкие рамки и кнопки.",

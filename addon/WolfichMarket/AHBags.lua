@@ -104,7 +104,7 @@ end
 
 function ns.UpdateAHBags()
   local h = AuctionHouseFrame or AuctionFrame
-  if not ns.DB or ns.DB.settings.ahBags == false or not h or not h:IsShown() or not C_Container then if bagf then bagf:Hide() end return end
+  if not ns.DB or ns.DB.settings.ahBags == false or not h or not h:IsShown() or not C_Container then if bagf then bagf:Hide() end; if ns._muteBags then ns._muteBags(false) end return end
   build()
   -- все сумки, включая сумку реагентов (травы, руда)
   local items = {}
@@ -172,17 +172,47 @@ function ns.UpdateAHBags()
   bagf:Show()
 end
 
--- при открытии аукциона игра открывает свои сумки - закрываем их, показываем свою
+-- При открытии аукциона игра открывает свои сумки. Закрывать их вызовом CloseAllBags нельзя:
+-- код игры, запущенный аддоном, «пачкает» сумки, и потом предметы с действием (спальник, камень)
+-- блокируются («доступно только интерфейсу Blizzard»). Поэтому сумки игры только прячем:
+-- прозрачность и мышь - это свойства рамки, они не задевают код игры. Сумки закроет сама игра вместе с аукционом.
+local muted = false
+local function bagFrames()
+  local out = { ContainerFrameCombinedBags }
+  for i = 1, 13 do out[#out + 1] = _G["ContainerFrame" .. i] end
+  return out
+end
+local function muteBags(on)
+  if not on and not muted then return end
+  muted = on and true or false
+  for _, f in pairs(bagFrames()) do
+    if f then
+      if f.SetAlpha then pcall(f.SetAlpha, f, on and 0 or 1) end
+      if f.EnableMouse then pcall(f.EnableMouse, f, not on) end
+      if f.EnumerateValidItems then
+        local ok, it, st, k = pcall(f.EnumerateValidItems, f)
+        if ok and it then for _, btn in it, st, k do if btn and btn.EnableMouse then pcall(btn.EnableMouse, btn, not on) end end end
+      end
+      if f.GetName and f:GetName() and f:GetName() ~= "ContainerFrameCombinedBags" then
+        for j = 1, 40 do local btn = _G[f:GetName() .. "Item" .. j]; if btn and btn.EnableMouse then pcall(btn.EnableMouse, btn, not on) end end
+      end
+    end
+  end
+end
+ns._muteBags = muteBags -- для автотестов
+local function ahOpen() local h = AuctionHouseFrame or AuctionFrame; return h and h:IsShown() end
 local function onShow()
   if ns.DB.settings.ahBags == false then return end
   ns.After(0.05, function()
-    if CloseAllBags then pcall(CloseAllBags) end
+    muteBags(true)
     ns.UpdateAHBags()
     if ns.PlaceAH then ns.PlaceAH() end
   end)
 end
 ns.On("AUCTION_HOUSE_SHOW", onShow)
-ns.On("AUCTION_HOUSE_CLOSED", function() if bagf then bagf:Hide() end end)
+ns.On("AUCTION_HOUSE_CLOSED", function() if bagf then bagf:Hide() end; muteBags(false) end)
+-- у аукциона открыли сумки снова (B) - и они должны быть спрятаны, пока показана сумка аддона
+ns.On("BAG_OPEN", function() if muted and ahOpen() then ns.After(0.05, function() muteBags(true) end) end end)
 local queued = false
 local function later()
   if queued or not bagf or not bagf:IsShown() then return end

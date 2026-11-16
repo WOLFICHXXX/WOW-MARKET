@@ -54,6 +54,8 @@ OBJ_SetEnabled = function(self, v) self.enabled = v end
 OBJ_Enable = function(self) self.enabled = true end
 OBJ_Disable = function(self) self.enabled = false end
 OBJ_GetMinMaxValues = function() return 0, 0 end
+OBJ_SetAlpha = function(self, a) self.alpha = a end
+OBJ_GetAlpha = function(self) return self.alpha or 1 end
 function CreateFrame(kind, name, parent, tmpl) local o = newObj(kind, name, parent); if name then _G[name] = o end return o end
 UIParent = newObj("Frame"); GameTooltip = newObj("GameTooltip"); ItemRefTooltip = newObj("GameTooltip")
 GetLocale = function() return LOCALE or "ruRU" end; STANDARD_TEXT_FONT = "x"; UISpecialFrames = {}; NUM_BAG_SLOTS = 4; SlashCmdList = {}
