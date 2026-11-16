@@ -739,15 +739,25 @@ local function recipesStale()
   if not prof or not ns.charKey then return false end
   local p = ns.DB.chars[ns.charKey].profs[prof]
   if not p or p.virtual or not p.recipes or #p.recipes == 0 or not p.line then return true end -- профессию выучили - заменить «отслеживаемую» настоящей -- line: номер профессии для кнопки «Крафт»
-  -- вырос навык или открылась следующая ступень (225 -> 300), выучены новые рецепты - перечитать
-  if (skill and skill ~= (p.skill or 0)) or (maxSkill and maxSkill ~= (p.max or 0)) then return true end
+  -- выучены новые рецепты - перечитать всё; вырос только навык (крафт поднял уровень) - без полного чтения:
+  -- обновить уровень и цвет сложности рецептов (полное чтение каждой профессии после каждого крафта подвешивало игру)
   local ids = C_TradeSkillUI and safe(C_TradeSkillUI.GetAllRecipeIDs)
   if ids and #ids > 0 then
     local learned, known = 0, 0
+    local infos = {}
     for _, r in ipairs(p.recipes) do if r.learned ~= false then learned = learned + 1 end end
-    for _, rid in ipairs(ids) do local ri = safe(C_TradeSkillUI.GetRecipeInfo, rid); if ri and ri.learned and not ri.isDummyRecipe then known = known + 1 end end
+    for _, rid in ipairs(ids) do
+      local ri = safe(C_TradeSkillUI.GetRecipeInfo, rid)
+      if ri and ri.learned and not ri.isDummyRecipe then known = known + 1 end
+      if ri then infos[rid] = ri end
+    end
     if known ~= learned then return true end
-  end
+    if (skill and skill ~= (p.skill or 0)) or (maxSkill and maxSkill ~= (p.max or 0)) then
+      p.skill, p.max = skill or p.skill, maxSkill or p.max
+      for _, r in ipairs(p.recipes) do local ri = infos[r.id]; if ri then r.diff = ri.relativeDifficulty end end
+      ns.MarkProfitDirty()
+    end
+  elseif (skill and skill ~= (p.skill or 0)) or (maxSkill and maxSkill ~= (p.max or 0)) then return true end
   local scan = ns.CurrentScan()
   return scan and (p.t or 0) < scan.t or false
 end

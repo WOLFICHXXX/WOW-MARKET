@@ -572,6 +572,7 @@ ns.EN = {
   ["Найдено: %d. Нажмите на сумку у предмета, чтобы купить."] = "Found: %d. Click the bag next to an item to buy it.",
   ["Ничего не найдено в последнем снимке аукциона."] = "Nothing found in the latest auction snapshot.",
   ["Перечитать предметы в сумках"] = "Re-read the items in your bags",
+  ["|cffff6060игра заблокировала действие|r %s (%s) - пришлите эту строку разработчику"] = "|cffff6060the game blocked an action|r %s (%s) - send this line to the developer",
   ["у персонажа:"] = "on character:",
   ["Компактное главное окно (после перезагрузки интерфейса)"] = "Compact main window (after reloading the UI)",
   ["|cffffb060Игра ещё загружает данные предмета - нажмите через секунду.|r"] = "|cffffb060The game is still loading the item data - click again in a second.|r",

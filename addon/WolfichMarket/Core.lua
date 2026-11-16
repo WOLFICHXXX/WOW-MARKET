@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.43.40"
+ns.VERSION = "2.43.41"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -100,6 +100,16 @@ function ns.coins(c)
   if g > 0 or s > 0 then out[#out + 1] = s .. COIN:format("Silver") end
   out[#out + 1] = m .. COIN:format("Copper")
   return table.concat(out, "  ")
+end
+-- игра заблокировала действие из-за аддона - записать, какое (для поиска причины)
+do
+  local f = CreateFrame and CreateFrame("Frame")
+  if f then
+    for _, e in ipairs({ "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN" }) do pcall(f.RegisterEvent, f, e) end
+    f:SetScript("OnEvent", function(_, e, addon, func)
+      if addon == "WolfichMarket" and ns.say then ns.say(string.format(L"|cffff6060игра заблокировала действие|r %s (%s) - пришлите эту строку разработчику", tostring(func), e), true) end
+    end)
+  end
 end
 function ns.ago(t)
   if not t or t == 0 then return L"никогда" end

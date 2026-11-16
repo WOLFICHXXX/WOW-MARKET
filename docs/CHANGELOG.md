@@ -2,6 +2,18 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.41
+
+### 🛠 Fixes
+- **Crafting:** after each crafted item the addon no longer re-reads the whole profession when only the skill went up - no more freezes.
+- The item tooltip no longer shows the tooltip by itself - this could interfere with the game code.
+- If the game blocks an action because of the addon, the log gets a line with the action name.
+
+### 🛠 Исправлено
+- **Крафт:** после каждого созданного предмета аддон больше не перечитывает всю профессию, если вырос только навык, - игра не подвисает.
+- Подсказка предмета больше не вызывает показ подсказки сама - это могло задевать код игры.
+- Если игра заблокирует действие из-за аддона, в журнале появится строка с названием действия.
+
 ## 2.43.40
 
 ### 🛠 Fixes

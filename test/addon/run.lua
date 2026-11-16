@@ -349,15 +349,17 @@ do
     local form = CreateFrame("Frame"); form.Init = function() end; ProfessionsFrame.CraftingPage.SchematicForm = form
     local okH = pcall(ns._hookRows)
     check(okH, "окно профессии: столбики и таблица подключаются без ошибок")
-    -- окно профессии: вырос навык (225 -> 245/300) - рецепты перечитываются
+    -- окно профессии: вырос навык (крафт поднял уровень) - уровень обновлён без полного чтения рецептов (иначе игра подвисала)
     do
       local p = ns.DB.chars[ns.charKey].profs[ns.curProf or ""]
       if p then
-        local old = p.skill; p.skill = 1
+        local oldT, oldRecs = p.t, p.recipes; p.skill = 1
         ProfessionsFrame:Show(); p.t = time() + 99999
-        local before = ns.DB.chars[ns.charKey].profs[ns.curProf].t
+        local before = p.t
         fire("NEW_RECIPE_LEARNED"); advance(2)
-        check(ns.DB.chars[ns.charKey].profs[ns.curProf].t ~= before, "навык вырос - профессия перечитана")
+        local np = ns.DB.chars[ns.charKey].profs[ns.curProf]
+        check(np.skill ~= 1 and np.t == before and np.recipes == oldRecs, "навык вырос - уровень обновлён без полного перечитывания")
+        np.t = oldT
       end
     end
     local okF = pcall(ns._fillMarketTable, rec)

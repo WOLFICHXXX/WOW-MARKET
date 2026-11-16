@@ -54,7 +54,7 @@ local function addLines(tt, id)
       tt:AddDoubleLine(L"  Прибыль" .. " |cffaaaaaa(-" .. ns.CutPct() .. ")|r", (pr.profit >= 0 and ("|cff78d98a+" .. ns.money(pr.profit)) or ("|cffff7a66-" .. ns.money(-pr.profit))) .. "|r")
     end
   end
-  tt:Show()
+  -- tt:Show() здесь не нужен (строки добавляются до показа подсказки) и задевал код игры
 end
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
