@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.32
+
+### ✨ Look
+- **Game profession window:** the F / N profit columns on recipes use the addon font and the new colors (the best auction house bright, the other dimmed).
+
+### ✨ Оформление
+- **Окно профессии игры:** столбики прибыли Ф / Общ у рецептов - шрифтом аддона и в цветах нового оформления (лучший аукцион ярко, другой приглушённо).
+
 ## 2.43.31
 
 ### ✨ Look

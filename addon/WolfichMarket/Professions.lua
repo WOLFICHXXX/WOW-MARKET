@@ -375,7 +375,8 @@ local function decorate(frame)
   if not frame.wmCols then
     frame.wmCols = {}
     for i, k in ipairs(KINDS) do
-      local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+      -- шрифт аддона (Inter), как в новом оформлении
+      local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); UI.SetFont(fs, UI.FONT, 11, "")
       fs:SetPoint("RIGHT", frame, "RIGHT", COLR - (NK - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
       frame.wmCols[k] = fs
     end
@@ -396,7 +397,7 @@ local function decorate(frame)
       local fs = frame.wmCols[k]
       if v then
         -- лучший аукцион - ярко, остальные - приглушённо
-        local col = v >= 0 and (k == best and "|cff5dff7a" or "|cff4f9a5c") or (k == best and "|cffff7a66" or "|cff9a5a52")
+        local col = v >= 0 and (k == best and "|cff78d98a" or "|cff5a8a62") or (k == best and "|cffff7a66" or "|cff9a6058")
         fs:SetText(col .. short(v) .. "|r")
       else fs:SetText("|cff555555-|r") end
       fs:Show()

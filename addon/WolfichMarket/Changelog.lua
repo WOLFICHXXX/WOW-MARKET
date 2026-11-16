@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.32", d = "17.11.2026",
+    ru = { "Окно профессии игры: столбики прибыли Ф / Общ у рецептов - шрифтом аддона и в цветах нового оформления (лучший аукцион ярко, другой приглушённо)." },
+    en = { "Game profession window: the F / N profit columns on recipes use the addon font and the new colors (the best auction house bright, the other dimmed)." } },
   { v = "2.43.31", d = "17.11.2026",
     ru = { "Окно профессии игры: блок «Где купить и где продать» в новом стиле - ткань с лапками, тонкая золотая кромка, лапа и заголовок шрифтом заголовков, тонкие разделители." },
     en = { "Game profession window: the \"where to buy and where to sell\" block in the new style - cloth with paws, a thin gold edge, a paw and a title in the heading font, thin separators." } },
