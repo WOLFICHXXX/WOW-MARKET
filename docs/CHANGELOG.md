@@ -5,7 +5,6 @@ Each release takes its notes from the matching "## version" section below; they 
 ## 2.43.17
 
 - Settings: "Reload UI (/reload)" button.
-
 - Farm window: counts looted money too; the triangle has "Items" and "Currency" checkboxes.
 - Addon bag at the auctioneer: includes the reagent bag, scrolls with the mouse wheel, "Sort" button; right-click posts on the game's auction house.
 - At the auctioneer: the auction window and the addon panel fit on the screen right away; instead of the standard bags - the addon bag under the auction window (click - post, right-click - as in the game).
