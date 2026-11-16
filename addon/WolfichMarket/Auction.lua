@@ -196,6 +196,7 @@ ns.On("AUCTION_HOUSE_SHOW", function()
   applyKind(detectKind())
   ns.Fire("AH_STATE"); if ns.ahIsBM then ns.Fire("PRICES") end
   if panel == nil then ns.BuildAHPanel() elseif panel then panel:Show() end -- крестик скрывает панель только до следующего открытия
+  if ns.PlaceAH then ns.After(0, ns.PlaceAH) end
   if wanted then ns.After(1, function() ns.StartScan() end) else ns.After(2, autoTick) end
   if not autoTicker and C_Timer and C_Timer.NewTicker then autoTicker = C_Timer.NewTicker(30, autoTick) end
 end)
@@ -915,6 +916,14 @@ ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() local pg = pages[TAB_SE
 ns.On("BAG_UPDATE_DELAYED", function() if pages[TAB_SELL] and pages[TAB_SELL]:IsShown() then pages[TAB_SELL].refresh() end end)
 
 -- график цены - отдельным окном (вкладки «График» больше нет: график - в раскрытии каждой строки)
+-- выбрать предмет из сумки для продажи (клик в сумке аддона у аукциониста)
+function ns.SellSelect(id)
+  if not panel or not tabs then return end
+  tabs.select(TAB_SELL)
+  local f = pages[TAB_SELL]
+  for _, d in ipairs(f.list.data or {}) do if d.id == id then f.select(d); return true end end
+  ns.say(L"этот предмет нельзя выставить на аукцион.")
+end
 function ns.OpenChart(id) if ns.ShowChartDialog then ns.ShowChartDialog(id) end end
 
 -- «План»: рецепты, запланированные в главном окне, и всё, что для них нужно докупить

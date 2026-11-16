@@ -772,6 +772,7 @@ function UI.ItemDetail(det, opts)
     det.lbl[i], det.val[i] = l, v
   end
   det.btn = UI.Button(left, "", lw - 20, 18); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
+  det.compactLegend = opts.compact
   det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact
   det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
   det.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
@@ -795,7 +796,8 @@ function UI.ItemDetail(det, opts)
     end
     -- над графиком: продано за 24 ч и сколько сейчас лотов
     local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
-    self.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r     " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
+    -- в узкой панели - без подписей линий (цвета линий и так видны), только числа
+    self.legend:SetText((self.compactLegend and "" or ("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r     ")) .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
     local h = ns.History(id)
     ns.After(0, function() if self.id == id then self.chart:SetPoints(h) end end)
   end

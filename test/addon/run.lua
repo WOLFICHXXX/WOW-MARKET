@@ -1234,6 +1234,16 @@ do
   ns.DB.settings.profUI = true
   W.tabs[3].scripts.OnClick(W.tabs[3])
 end
+-- у аукциониста: своя сумка под окном аукциона, клик - предмет в «Продать»
+do
+  ns.UpdateAHBags()
+  local B = WolfichMarketAHBags
+  local btn; for _, b in ipairs(B and B.btns or {}) do if b.id == 2840 then btn = b end end
+  check(B and B:IsShown() and btn ~= nil, "своя сумка у аукциониста с предметами из сумок")
+  if btn then btn.scripts.OnClick(btn, "LeftButton") end
+  check(ns._ahPages[3]:IsShown(), "клик по предмету в сумке аддона - вкладка «Продать»")
+  local okP = pcall(ns.PlaceAH); check(okP, "окно аукциона и панель размещаются на экране")
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

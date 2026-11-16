@@ -678,4 +678,9 @@ ns.EN = {
   ["Продажа"] = "Sale",
   ["Дешевле купить: "] = "Cheaper to buy: ",
   ["Продать: "] = "Sell: ",
+  ["Сумки"] = "Bags",
+  ["клик - выставить в панели аддона, ПКМ - как в игре"] = "click - post in the addon panel, right-click - as in the game",
+  ["по аукциону"] = "auction value",
+  ["этот предмет нельзя выставить на аукцион."] = "this item cannot be posted on the auction house.",
+  ["У аукциониста: своя сумка под окном аукциона"] = "At the auctioneer: addon bag under the auction window",
 }
