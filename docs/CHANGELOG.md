@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.37
+
+### ✨ New (trial)
+- **Own crafting window:** when a profession opens, the addon's Professions section replaces the game window. *Create xN* crafts right from here, *All (N)* - as many as the materials in bags allow. *Game window* brings back the usual window until the next opening; can be turned off in Settings.
+
+### ✨ Новое (проба)
+- **Своё окно крафта:** при открытии профессии вместо окна игры - раздел «Профессии» аддона. *Создать ×N* крафтит прямо отсюда, *Все (N)* - сколько хватит материалов в сумках. *Окно игры* вернёт обычное окно до следующего открытия; выключается в настройках.
+
 ## 2.43.36
 
 **🇬🇧 English** · 🇷🇺 Русский - ниже

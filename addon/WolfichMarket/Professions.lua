@@ -760,6 +760,8 @@ local function onTradeSkill()
     build(); hookRows()
     if panel and panel:IsShown() then refreshList() end
     ns.DecorateRecipeRows()
+    if prof and not isForeign() and ns.EnterCraftMode then ns.EnterCraftMode() end
+    if ns.CraftModeActive and not ns.CraftModeActive() and ns.CraftReveal then ns.CraftReveal() end -- своё окно не открылось - окно игры видно
   end
   timer = C_Timer and C_Timer.NewTimer and C_Timer.NewTimer(0.6, run)
   if not timer then run() end

@@ -4,6 +4,7 @@ local ns = loadAddon(arg[2])
 local function check(c, m) io.write(c and "OK   " or "FAIL ", m, "\n") end
 fire("ADDON_LOADED", "WolfichMarket"); ns.DB.settings.debug = true; fire("PLAYER_LOGIN")
 check(ns.DB and ns.charKey == "Вульфыч-CAMWOWEU4Realm6PvP", "загрузка и ключ персонажа")
+ns.DB.settings.craftUI = false -- своё окно крафта проверяется отдельно (в конце)
 -- окно профессии
 fire("TRADE_SKILL_SHOW"); advance(1)
 check(WolfichMarketProfPanel == nil, "у окна профессии нет отдельной панели")
@@ -1346,3 +1347,31 @@ local jb = ns._mainPops and WolfichMarketMainFrame.pages[6]
 ns.OpenLog()
 check(ns._mainPops.log and ns._mainPops.log.dim:IsShown() and #ns.log > 0, "«Журнал» открывается кнопкой в настройках (" .. #ns.log .. ")")
 check(not bad, "нет ошибок при сборке окон" .. (bad and (": " .. bad) or ""))
+-- своё окно крафта: при открытии профессии - раздел «Профессии» на месте окна игры; «Создать» крафтит отсюда
+do
+  local MF = WolfichMarketMainFrame
+  MF:Hide(); ns.DB.settings.craftUI = true
+  local crafted
+  local oldCraft, oldInfo, oldClose = C_TradeSkillUI.CraftRecipe, C_TradeSkillUI.GetRecipeInfo, C_TradeSkillUI.CloseTradeSkill
+  local closed = false
+  C_TradeSkillUI.CraftRecipe = function(id, n) crafted = { id, n } end
+  C_TradeSkillUI.CloseTradeSkill = function() closed = true end
+  C_TradeSkillUI.GetRecipeInfo = function(id) local r = oldInfo(id); if r then r = setmetatable({ numAvailable = 3 }, { __index = r }) end; return r end
+  ProfessionsFrame:Show(); fire("TRADE_SKILL_SHOW"); advance(2)
+  check(ns.CraftModeActive() and MF:IsShown() and MF.pages[3]:IsShown() and ProfessionsFrame:GetAlpha() == 0, "своё окно крафта открылось вместо окна профессии игры")
+  local card = ns._mainCraft.card
+  local rec; for _, r in ipairs(ns.DB.chars[ns.charKey].profs["Кузнечное дело"].recipes) do if r.learned ~= false and r.out then rec = r; break end end
+  ns._mainCraft.select(rec)
+  check(card.all:IsShown() and card.all.n == 3, "своё окно крафта: «Все (3)» - сколько хватит материалов")
+  card.all.scripts.OnClick(card.all); card.craft.scripts.OnClick(card.craft)
+  check(crafted and crafted[1] == rec.id and crafted[2] == 3, "своё окно крафта: «Создать» крафтит прямо отсюда")
+  MF.gameBtn.scripts.OnClick(MF.gameBtn)
+  check(not ns.CraftModeActive() and not MF:IsShown() and ProfessionsFrame:GetAlpha() == 1, "«Окно игры» возвращает окно профессии игры")
+  fire("TRADE_SKILL_CLOSE"); fire("TRADE_SKILL_SHOW"); advance(2)
+  local again = ns.CraftModeActive()
+  MF:Hide(); if MF.scripts.OnHide then MF.scripts.OnHide(MF) end -- заглушка не вызывает OnHide сама
+  check(again and not ns.CraftModeActive() and closed, "закрыли своё окно крафта - профессия закрывается")
+  ns.DB.settings.craftUI = false; fire("TRADE_SKILL_CLOSE"); fire("TRADE_SKILL_SHOW"); advance(2)
+  check(not MF:IsShown(), "настройка выключает своё окно крафта")
+  C_TradeSkillUI.CraftRecipe, C_TradeSkillUI.GetRecipeInfo, C_TradeSkillUI.CloseTradeSkill = oldCraft, oldInfo, oldClose
+end

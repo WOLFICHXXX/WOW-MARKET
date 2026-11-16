@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.37", d = "17.11.2026",
+    ru = { "Своё окно крафта (проба): при открытии профессии вместо окна игры - раздел «Профессии» аддона. «Создать ×N» крафтит прямо отсюда, «Все (N)» - сколько хватит материалов в сумках. Кнопка «Окно игры» вернёт обычное окно до следующего открытия; выключается в настройках («Своё окно крафта вместо окна профессии игры»)." },
+    en = { "Own crafting window (trial): when a profession opens, the addon's Professions section replaces the game window. \"Create xN\" crafts right from here, \"All (N)\" - as many as the materials in bags allow. The \"Game window\" button brings back the usual window until the next opening; can be turned off in Settings." } },
   { v = "2.43.36", d = "17.11.2026",
     ru = { "«Купить»: кнопка категории подстраивается под длину названия - «Хозяйственные товары» и другие длинные названия влезают целиком; меню категорий шире." },
     en = { "Buy: the category button fits the name length - long category names fit in full; the category menu is wider." } },
