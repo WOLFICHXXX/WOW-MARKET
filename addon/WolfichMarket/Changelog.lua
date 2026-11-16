@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.29", d = "17.11.2026",
+    ru = { "Компактное окно: свои простые значки разделов (дом, персонажи, колба, молоток, песочные часы, шестерёнка), выбранный раздел - золотом с чертой слева; фон - прежняя ткань с лапками." },
+    en = { "Compact window: simple section icons of its own (house, characters, flask, gavel, hourglass, gear), the selected section in gold with a bar on the left; the background is the former cloth with paws." } },
   { v = "2.43.28", d = "17.11.2026",
     ru = { "Компактное главное окно: узкая полоса значков слева (подпись - при наведении), тонкая шапка с названием раздела, плоская рамка. Окно заметно меньше. Вернуть прежнее - Настройки, галочка «Компактное главное окно», затем перезагрузка интерфейса." },
     en = { "Compact main window: a narrow icon strip on the left (names on hover), a thin header with the section name, a flat frame. The window is noticeably smaller. To get the old one back - Settings, \"Compact main window\" checkbox, then reload the UI." } },

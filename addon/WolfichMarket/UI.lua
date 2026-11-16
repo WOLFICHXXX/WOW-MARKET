@@ -87,15 +87,8 @@ end
 
 -- ---------- оформление нового макета (2.43): рамка из частей и простые панели ----------
 local function winReady() return ns.WIN and ns.WIN_TC and ns.WIN_TC["f-tl"] ~= nil end
--- рамка окна: уголки, кристаллы и лапа - без растяжения; s - масштаб частей
-function UI.FrameSkin(f, s)
-  s = s or 0.5
-  f.wmTheme, f.wmScale = "win", s
-  local W = ns.WIN
-  local function tex(name, layer, sub) local t = f:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t end
-  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
-  local c = tex("f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 44 * s, -58 * s); c:SetPoint("BOTTOMRIGHT", -46 * s, 34 * s)
-  -- украшение фона: несколько едва заметных лапок (места - доли размера окна)
+-- украшение фона: несколько едва заметных лапок (места - доли размера окна)
+function UI.PawsBG(f)
   if ns.WIN_TC["paw-bg"] then
     local PAWS = { { 0.10, 0.24, 0.17, -25, 0.075 }, { 0.32, 0.72, 0.12, 15, 0.06 }, { 0.56, 0.30, 0.10, -8, 0.05 },
       { 0.80, 0.64, 0.16, 30, 0.07 }, { 0.91, 0.17, 0.09, -40, 0.05 }, { 0.46, 0.90, 0.08, 10, 0.045 } }
@@ -116,6 +109,16 @@ function UI.FrameSkin(f, s)
     place()
     if f.HookScript then f:HookScript("OnSizeChanged", place) end
   end
+end
+-- рамка окна: уголки, кристаллы и лапа - без растяжения; s - масштаб частей
+function UI.FrameSkin(f, s)
+  s = s or 0.5
+  f.wmTheme, f.wmScale = "win", s
+  local W = ns.WIN
+  local function tex(name, layer, sub) local t = f:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t end
+  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
+  local c = tex("f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 44 * s, -58 * s); c:SetPoint("BOTTOMRIGHT", -46 * s, 34 * s)
+  UI.PawsBG(f)
   local tlw, tlh = sz("f-tl"); local trw = sz("f-tr"); local lw = sz("f-l"); local blw, bh = sz("f-bl"); local brw = sz("f-br"); local emw = sz("f-em")
   local t = tex("f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
   local l = tex("f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
@@ -809,9 +812,9 @@ end
 local CONTENT_W, CONTENT_H = 961, 546
 local RAIL, PAD, HEAD = 62, 16, 42
 UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
--- значки разделов - вырезки из картинки колонки (side.tga 256 x 1024, в пикселях)
-local NAV_ICONS = { { 75, 209, 171, 305 }, { 75, 307, 171, 403 }, { 75, 409, 171, 505 }, { 75, 509, 171, 605 }, { 75, 614, 171, 710 }, { 75, 714, 171, 810 } }
-local LOGO = { 58, 8, 198, 148 }
+-- свои простые значки разделов (белые линии, красятся цветом): media\\win\\nav-*.tga, исходник - tools\\icons
+local NAV_ICONS = { "nav-home", "nav-alts", "nav-prof", "nav-auc", "nav-cd", "nav-set" }
+local IC_DIM, IC_HOVER, IC_ON = { 0.62, 0.56, 0.44 }, { 0.92, 0.84, 0.66 }, { 0.95, 0.78, 0.38 }
 local function edge(f, r, g, b, a, layer)
   local L = {}
   for i = 1, 4 do L[i] = f:CreateTexture(nil, layer or "BORDER"); L[i]:SetColorTexture(r, g, b, a) end
@@ -822,22 +825,19 @@ local function edge(f, r, g, b, a, layer)
   return L
 end
 UI.Edge = edge
-local function sideCrop(t, c)
-  t:SetTexture(M .. "win\\side", nil, nil, "TRILINEAR")
-  if t.SetSnapToPixelGrid then pcall(t.SetSnapToPixelGrid, t, false); pcall(t.SetTexelSnappingBias, t, 0) end
-  t:SetTexCoord(c[1] / 256, c[3] / 256, c[2] / 1024, c[4] / 1024)
-end
 function UI.MainChromeCompact(win, onNav, navTips)
   local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
   win:SetSize(W, H)
   local GOLD_EDGE = { 0.43, 0.33, 0.16, 1 }
   -- полоса значков
   local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
-  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.078, 0.063, 0.043, 0.97)
+  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); UI.WinTex(rb, "f-c"); rb:SetVertexColor(0.62, 0.58, 0.52)
   edge(rail, unpack(GOLD_EDGE))
   -- основная часть
   local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
-  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.051, 0.043, 0.035, 0.96)
+  -- фон - прежняя ткань с едва заметными лапками
+  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); UI.WinTex(mb, "f-c")
+  UI.PawsBG(main)
   edge(main, unpack(GOLD_EDGE))
   win.frameBox = main
   -- шапка: название раздела крупно, рядом «WolfichMarket vX» мелко; линия под шапкой
@@ -856,26 +856,29 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(48, 48); logo:SetPoint("TOP", 0, -6); sideCrop(logo, LOGO)
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(30, 30); logo:SetPoint("TOP", 0, -14); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
+  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.43, 0.33, 0.16, 0.6); sep:SetSize(34, 1); sep:SetPoint("TOP", 0, -54)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
     local b = CreateFrame("Button", nil, rail); b:SetSize(44, 44); b:SetPoint("TOP", 0, -60 - (i - 1) * 50)
     b:SetFrameLevel((rail:GetFrameLevel() or 1) + 2)
-    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetAllPoints(); sideCrop(b.icon, c); b.icon:SetAlpha(0.6)
-    b.ring = edge(b, 0.95, 0.78, 0.38, 1, "OVERLAY"); for _, t in ipairs(b.ring) do t:Hide() end
+    -- подложка выбранного раздела и золотая черта у левого края полосы
+    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.95, 0.78, 0.38, 0.12); b.bg:Hide()
+    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.95, 0.78, 0.38, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(30, 30); b.icon:SetPoint("CENTER"); UI.WinTex(b.icon, c)
+    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
+    tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
-    UI.WinTex(b.glow, "slot-glow"); b.glow:SetBlendMode("ADD"); b.glow:SetVertexColor(1, 0.8, 0.35); b.glow:SetAlpha(0)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
     b:SetScript("OnEnter", function(self)
-      if not self.on then self.icon:SetAlpha(1) end
+      if not self.on then tint(IC_HOVER) end
       if navTips and navTips[i] then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(navTips[i], 1, 0.82, 0); GameTooltip:Show() end
     end)
-    b:SetScript("OnLeave", function(self) if not self.on then self.icon:SetAlpha(0.6) end; GameTooltip:Hide() end)
+    b:SetScript("OnLeave", function(self) if not self.on then tint(IC_DIM) end; GameTooltip:Hide() end)
     b:SetScript("OnClick", function() onNav(i) end)
     function b:SetOn(on)
-      self.on = on; self.icon:SetAlpha(on and 1 or 0.6); self.glow:SetAlpha(on and 0.55 or 0)
-      for _, t in ipairs(self.ring) do t:SetShown(on and true or false) end
+      self.on = on; tint(on and IC_ON or IC_DIM); self.bg:SetShown(on and true or false); self.bar:SetShown(on and true or false)
     end
     function b:SetPulse(on)
       self.pulse:SetShown(on)

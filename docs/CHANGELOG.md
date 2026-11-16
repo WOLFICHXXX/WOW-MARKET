@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.29
+
+### ✨ Look
+- **Compact window:** simple section icons of its own (house, characters, flask, gavel, hourglass, gear); the selected section is gold with a bar on the left; the background is the former cloth with paws.
+
+### ✨ Оформление
+- **Компактное окно:** свои простые значки разделов (дом, персонажи, колба, молоток, песочные часы, шестерёнка); выбранный раздел - золотом с чертой слева; фон - прежняя ткань с лапками.
+
 ## 2.43.28
 
 ### ✨ New
