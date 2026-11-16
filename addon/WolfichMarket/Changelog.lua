@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.40", d = "17.11.2026",
+    ru = { "«Продать»: кнопка «Обновить» перечитывает сумки; список обновляется и сам, когда лот выставлен окном игры или ПКМ. Кнопки «Фракционный / Общий» компактнее и не заходят на эмблему." },
+    en = { "Sell: a Refresh button re-reads the bags; the list also updates itself when a lot is posted through the game window or right-click. The Faction / Neutral buttons are more compact and no longer touch the emblem." } },
   { v = "2.43.39", d = "17.11.2026",
     ru = { "Панель у аукциониста: кнопки «Сканировать» и «Обновить цены» компактнее." },
     en = { "Auctioneer panel: the Scan and Refresh prices buttons are more compact." } },

@@ -2,6 +2,16 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.40
+
+### 🛠 Fixes
+- **Sell:** a *Refresh* button re-reads the bags; the list also updates itself when a lot is posted through the game window or right-click.
+- The *Faction / Neutral* buttons are more compact and no longer touch the emblem.
+
+### 🛠 Исправлено
+- **«Продать»:** кнопка *«Обновить»* перечитывает сумки; список обновляется и сам, когда лот выставлен окном игры или ПКМ.
+- Кнопки *«Фракционный / Общий»* компактнее и не заходят на эмблему.
+
 ## 2.43.39
 
 ### ✨ Look

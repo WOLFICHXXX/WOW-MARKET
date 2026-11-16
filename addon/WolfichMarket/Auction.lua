@@ -368,7 +368,7 @@ local function header()
   panel.scanBtn = UI.Button(panel, L"Сканировать", 120, 18, function() ns.StartScan() end, true)
   panel.scanBtn:SetPoint("TOPRIGHT", -54, -25)
   panel.quickBtn = UI.Button(panel, L"Обновить цены", 120, 18, function() ns.QuickRefresh() end, true)
-  panel.quickBtn:SetPoint("TOPRIGHT", -26, -64)
+  panel.quickBtn:SetPoint("TOPRIGHT", -26, -66)
   panel.quickBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:AddLine(L"Свежие цены без 15-минутного ожидания: всё, что лежит в сумках, результаты и материалы рецептов ваших профессий, отмеченные и план. Предметы проверяются по очереди, примерно 2 в секунду; повторное нажатие - стоп.", 1, 1, 1, true)
@@ -378,11 +378,11 @@ local function header()
   -- какой это аукцион: три кнопки (горит текущий); нажатие - исправить, запоминается для аукциониста
   panel.kindBtn = {}
   local KB = { { "main", L"Фракционный", 104 }, { "neutral", L"Общий", 72 } }
-  local x = 26
+  local x = 30
   for _, k in ipairs(KB) do
-    local b = UI.Button(panel, k[2], k[3], 26, function() ns.SetAHKind(k[1]) end)
+    local b = UI.Button(panel, k[2], k[3], 18, function() ns.SetAHKind(k[1]) end)
     local bw = b:FitWidth(k[3], 160)
-    b:SetPoint("TOPLEFT", x, -60); x = x + bw + 6
+    b:SetPoint("TOPLEFT", x, -66); x = x + bw + 6
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:AddLine(ns.AltName(k[1]), 1, 0.82, 0)
@@ -838,6 +838,10 @@ local function pageSell(f)
     if not any then for _, d in ipairs(f.list.data) do if ns.AHPrice(d.id) then f.checked[d.id] = true end end end
     f.list:Refresh(); f.updateBulk()
   end); f.allBtn:SetPoint("BOTTOMLEFT", 0, 182)
+  -- «Обновить»: перечитать сумки (если лот выставили мимо аддона - окном игры или ПКМ)
+  f.reload = UI.Button(f, L"Обновить", 80, 22, function() f.refresh() end); f.reload:SetPoint("LEFT", f.allBtn, "RIGHT", 6, 0)
+  f.reload:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Перечитать предметы в сумках", 1, 1, 1); GameTooltip:Show() end)
+  f.reload:SetScript("OnLeave", function() GameTooltip:Hide() end)
   f.bulk = UI.Button(f, L"Выставить отмеченные", 220, 22, function() f.postNext() end, true); f.bulk:SetPoint("BOTTOMRIGHT", 0, 182)
   _G.WolfichMarketPostNextButton = f.bulk
   f.bulk:SetScript("OnEnter", function(self)
@@ -1020,10 +1024,19 @@ local function posted()
   if pg and pg.pending then pg.onCreated() return end -- массовое выставление
   ns.say(L"|cff78d98aлот выставлен.|r"); sellSel = nil
   if pg and pg:IsShown() then pg.sel:SetText(""); pg.refresh() end
+  -- сумки меняются чуть позже подтверждения лота - перечитать ещё раз
+  for _, t in ipairs({ 0.6, 1.5 }) do ns.After(t, function() if pg and pg:IsShown() and not pg.pending then pg.refresh() end end) end
 end
 ns.On("AUCTION_HOUSE_AUCTION_CREATED", posted)
 ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() local pg = pages[TAB_SELL]; if pg and pg:IsShown() and not pg.pending then pg.updateBulk() end end)
 ns.On("BAG_UPDATE_DELAYED", function() if pages[TAB_SELL] and pages[TAB_SELL]:IsShown() then pages[TAB_SELL].refresh() end end)
+-- предмет положили в окно «Продать» игры или убрали из него (блокировка в сумке) - перечитать
+local lockQueued = false
+ns.On("ITEM_LOCK_CHANGED", function()
+  if lockQueued or not (pages[TAB_SELL] and pages[TAB_SELL]:IsShown()) then return end
+  lockQueued = true
+  ns.After(0.3, function() lockQueued = false; if pages[TAB_SELL]:IsShown() and not pages[TAB_SELL].pending then pages[TAB_SELL].refresh() end end)
+end)
 
 -- график цены - отдельным окном (вкладки «График» больше нет: график - в раскрытии каждой строки)
 -- выбрать предмет из сумки для продажи (клик в сумке аддона у аукциониста)

@@ -171,6 +171,14 @@ do
   end
 
 end
+do
+  local n0 = #sell.list.data
+  local oldI = C_Container.GetContainerItemInfo
+  C_Container.GetContainerItemInfo = function(b, s2) if s2 == 2 then return nil end return oldI(b, s2) end -- лот выставили окном игры
+  sell.reload.scripts.OnClick(sell.reload)
+  check(#sell.list.data == n0 - 1, "«Продать»: кнопка «Обновить» перечитывает сумки")
+  C_Container.GetContainerItemInfo = oldI; sell.refresh()
+end
 check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
 local buy = P[2]
 ns.OpenBuy(2840); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
