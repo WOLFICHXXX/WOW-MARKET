@@ -4,11 +4,41 @@ Each release takes its notes from the matching "## version" section below; they 
 
 ## 2.43.36
 
-### 🛠 Fix
-- **Buy:** the category button fits the name length - long category names fit in full; the category menu is wider.
+**🇬🇧 English** · 🇷🇺 Русский - ниже
+
+### ✨ New minimalist look
+- **Compact main window:** a narrow strip of simple section icons on the left (house, characters, flask, gavel, hourglass, gear; names on hover), a thin header with the section name and the cloth background with paws. The window is noticeably smaller. The old one: *Settings → Compact main window*, then reload the UI.
+- **Flat buttons everywhere:** dark fill with a thin gold edge, the main or selected one gold, labels exactly centered. Checkboxes stay as before.
+- **Auctioneer bag:** a minimalist frame, the slots as before, the character's money with coin icons at the bottom right.
+- **Game profession window:** the *where to buy and where to sell* block and the F / N profit columns in the new style.
+
+### 🔨 Auction
+- **Buy tab:** a search box and a category picker - items from the latest snapshot, cheapest first.
+- **Plan:** change the count of every recipe with **-** / **+** or type it in.
+
+### 🛠 Fixes
+- Usable bag items (bedroll and others) are no longer blocked after visiting the auction house.
+- **Refresh prices** no longer sends a query while the auction house has not answered the previous one - the game window no longer hangs on *"Searching..."*, and refreshing is faster.
+- Posting waits until the game knows whether an item is a commodity - such lots used to hang the auction house; no false *"not responding"* right after opening.
+
+---
+
+**🇷🇺 Русский**
+
+### ✨ Новый минималистичный вид
+- **Компактное главное окно:** узкая полоса простых значков разделов слева (дом, персонажи, колба, молоток, часы, шестерёнка; подпись - при наведении), тонкая шапка с названием раздела, фон - ткань с лапками. Окно заметно меньше. Прежнее: *Настройки → Компактное главное окно*, затем перезагрузка интерфейса.
+- **Плоские кнопки везде:** тёмная заливка с тонкой золотой кромкой, главная или выбранная - золотая, надписи строго по центру. Галочки - прежние.
+- **Сумка у аукциониста:** минималистичная рамка, прежние ячейки, внизу справа - деньги персонажа значками монет.
+- **Окно профессии игры:** блок *«Где купить и где продать»* и столбики прибыли Ф / Общ - в новом стиле.
+
+### 🔨 Аукцион
+- **«Купить»:** строка поиска и выбор категории - предметы из последнего снимка, сначала дешёвые.
+- **План:** количество у каждого рецепта - кнопками **-** / **+** или вручную.
 
 ### 🛠 Исправлено
-- **«Купить»:** кнопка категории подстраивается под длину названия - длинные названия влезают целиком; меню категорий шире.
+- Предметы из сумок с действием (спальник и др.) больше не блокируются после аукциона.
+- **«Обновить цены»** не шлёт запрос, пока аукцион не ответил на прошлый - окно игры больше не зависает на *«Поиск...»*, обновление быстрее.
+- Выставление ждёт, пока игра узнает, товар это или предмет (такие лоты вешали аукцион); нет ложного *«Аукцион не отвечает»* сразу после открытия.
 
 ## 2.43.35
 
