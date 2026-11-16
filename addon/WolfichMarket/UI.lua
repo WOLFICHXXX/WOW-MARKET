@@ -771,7 +771,7 @@ function UI.ItemDetail(det, opts)
   det.btn = UI.Button(left, "", 120, 22); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
   det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact
   det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 4); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
-  det.legend = UI.Font(det, 9, UI.DIM); det.legend:SetPoint("TOPRIGHT", -46, -3)
+  det.legend = UI.Font(det, 9, UI.DIM); det.legend:SetPoint("TOPRIGHT", -10, -3)
   det.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
   function det:Set(id)
     self.id = id
@@ -791,6 +791,9 @@ function UI.ItemDetail(det, opts)
       self.btn:SetLabel(L"Найти на аукционе"); self.btn:Show()
       self.btn:SetScript("OnClick", function() ns.SearchAH(id) end)
     end
+    -- над графиком: продано за 24 ч и сколько сейчас лотов
+    local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
+    self.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r     " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
     local h = ns.History(id)
     ns.After(0, function() if self.id == id then self.chart:SetPoints(h) end end)
   end

@@ -138,7 +138,8 @@ function craft.drawChart()
   local p = ns.AHPrice(id)
   card.chartId = id
   -- заголовок вместо легенды: цвет слов = цвет линий
-  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   |cff8a8070" .. ns.itemName(id) .. "|r")
+  local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
+  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r   |cff8a8070" .. ns.itemName(id) .. "|r")
   local h = ns.History(id)
   ns.After(0, function() card.chart:SetPoints(h) end)
 end

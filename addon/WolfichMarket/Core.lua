@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.43.6"
+ns.VERSION = "2.43.7"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -224,7 +224,7 @@ ns.On("ADDON_LOADED", function(name)
     end
     DB.settings.sortV2 = 1
   end
-  -- 2.43.6: «продано» по снимку в 2.43.3 могло быть ошибочным (продавец приходит у единиц лотов) - вернуть в «возможно, продан»
+  -- 2.43.7: «продано» по снимку в 2.43.3 могло быть ошибочным (продавец приходит у единиц лотов) - вернуть в «возможно, продан»
   if not DB.settings.lotsFixV then
     for ck, c in pairs(DB.chars or {}) do
       for _, l in ipairs(c.lots or {}) do
@@ -461,6 +461,22 @@ function ns.AvgPrice(id, hours)
   local sum, n = 0, 0
   for i = 1, #h - 1 do if h[i][1] >= from and h[i][2] > 0 then sum = sum + h[i][2]; n = n + 1 end end
   return n > 0 and sum / n or nil
+end
+-- продано за последние N часов (примерно): сумма уменьшений выставленного количества между снимками
+function ns.SoldIn(id, hours)
+  local h = ns.History(id)
+  if not h or #h < 2 then return nil end
+  local from, sum = time() - (hours or 24) * 3600, 0
+  for i = 2, #h do
+    if h[i][1] >= from then local a, b = h[i - 1][3], h[i][3]; if a and b and a > b then sum = sum + (a - b) end end
+  end
+  return sum
+end
+-- сейчас на аукционе: лотов и штук (по последнему снимку)
+function ns.LotsNow(id)
+  local sc = ns.CurrentScan()
+  local r = sc and sc.items and sc.items[id]
+  if r then return r[3] or 0, r[2] or 0 end
 end
 function ns.IsMarked(id) return ns.DB.marked[id] == true end
 function ns.ToggleMark(id)
