@@ -567,6 +567,7 @@ ns.EN = {
   ["|cffffb060В окне «Продать» самой игры лежит предмет - уберите его (или откройте там «Купить»), иначе аукцион зависает на «Поиск...».|r"] = "|cffffb060An item is placed in the game's own \"Sell\" window - remove it (or switch to \"Buy\" there), otherwise the auction house hangs on \"Searching...\".|r",
   ["|cffffb060Аукцион не отвечает: после снимка всего аукциона сервер ещё досылает данные. Подождите пару минут и нажмите «Обновить цены» снова.|r"] = "|cffffb060The auction house is not responding: after a whole-auction snapshot the server is still sending data. Wait a couple of minutes and click Refresh prices again.|r",
   ["|cffffb060Аукцион не отвечает - обновление цен остановлено. Попробуйте через минуту.|r"] = "|cffffb060The auction house is not responding - price refresh stopped. Try again in a minute.|r",
+  ["|cffffb060Игра ещё загружает данные предмета - нажмите через секунду.|r"] = "|cffffb060The game is still loading the item data - click again in a second.|r",
   ["|cffffb060Игра не подтвердила лот: после снимка всего аукциона сервер 1-2 минуты отвечает медленно. Подождите и нажмите ещё раз.|r"] = "|cffffb060The game did not confirm the lot: after a whole-auction snapshot the server is slow for 1-2 minutes. Wait and click again.|r",
   ["общий рынок: цены не изменились (%d) - отправляю только подтверждение времени снимка."] = "shared market: prices unchanged (%d) - sending only a snapshot time confirmation.",
   [" Время остальных цен обновлено: %d."] = " Time of other prices refreshed: %d.",

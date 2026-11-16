@@ -38,6 +38,16 @@ ns.On("AUCTION_HOUSE_SHOW", function() busyStreak = nil end)
 ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() busyStreak = nil end)
 -- снимок всего аукциона закончился недавно - сервер может пару минут отвечать медленно
 function ns.AfterScan() return ns.lastScanEnd and (GetTime() - ns.lastScanEnd) < 180 end
+-- товар (commodity) или обычный предмет. nil - игра ещё не знает (данные предмета не загружены):
+-- выставлять в этот момент нельзя - лот уходит не тем способом и аукцион зависает.
+function ns.CommodityStatus(loc, id)
+  if not (loc and C_AuctionHouse and C_AuctionHouse.GetItemCommodityStatus and Enum and Enum.ItemCommodityStatus) then return false end
+  local st = safe(C_AuctionHouse.GetItemCommodityStatus, loc)
+  if st == Enum.ItemCommodityStatus.Commodity then return true end
+  if st == Enum.ItemCommodityStatus.Item then return false end
+  if id and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  return nil
+end
 -- окно «Продать» самой игры с положенным предметом: оно само шлёт запросы - выставлять параллельно нельзя
 function ns.BlizzSellBusy()
   local A = AuctionHouseFrame
@@ -824,8 +834,7 @@ local function pageSell(f)
     local p = ns.AHPrice(d.id)
     f.basePrice = p and math.max(1, p - 1) or nil
     f.money:Set(f.basePrice and math.floor(f.basePrice * (f.markup or 1) + 0.5) or 0)
-    d.commodity = d.loc and C_AuctionHouse.GetItemCommodityStatus and Enum and Enum.ItemCommodityStatus
-      and safe(C_AuctionHouse.GetItemCommodityStatus, d.loc) == Enum.ItemCommodityStatus.Commodity
+    d.commodity = ns.CommodityStatus(d.loc, d.id)
     f.qty:SetText(d.commodity and d.count or 1)
     f.list:Refresh(); f.calc()
   end
@@ -855,7 +864,10 @@ local function pageSell(f)
     local d = sellSel; if not d or not d.loc then return end
     if ns.BlizzSellBusy() then ns.say(L"|cffffb060В окне «Продать» самой игры лежит предмет - уберите его (или откройте там «Купить»), иначе аукцион зависает на «Поиск...».|r") return end
     if ns.PostGate() == "wait" then ns.say(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r") return end
+    d.commodity = ns.CommodityStatus(d.loc, d.id)
+    if d.commodity == nil then ns.say(L"|cffffb060Игра ещё загружает данные предмета - нажмите через секунду.|r") return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
+    if not d.commodity then q = 1 end -- обычный предмет выставляется по одному
     local ok, err
     if d.commodity then ok, err = pcall(C_AuctionHouse.PostCommodity, d.loc, f.dur, q, unit)
     else ok, err = pcall(C_AuctionHouse.PostItem, d.loc, f.dur, q, nil, unit) end
@@ -901,8 +913,8 @@ local function pageSell(f)
     local q = f.queue()
     local it = q[1]; if not it then f.updateBulk() return end
     local d = it.d
-    d.commodity = d.loc and C_AuctionHouse.GetItemCommodityStatus and Enum and Enum.ItemCommodityStatus
-      and safe(C_AuctionHouse.GetItemCommodityStatus, d.loc) == Enum.ItemCommodityStatus.Commodity
+    d.commodity = ns.CommodityStatus(d.loc, d.id)
+    if d.commodity == nil then f.bulkInfo:SetText(L"|cffffb060Игра ещё загружает данные предмета - нажмите через секунду.|r") return end
     local qty = d.commodity and d.count or 1
     local ok, err
     if d.commodity then ok, err = pcall(C_AuctionHouse.PostCommodity, d.loc, f.dur, qty, it.unit)

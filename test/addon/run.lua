@@ -149,6 +149,15 @@ do
     check(postedLot == nil and ((sell.bulkInfo.text or ""):find("Продать", 1, true) or (sell.bulkInfo.text or ""):find("Sell", 1, true)), "окно «Продать» игры занято - выставление не уходит, подсказка")
     AuctionHouseFrame = oldA
   end
+  -- игра ещё не знает, товар это или предмет - не выставляем (иначе лот уходит не тем способом и аукцион зависает)
+  do
+    advance(20); sell.pending = nil
+    local oldS = C_AuctionHouse.GetItemCommodityStatus
+    C_AuctionHouse.GetItemCommodityStatus = function() return 0 end
+    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+    check(postedLot == nil, "тип лота неизвестен - выставление ждёт загрузки предмета")
+    C_AuctionHouse.GetItemCommodityStatus = oldS
+  end
   -- аукцион «занят»: первые секунды - подождать, дальше аддон пробует выставить всё равно
   do
     advance(20); sell.pending = nil

@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.27
+
+### 🛠 Fix
+- **Posting:** while the game has not loaded the item data and does not know whether it is a commodity or a single item, the addon waits - such a lot used to go out the wrong way and hang the auction house.
+
+### 🛠 Исправлено
+- **Выставление:** пока игра не загрузила данные предмета и не знает, товар это или отдельный предмет, аддон ждёт - раньше такой лот уходил не тем способом и аукцион зависал.
+
 ## 2.43.26
 
 ### 🛠 Fixes
