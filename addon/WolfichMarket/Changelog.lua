@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.28", d = "17.11.2026",
+    ru = { "Компактное главное окно: узкая полоса значков слева (подпись - при наведении), тонкая шапка с названием раздела, плоская рамка. Окно заметно меньше. Вернуть прежнее - Настройки, галочка «Компактное главное окно», затем перезагрузка интерфейса." },
+    en = { "Compact main window: a narrow icon strip on the left (names on hover), a thin header with the section name, a flat frame. The window is noticeably smaller. To get the old one back - Settings, \"Compact main window\" checkbox, then reload the UI." } },
   { v = "2.43.27", d = "16.11.2026",
     ru = { "Выставление: пока игра не загрузила данные предмета и не знает, товар это или отдельный предмет, аддон его не выставляет - раньше такой лот уходил не тем способом и аукцион зависал." },
     en = { "Posting: while the game has not loaded the item data and does not know whether it is a commodity or a single item, the addon does not post it - such a lot used to go out the wrong way and hang the auction house." } },

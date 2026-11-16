@@ -1035,6 +1035,7 @@ local function buildSettings(f)
 
   local b = column(410, L"Интерфейс")
   chk(b, L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() S.minimapHidden = not S.minimapShown end)
+  chk(b, L"Компактное главное окно (после перезагрузки интерфейса)", "compactMain", nil, true)
   chk(b, L"Значки в сумках: молоток - на аукцион, мешочек - торговцу", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
   chk(b, L"Сортировка сумок: аукцион наверх, торговцу вниз", "sortByValue")
   chk(b, L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end, true)
@@ -1302,8 +1303,13 @@ local function build()
   win:SetPoint("CENTER"); win:SetFrameStrata("HIGH"); win:SetToplevel(true)
   win:SetMovable(true); win:EnableMouse(true); win:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
-  win.content = UI.MainChrome(win, function(i) selectView(i) end, NAV_NAMES)
-  win.chromeSub:SetText("v" .. (ns.VERSION or ""))
+  if ns.DB.settings.compactMain ~= false then
+    win.content = UI.MainChromeCompact(win, function(i) selectView(i) end, NAV_NAMES)
+    win.chromeVer:SetText("v" .. (ns.VERSION or ""))
+  else
+    win.content = UI.MainChrome(win, function(i) selectView(i) end, NAV_NAMES)
+    win.chromeSub:SetText("v" .. (ns.VERSION or ""))
+  end
   -- разделы по порядку значков колонки
   win.tabs = win.nav
   win.pages = {}

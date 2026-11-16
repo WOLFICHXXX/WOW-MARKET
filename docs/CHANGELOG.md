@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.28
+
+### ✨ New
+- **Compact main window:** a narrow icon strip on the left (names on hover), a thin header with the section name and a flat frame - the window is noticeably smaller. The old look: *Settings → Compact main window*, then reload the UI.
+
+### ✨ Новое
+- **Компактное главное окно:** узкая полоса значков слева (подпись - при наведении), тонкая шапка с названием раздела и плоская рамка - окно заметно меньше. Прежний вид: *Настройки → Компактное главное окно*, затем перезагрузка интерфейса.
+
 ## 2.43.27
 
 ### 🛠 Fix

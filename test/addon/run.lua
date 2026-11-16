@@ -206,6 +206,8 @@ do
   local function has(list, id) for _, d in ipairs(list.data or {}) do if d.id == id then return d end end end
   local cheap, dear = has(B.buy.list, 2862), has(B.dear.list, 2840)
   check(okT and WolfichMarketMainFrame.pages[4]:IsShown() and ns.DB.settings.aucMode == "neutral", "вкладка «Аукционы» открывается, выбран общий")
+  local MF = WolfichMarketMainFrame
+  check(MF.w == ns.UI.COMPACT_SIZE[1] and #MF.nav == 6 and MF.content.w == 961 and MF.nav[4].on and MF.chromeSub.text ~= "", "компактное главное окно: полоса значков, шапка с разделом, область содержимого прежнего размера")
   check(cheap and cheap.gain > 0, "общий: дешёвый лот - в «Лучше купить здесь»")
   check(dear and not has(B.buy.list, 2840), "общий: дорогой лот - в «Лучше продать здесь»")
   -- на общем дороже на 10% - с комиссией 15% продавать там не выгоднее

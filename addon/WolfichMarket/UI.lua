@@ -804,6 +804,97 @@ function UI.ItemDetail(det, opts)
   return det
 end
 
+-- ---------- компактное главное окно: узкая полоса значков слева, тонкая шапка, плоская рамка ----------
+-- область содержимого - того же размера, что в большом окне (разделы не перестраиваются)
+local CONTENT_W, CONTENT_H = 961, 546
+local RAIL, PAD, HEAD = 62, 16, 42
+UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
+-- значки разделов - вырезки из картинки колонки (side.tga 256 x 1024, в пикселях)
+local NAV_ICONS = { { 75, 209, 171, 305 }, { 75, 307, 171, 403 }, { 75, 409, 171, 505 }, { 75, 509, 171, 605 }, { 75, 614, 171, 710 }, { 75, 714, 171, 810 } }
+local LOGO = { 58, 8, 198, 148 }
+local function edge(f, r, g, b, a, layer)
+  local L = {}
+  for i = 1, 4 do L[i] = f:CreateTexture(nil, layer or "BORDER"); L[i]:SetColorTexture(r, g, b, a) end
+  L[1]:SetPoint("TOPLEFT"); L[1]:SetPoint("TOPRIGHT"); L[1]:SetHeight(1)
+  L[2]:SetPoint("BOTTOMLEFT"); L[2]:SetPoint("BOTTOMRIGHT"); L[2]:SetHeight(1)
+  L[3]:SetPoint("TOPLEFT"); L[3]:SetPoint("BOTTOMLEFT"); L[3]:SetWidth(1)
+  L[4]:SetPoint("TOPRIGHT"); L[4]:SetPoint("BOTTOMRIGHT"); L[4]:SetWidth(1)
+  return L
+end
+UI.Edge = edge
+local function sideCrop(t, c)
+  t:SetTexture(M .. "win\\side", nil, nil, "TRILINEAR")
+  if t.SetSnapToPixelGrid then pcall(t.SetSnapToPixelGrid, t, false); pcall(t.SetTexelSnappingBias, t, 0) end
+  t:SetTexCoord(c[1] / 256, c[3] / 256, c[2] / 1024, c[4] / 1024)
+end
+function UI.MainChromeCompact(win, onNav, navTips)
+  local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
+  win:SetSize(W, H)
+  local GOLD_EDGE = { 0.43, 0.33, 0.16, 1 }
+  -- полоса значков
+  local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
+  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.078, 0.063, 0.043, 0.97)
+  edge(rail, unpack(GOLD_EDGE))
+  -- основная часть
+  local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
+  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.051, 0.043, 0.035, 0.96)
+  edge(main, unpack(GOLD_EDGE))
+  win.frameBox = main
+  -- шапка: название раздела крупно, рядом «WolfichMarket vX» мелко; линия под шапкой
+  local top = CreateFrame("Frame", nil, win); top:SetPoint("TOPLEFT", RAIL, 0); top:SetPoint("TOPRIGHT"); top:SetHeight(HEAD)
+  top:SetFrameLevel((main:GetFrameLevel() or 1) + 2)
+  local hl = top:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
+  local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 20, "")
+  sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD, 0)
+  local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 10, -1); title:SetText("·  WolfichMarket")
+  win.chromeTitle, win.chromeSub = title, sub
+  win.chromeVer = UI.Font(top, 11, UI.DIM); win.chromeVer:SetPoint("LEFT", title, "RIGHT", 6, 0)
+  local close = CreateFrame("Button", nil, top); close:SetSize(26, 26); close:SetPoint("RIGHT", -8, 0)
+  local cx = UI.Font(close, 16, UI.DIM); cx:SetPoint("CENTER"); cx:SetText("×")
+  close:SetScript("OnEnter", function() cx:SetTextColor(1, 0.85, 0.4) end)
+  close:SetScript("OnLeave", function() cx:SetTextColor(UI.DIM[1], UI.DIM[2], UI.DIM[3]) end)
+  close:SetScript("OnClick", function() win:Hide() end)
+  win.closeBtn = close
+  -- значок-волк сверху полосы
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(48, 48); logo:SetPoint("TOP", 0, -6); sideCrop(logo, LOGO)
+  -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
+  local nav = {}
+  for i, c in ipairs(NAV_ICONS) do
+    local b = CreateFrame("Button", nil, rail); b:SetSize(44, 44); b:SetPoint("TOP", 0, -60 - (i - 1) * 50)
+    b:SetFrameLevel((rail:GetFrameLevel() or 1) + 2)
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetAllPoints(); sideCrop(b.icon, c); b.icon:SetAlpha(0.6)
+    b.ring = edge(b, 0.95, 0.78, 0.38, 1, "OVERLAY"); for _, t in ipairs(b.ring) do t:Hide() end
+    b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
+    UI.WinTex(b.glow, "slot-glow"); b.glow:SetBlendMode("ADD"); b.glow:SetVertexColor(1, 0.8, 0.35); b.glow:SetAlpha(0)
+    b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
+    b:SetScript("OnEnter", function(self)
+      if not self.on then self.icon:SetAlpha(1) end
+      if navTips and navTips[i] then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(navTips[i], 1, 0.82, 0); GameTooltip:Show() end
+    end)
+    b:SetScript("OnLeave", function(self) if not self.on then self.icon:SetAlpha(0.6) end; GameTooltip:Hide() end)
+    b:SetScript("OnClick", function() onNav(i) end)
+    function b:SetOn(on)
+      self.on = on; self.icon:SetAlpha(on and 1 or 0.6); self.glow:SetAlpha(on and 0.55 or 0)
+      for _, t in ipairs(self.ring) do t:SetShown(on and true or false) end
+    end
+    function b:SetPulse(on)
+      self.pulse:SetShown(on)
+      self:SetScript("OnUpdate", on and function(me) me.pulse:SetAlpha(0.35 + 0.45 * (0.5 + 0.5 * math.sin(GetTime() * 3.5))) end or nil)
+    end
+    nav[i] = b
+  end
+  win.nav = nav
+  -- перетаскивание за шапку и полосу
+  for _, f in ipairs({ top, rail }) do
+    f:EnableMouse(true); f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function() win:StartMoving() end)
+    f:SetScript("OnDragStop", function() win:StopMovingOrSizing() end)
+  end
+  local content = CreateFrame("Frame", nil, win); content:SetPoint("TOPLEFT", RAIL + PAD, -(HEAD + 10)); content:SetSize(CONTENT_W, CONTENT_H)
+  content:SetFrameLevel((top:GetFrameLevel() or 1) + 1)
+  return content
+end
+
 -- рамка нового главного окна: колонка разделов, шапка, рамка с тканью; возвращает область содержимого
 -- окно как на макете: 1260 x 780; K - масштаб колонки и шапки относительно первой сборки (1080 x 700)
 local K = 780 / 700
