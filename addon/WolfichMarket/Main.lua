@@ -5,6 +5,8 @@ local UI, M = ns.UI, ns.MEDIA
 
 local win, view, charKey, prof, sel
 local setChar
+-- окно игры открылось поверх - наше уступает ему место сверху
+local function lower() if win and win:IsShown() and win.Lower then win:Lower() end end
 local function sigDir(id) return ns.DB.alarmDir and ns.DB.alarmDir[id] end
 local DIFF = { [0] = "|cffff8040", [1] = "|cffffff00", [2] = "|cff40c040", [3] = "|cff808080" }
 
@@ -1240,7 +1242,7 @@ local function buildCds(f)
     r.when = UI.Font(r, 10, UI.DIM); r.when:SetPoint("RIGHT", -6, 0); r.when:SetJustifyH("RIGHT")
     r.open = UI.Button(r, L"Открыть профессию", 150, 24, function(self)
       local d = self:GetParent().data
-      if d and C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then pcall(C_TradeSkillUI.OpenRecipe, d.rid) end
+      if d and C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then pcall(C_TradeSkillUI.OpenRecipe, d.rid); ns.After(0.3, lower) end
     end, true)
     r.open:SetPoint("RIGHT", -4, 0)
   end, function(r, d)
@@ -1293,7 +1295,7 @@ function setChar(ck) charKey = ck; prof = nil; sel = nil; refresh() end
 local function build()
   if win then return end
   win = CreateFrame("Frame", "WolfichMarketMainFrame", UIParent)
-  win:SetPoint("CENTER"); win:SetFrameStrata("HIGH"); win:SetToplevel(true)
+  win:SetPoint("CENTER"); win:SetFrameStrata("MEDIUM") -- как окна игры: окно профессии и сумки открываются поверх; win:SetToplevel(true)
   win:SetMovable(true); win:EnableMouse(true); win:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
   win.content = UI.MainChrome(win, function(i) selectView(i) end, NAV_NAMES)
@@ -1323,6 +1325,11 @@ function ns.ToggleMain(section)
   build()
   if section then win:Show(); selectView(section) return end
   if win:IsShown() then win:Hide() else win:Show(); refresh() end
+end
+-- открылось окно игры (профессия, сумки, банк, почта) - наше окно уступает ему место сверху
+for _, e in ipairs({ "TRADE_SKILL_SHOW", "BAG_OPEN", "BANKFRAME_OPENED", "MAIL_SHOW", "MERCHANT_SHOW" }) do ns.On(e, function() ns.After(0, lower) end) end
+if hooksecurefunc then
+  for _, fn in ipairs({ "ToggleAllBags", "OpenAllBags", "ToggleBackpack", "OpenBackpack", "ToggleBag" }) do if _G[fn] then pcall(hooksecurefunc, fn, function() ns.After(0, lower) end) end end
 end
 ns.Listen("PRICES", refresh)
 ns.Listen("MARKS", refresh)
