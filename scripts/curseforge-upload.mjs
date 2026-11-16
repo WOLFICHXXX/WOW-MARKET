@@ -35,10 +35,22 @@ if (!pick.length) {
 }
 log('Загружаю для версии игры:', pick.map(v => v.name).join(', '));
 
+// заметки к выпуску (на английском) - раздел «## VERSION» из docs/CHANGELOG.md
+let notes = CHANGELOG;
+if (!notes) {
+  try {
+    const md = await fs.readFile('docs/CHANGELOG.md', 'utf8');
+    const esc = VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = md.match(new RegExp('^## ' + esc + '\\s*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))', 'm'));
+    if (m) notes = `## WolfichMarket ${VERSION}\n\n` + m[1].trim();
+  } catch (e) { log('Нет docs/CHANGELOG.md'); }
+}
+log(notes ? 'Заметки к выпуску найдены.' : 'Заметок к выпуску нет - будет только номер версии.');
+
 const buf = await fs.readFile(FILE);
 const form = new FormData();
 form.append('metadata', JSON.stringify({
-  changelog: CHANGELOG || `WolfichMarket ${VERSION}`,
+  changelog: notes || `WolfichMarket ${VERSION}`,
   changelogType: 'markdown',
   displayName: `WolfichMarket ${VERSION}`,
   gameVersions: pick.map(v => v.id),
