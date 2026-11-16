@@ -2,16 +2,16 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.3
+## 2.43.4
 
+- Professions: the recipe card as in the design - income and profit on F and N, Craft / Where to get / On the auction buttons, the chart without scrolling; bigger main window, longer auctioneer panel; smooth chart lines.
 - Look: the new design's fonts (Inter and Forum, OFL), smooth frames and buttons without jagged edges, labels stay inside buttons, disabled buttons stay readable.
 - New main window: section icons on the left - Home, Alts, Professions, Auction, Cooldowns, Settings.
 - Home: what's new in every version, in the addon's language.
-- Alts: gold, level, location and professions of every character; their bank and posted auctions in a popup; a sealed envelope on the card when something sold (from the game message or the auction mail).
+- Alts: gold, level, location and professions of every character; their bank in a popup.
 - Professions: "no skill groups - one list" checkbox sorts by profit across all recipes; faction profit sort is the default; F and N profit columns.
-- Auction: "My auctions" of all characters (sold or time left) and "Alerts"; a triangle on every item opens crafting cost, profit on F and N, and a price chart.
+- Auction: "Whole auction" and "Alerts"; a triangle on every item opens crafting cost, profit on F and N, and a price chart.
 - Cooldowns: transmutes and other recipe cooldowns of all characters with timers; when ready - a message at the top of the screen and a glowing hourglass.
-- Sales of an offline alt: a full auction snapshot by another character looks for its auctions by item, quantity and price; one that disappears before its end time is shown as "possibly sold" (the server sends the seller name only for a few auctions). The log shows how many auctions came with a seller name.
 - A bell next to every item: your own buy or sell price alert. Stars are now favorites only.
 - Auctioneer panel: Favorites, Buy, Sell, My crafts, Plan tabs; the Chart and Settings tabs are gone - the chart opens in every row, settings live in the main window.
 - Settings: the "where to buy and where to sell" table and F / N columns in the game's profession window can be turned off; the message log opens with a button.

@@ -16,8 +16,11 @@ UI.FONT = ns.MEDIA .. "fonts\\Inter-Regular.ttf"
 UI.BOLD = ns.MEDIA .. "fonts\\Inter-SemiBold.ttf"
 UI.TITLE_FONT = ns.MEDIA .. "fonts\\Forum-Regular.ttf"
 local OURS = { [UI.FONT] = true, [UI.BOLD] = true, [UI.TITLE_FONT] = true }
+-- шрифты макета рассчитаны на 13-15 px: наши шрифты - на 12% крупнее заданного размера
+UI.FONT_K = 1.12
 local function setFont(fs, font, size, flags)
   if OURS[font] and flags == "OUTLINE" then flags = "" end
+  if OURS[font] then size = math.floor(size * UI.FONT_K + 0.5) end
   local ok = fs:SetFont(font, size, flags or "")
   if ok == false then fs:SetFont(UI.GAME_FONT, size, "OUTLINE") return end
   if OURS[font] and fs.SetShadowOffset then fs:SetShadowOffset(1, -1); fs:SetShadowColor(0, 0, 0, 0.85) end
@@ -481,6 +484,12 @@ function UI.MoneyInput(parent, onChange, compact)
   return f
 end
 
+-- сглаженная линия: текстура с мягкими краями поперёк толщины (вместо «лесенки»)
+function UI.LineTex(l, r, g, b, a)
+  if ns.WIN_TC and ns.WIN_TC["line"] and l.SetTexture then
+    l:SetTexture(M .. "win\\line", nil, nil, "TRILINEAR"); l:SetVertexColor(r, g, b, a or 1)
+  else l:SetColorTexture(r, g, b, a or 1) end
+end
 -- линейный график: точки { {t, price, qty}, ... }
 function UI.Chart(parent)
   local f = CreateFrame("Frame", nil, parent)
@@ -495,9 +504,9 @@ function UI.Chart(parent)
   local function line(i)
     local l = f.lines[i]
     if not l then
-      if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(2)
+      if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(3.5)
       else l = plot:CreateTexture(nil, "ARTWORK"); l:SetSize(2, 2) end
-      l:SetColorTexture(0.95, 0.78, 0.38, 1)
+      UI.LineTex(l, 0.95, 0.78, 0.38, 1)
       f.lines[i] = l
     end
     l:Show(); return l
@@ -549,8 +558,8 @@ function UI.Chart(parent)
       for i = 2, #pts do
         local l = self.slines[i - 1]
         if not l then
-          if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(1.5) else l = plot:CreateTexture(nil, "ARTWORK"); l:SetSize(2, 2) end
-          l:SetColorTexture(0.4, 0.85, 0.8, 0.9); self.slines[i - 1] = l
+          if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(3) else l = plot:CreateTexture(nil, "ARTWORK"); l:SetSize(2, 2) end
+          UI.LineTex(l, 0.4, 0.85, 0.8, 0.9); self.slines[i - 1] = l
         end
         local x1, y1, x2, y2 = X(pts[i - 1][1]), SY(sold[i - 1]), X(pts[i][1]), SY(sold[i])
         if l.SetStartPoint then l:SetStartPoint("BOTTOMLEFT", plot, x1, y1); l:SetEndPoint("BOTTOMLEFT", plot, x2, y2)
@@ -785,42 +794,43 @@ function UI.ItemDetail(det, opts)
 end
 
 -- рамка нового главного окна: колонка разделов, шапка, рамка с тканью; возвращает область содержимого
-local WIN_W, WIN_H = 1080, 700
+-- окно как на макете: 1260 x 780; K - масштаб колонки и шапки относительно первой сборки (1080 x 700)
+local K = 780 / 700
+local WIN_W, WIN_H = 1260, 780
 UI.WIN_SIZE = { WIN_W, WIN_H }
 local NAV = { { 146, 66 }, { 212, 69 }, { 281, 71 }, { 352, 69 }, { 421, 71 }, { 492, 72 } }
 function UI.MainChrome(win, onNav, navTips)
   win:SetSize(WIN_W, WIN_H)
-  local s = 0.74
-  -- мягкая чёрная подложка: заполняет просветы между колонкой, шапкой и рамкой
-  -- (сплошная часть - под колонкой, шапкой и рамкой, её края не видны; вокруг - размытая тень)
-  -- (только в щелях: между шапкой и рамкой и между колонкой и рамкой; края мягкие и спрятаны под картинками - без углов)
+  local s = 0.74 * K
+  local function k(v) return math.floor(v * K + 0.5) end
+  -- мягкая чёрная тень только в щелях: между шапкой и рамкой и между колонкой и рамкой (края спрятаны под картинками)
   local gapTop = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(gapTop, "shade")
-  gapTop:SetPoint("TOPLEFT", 120, -28); gapTop:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", 1010, -128)
+  gapTop:SetPoint("TOPLEFT", k(120), -k(28)); gapTop:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", WIN_W - k(70), -k(128))
   local gapLeft = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(gapLeft, "shade")
-  gapLeft:SetPoint("TOPLEFT", 132, -60); gapLeft:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", 214, -640)
-  local fr = CreateFrame("Frame", nil, win); fr:SetPoint("TOPLEFT", 168, -90); fr:SetPoint("BOTTOMRIGHT", 0, 2)
+  gapLeft:SetPoint("TOPLEFT", k(132), -k(60)); gapLeft:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", k(214), -k(640))
+  local fr = CreateFrame("Frame", nil, win); fr:SetPoint("TOPLEFT", k(168), -k(90)); fr:SetPoint("BOTTOMRIGHT", 0, 2)
   win.frameBox = fr
   UI.FrameSkin(fr, s)
   local function tex(parent, name, layer, sub)
     local t = parent:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t
   end
-  -- шапка и колонка - поверх рамки
+  -- шапка и колонка - поверх рамки; правый конец шапки - до украшения рамки
   local top = CreateFrame("Frame", nil, win); top:SetAllPoints(); top:SetFrameLevel((fr:GetFrameLevel() or 1) + 5)
-  local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", 150, -2); bar:SetSize(817, 102)
-  local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(175, 692)
-  local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.TITLE_FONT, 22, "OUTLINE")
-  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", 380, -52); title:SetText("WolfichMarket")
-  local sub = UI.Font(top, 12, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 12, -1)
+  local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", k(150), -2); bar:SetSize(WIN_W - k(150) - k(113), k(102))
+  local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(k(175), k(692))
+  local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.TITLE_FONT, 26, "OUTLINE")
+  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", k(380), -k(52)); title:SetText("WolfichMarket")
+  local sub = UI.Font(top, 13, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 14, -1)
   win.chromeTitle, win.chromeSub = title, sub
   -- крестик нарисован в правом верхнем углу рамки
-  local close = CreateFrame("Button", nil, top); close:SetSize(38, 38); close:SetPoint("TOPRIGHT", win, "TOPRIGHT", -13, -98)
+  local close = CreateFrame("Button", nil, top); close:SetSize(k(38), k(38)); close:SetPoint("TOPRIGHT", win, "TOPRIGHT", -k(13), -k(98))
   local chl = close:CreateTexture(nil, "HIGHLIGHT"); chl:SetAllPoints(); chl:SetColorTexture(1, 0.85, 0.4, 0.2)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- кнопки разделов: свечение строго внутри клетки
   local nav = {}
   for i, p in ipairs(NAV) do
-    local b = CreateFrame("Button", nil, top); b:SetPoint("TOPLEFT", 36, -p[1]); b:SetSize(92, p[2])
+    local b = CreateFrame("Button", nil, top); b:SetPoint("TOPLEFT", k(36), -k(p[1])); b:SetSize(k(92), k(p[2]))
     b.glow = b:CreateTexture(nil, "OVERLAY"); b.glow:SetAllPoints(); UI.WinTex(b.glow, "slot-glow"); b.glow:SetBlendMode("ADD"); b.glow:SetVertexColor(1, 0.8, 0.35); b.glow:SetAlpha(0)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 1); b.pulse:SetAllPoints(); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
     b:SetScript("OnEnter", function(self)
@@ -843,7 +853,7 @@ function UI.MainChrome(win, onNav, navTips)
   top:SetScript("OnDragStart", function() win:StartMoving() end)
   top:SetScript("OnDragStop", function() win:StopMovingOrSizing() end)
   top:SetHitRectInsets(0, 0, 0, 0)
-  local content = CreateFrame("Frame", nil, win); content:SetPoint("TOPLEFT", 218, -144); content:SetPoint("BOTTOMRIGHT", -50, 62)
+  local content = CreateFrame("Frame", nil, win); content:SetPoint("TOPLEFT", k(218), -k(146)); content:SetPoint("BOTTOMRIGHT", -k(50), k(64))
   content:SetFrameLevel((top:GetFrameLevel() or 1) + 1)
   return content
 end

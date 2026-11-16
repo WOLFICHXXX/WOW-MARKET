@@ -351,9 +351,7 @@ do
       check(okS and ns.DB.settings.craftSort == "neutral", "главное окно: галочка «прибыль по общему»")
       C.sortMain:SetChecked(true); C.sortMain.scripts.OnClick(C.sortMain)
       check(ns.DB.settings.craftSort == "main" and not C.sortNt:GetChecked(), "главное окно: галочки взаимоисключающие")
-      local sc = C.card and C.card.scroll
-      local okW = pcall(sc.scripts.OnMouseWheel, sc, -1)
-      check(sc and okW, "карточка рецепта прокручивается колёсиком вниз, к графику")
+      check(C.card and C.card.chartBox and C.card.onAH, "карточка рецепта: график в своей панели, кнопка «На аукционе»")
       ns.DB.settings.craftSort = nil; ns.ToggleMain()
       nt.items[2862] = nil
       ns.DB.chars[ns.charKey].profs["ТестПроф"] = nil; ns.curProf = saveProf; ns.MarkProfitDirty()
@@ -1154,36 +1152,14 @@ do
   ns.SnapshotChar()
   local me = ns.DB.chars[ns.charKey]
   check(me.money == 1506100 and me.level == 10 and me.zone == "Штормград" and me.seen, "твинки: золото, уровень и место персонажа записаны")
-  local owned = { { auctionID = 11, itemKey = { itemID = 2840 }, quantity = 20, buyoutAmount = 310, timeLeftSeconds = 3600, status = 0 },
-                  { auctionID = 12, itemKey = { itemID = 3470 }, quantity = 10, buyoutAmount = 140, timeLeftSeconds = 7200, status = 0 } }
-  C_AuctionHouse.GetNumOwnedAuctions = function() return #owned end
-  C_AuctionHouse.GetOwnedAuctionInfo = function(i) return owned[i] end
-  fire("OWNED_AUCTIONS_UPDATED")
-  check(#me.lots == 2 and me.lots[1].q == 20 and not me.lotsNew, "лоты персонажа прочитаны с аукциона (" .. #me.lots .. ")")
-  ERR_AUCTION_SOLD_S = "Найден покупатель для вашего лота: %s."
-  fire("CHAT_MSG_SYSTEM", "Найден покупатель для вашего лота: " .. ns.itemName(2840) .. ".")
-  local soldN = 0; for _, l in ipairs(me.lots) do if l.st == "sold" then soldN = soldN + 1 end end
-  check(soldN == 1 and me.lotsNew, "сообщение игры о продаже отмечает лот проданным и зажигает конверт")
-  GetInboxNumItems = function() return 1 end
-  GetInboxInvoiceInfo = function() return "seller", ns.itemName(3470), "Покупатель", 0, 1400 end
-  fire("MAIL_INBOX_UPDATE")
-  soldN = 0; for _, l in ipairs(me.lots) do if l.st == "sold" then soldN = soldN + 1 end end
-  check(soldN == 2, "письмо аукциона о продаже отмечает лот, проданный без игрока")
-  check(ns.LotStatus(me.lots[1]):find(ns.L"Продано", 1, true) ~= nil, "состояние лота: продано")
-  -- раздел «Твинки»: карточки, конверт, окна банка и лотов
+  -- раздел «Твинки»: карточки и окно банка
   W.tabs[2].scripts.OnClick(W.tabs[2])
   local card; for _, c in ipairs(ns._mainAlts.cards) do if c.ck == ns.charKey then card = c end end
-  check(card and card.env:IsShown() and card.rows[1][2].text ~= "", "«Твинки»: карточка персонажа с золотом и конвертом")
-  card.auc.scripts.OnClick(card.auc)
-  check(ns._mainPops.lots.dim:IsShown() and #ns._mainPops.lots.list.data == 2 and not me.lotsNew, "окно «Аукцион» персонажа: его лоты, конверт гаснет")
-  ns._mainPops.lots.dim:Hide()
+  check(card and card.rows[1][2].text ~= "" and card.env == nil and card.auc == nil, "«Твинки»: карточка персонажа с золотом, без лотов")
   card.bank.scripts.OnClick(card.bank)
   check(ns._mainPops.bank.dim:IsShown(), "окно «Банк» с карточки персонажа")
   ns._mainPops.bank.dim:Hide()
-  -- «Аукцион»: мои лоты всех персонажей, раскрытие строки с графиком
-  ns.DB.settings.aucView = "lots"; W.tabs[4].scripts.OnClick(W.tabs[4])
   local A = ns._mainAuc
-  check(A.lots:IsShown() and #A.lots.list.data == 2, "«Аукцион» - «Мои лоты» всех персонажей")
   ns.DB.settings.aucView = "all"; ns.DB.settings.aucMode = "main"; W.tabs[4].scripts.OnClick(W.tabs[4])
   local r1 = A.all.list.rows[1]
   if r1 and r1.data then
@@ -1243,42 +1219,6 @@ do
   if ns._marketTable then ns.RefreshMarketTable(); check(not ns._marketTable:IsShown(), "настройка выключает таблицу в окне профессии игры") end
   ns.DB.settings.profUI = true
   W.tabs[3].scripts.OnClick(W.tabs[3])
-end
--- продажи твинка, которого нет в игре: по снимку аукциона другим персонажем (продавец, предмет, количество, цена)
-do
-  local tw = { realmKey = ns.realmKey, name = "Твинкс", profs = {}, lots = {
-    { id = 2840, q = 20, p = 310, ends = time() + 3600, st = "active", kind = "main" },
-    { id = 3470, q = 10, p = 140, ends = time() + 3600, st = "active", kind = "main" } } }
-  ns.DB.chars["Твинкс-CAMWOWEU4Realm6PvP"] = tw
-  local oldI, oldN = C_AuctionHouse.GetReplicateItemInfo, C_AuctionHouse.GetNumReplicateItems
-  local n0 = oldN()
-  local withOwner = true
-  C_AuctionHouse.GetNumReplicateItems = function() return n0 + 1 end
-  C_AuctionHouse.GetReplicateItemInfo = function(i)
-    if i == n0 then return "x", 0, 20, 1, true, 1, 0, 0, 0, 6200, 0, nil, nil, withOwner and "Твинкс" or nil, nil, 0, 2840, true end
-    return oldI(i)
-  end
-  ns.ahOpen, ns.ahKind, ns.ahIsBM = true, "main", false
-  local function scan() ns.DB.ahLastReq = 0; ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end end
-  -- продавец пришёл у всех лотов снимка
-  local oldI0 = oldI
-  oldI = function(i) local a = { oldI0(i) }; a[14] = a[14] or "Кто-то"; return table.unpack(a, 1, 18) end
-  scan()
-  oldI = oldI0
-  check(tw.lots[1].st == "active" and tw.lots[2].st == "sold" and tw.lotsNew, "твинк не в игре: лот пропал из снимка до конца срока - продан, конверт горит")
-  local logged; for _, e in ipairs(ns.log) do if e.msg:find("имя продавца пришло у", 1, true) or e.msg:find("seller name came with", 1, true) then logged = e.msg end end
-  check(logged ~= nil, "в журнале: у скольких лотов пришло имя продавца (" .. tostring(logged) .. ")")
-  -- сервер не присылает продавца: только «возможно, продан», конверт не зажигается
-  tw.lots[2] = { id = 3470, q = 10, p = 140, ends = time() + 3600, st = "active", kind = "main" }; tw.lotsNew = nil
-  withOwner = false
-  scan()
-  check(tw.lots[2].st == "active" and tw.lots[2].maybe and not tw.lotsNew and tw.lots[1].maybe == nil, "без имени продавца - только «возможно, продан»")
-  -- продавец пришёл у единиц лотов (как на сервере) - тоже только «возможно, продан»
-  tw.lots[2].maybe = nil; withOwner = true
-  scan()
-  check(tw.lots[2].st == "active" and tw.lots[2].maybe and not tw.lotsNew, "продавец у единиц лотов - не «продано», а «возможно, продан»")
-  C_AuctionHouse.GetReplicateItemInfo, C_AuctionHouse.GetNumReplicateItems = oldI, oldN
-  ns.DB.chars["Твинкс-CAMWOWEU4Realm6PvP"] = nil
 end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad

@@ -71,10 +71,10 @@ local function fillCard(rec)
   if card.fade then ns.After(0, card.fade) end -- после раскладки: диапазон прокрутки и растушёвка
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
-    card.title:SetText(L"Выберите рецепт"); card.total:SetText(""); card.prices:Hide(); card.craft:Hide(); card.alarm:Hide(); card.where:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide()
+    card.title:SetText(L"Выберите рецепт"); card.level:SetText(""); card.total:SetText(""); card.onAH:Hide(); card.craft:Hide(); card.where:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide(); card.chartBox:Hide()
     return
   end
-  card.craft:Show(); card.alarm:Show(); card.where:Show(); card.chart:Show(); card.portRow:Show(); card.prices:Show()
+  card.craft:Show(); card.where:Show(); card.onAH:Show(); card.chart:Show(); card.chartBox:Show(); card.portRow:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
   if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
@@ -105,17 +105,29 @@ local function fillCard(rec)
     r.price:SetText(it.unit and (qty > 0 and ns.money(it.unit * qty, true) or L"|cff78d98aсвоё|r") or (qty > 0 and L"|cffaa8866нет цены|r" or L"|cff78d98aсвоё|r"))
     r.star:SetIcon(ns.IsMarked(it.id) and "star-on" or "star-off")
     r.bell:Update(it.id)
+    if it.out then r.name:SetText(ns.itemLinkText(it.id) .. (it.n ~= 1 and (" |cffaaaaaa×" .. it.n .. "|r") or "") .. "  |cff8a8070→ " .. L"продажа" .. "|r") end
     r.search:SetAlpha(ns.AHIsOpen() and 1 or 0.35)
     r:Show()
   end
+  local lvl = ns.RecipeLevel and ns.RecipeLevel(rec)
+  card.level:SetText(lvl and (ns.SkillTierName(ns.SkillTier(lvl)):gsub(":.*$", "") .. " · " .. L"навык" .. " " .. lvl) or "")
   local lines = { (pr.stock and (N > 1 and string.format(L"Докупить на %d крафтов: ", N) or L"Докупить на 1 крафт: ") or (N > 1 and string.format(L"Себестоимость %d крафтов: ", N) or L"Себестоимость: ")) .. (pr.missing > 0 and (">= " .. ns.money(pr.cost)) or ns.money(pr.cost))
     .. (pr.crafts and ("   |cffaaaaaa" .. L"из запаса хватит на " .. pr.crafts .. "|r") or "") }
-  if pr.revenue then lines[#lines + 1] = L"Доход" .. " (-" .. ns.CutPct() .. "): " .. ns.money(pr.revenue) end
-  if pr.profit then lines[#lines + 1] = L"Прибыль: " .. profitStr(pr) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") end
+  -- доход и прибыль на обоих аукционах: Ф (комиссия 5%) и Общ (15%)
+  local q = pr.qty or 1
+  local nSell = rec.out and ns.WithRealm(c.realmKey, ns.PriceIn, "neutral", rec.out)
+  local nRev = nSell and nSell * q * (1 - ns.Cut("neutral"))
+  if pr.revenue or nRev then
+    lines[#lines + 1] = L"Доход" .. ": |cfff2c761" .. L"Ф" .. "|r " .. (pr.revenue and ns.money(pr.revenue, true) or "-") .. "  /  |cff66d9cc" .. L"Общ" .. "|r " .. (nRev and ns.money(nRev, true) or "-")
+  end
+  if pr.revenue or nRev then
+    local nProf = nRev and pr.missing == 0 and (nRev - pr.cost) or nil
+    lines[#lines + 1] = L"Прибыль" .. ": |cfff2c761" .. L"Ф" .. "|r " .. pfStr(pr.profit) .. (pr.margin and ("  |cffaaaaaa(" .. math.floor(pr.margin) .. "%)|r") or "") .. "   ·   |cff66d9cc" .. L"Общ" .. "|r " .. pfStr(nProf)
+  end
   card.total:SetText(table.concat(lines, "\n"))
   -- «Крафт» и «Поставить сигнал» — сразу под последней строкой рецепта
   local n = math.min(#items, #card.rows)
-  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -52 - n * 22 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -14, 0)
+  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -38 - n * 24 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -12, 0)
   craft.drawChart()
 end
 -- график цены выбранного предмета (по умолчанию — результат рецепта)
@@ -126,7 +138,7 @@ function craft.drawChart()
   local p = ns.AHPrice(id)
   card.chartId = id
   -- заголовок вместо легенды: цвет слов = цвет линий
-  card.chartTitle:SetText(L"График: " .. ns.itemLinkText(id) .. "   |cfff2c761" .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc" .. L"продано, шт" .. "|r")
+  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   |cff8a8070" .. ns.itemName(id) .. "|r")
   local h = ns.History(id)
   ns.After(0, function() card.chart:SetPoints(h) end)
 end
@@ -361,66 +373,11 @@ local function buildCraft(f)
     r.val:SetText(profitStr(d)); r.vO:SetText(d.rec.out and pfStr(d.nprofit) or "")
   end)
   craft.list:SetPoint("TOPLEFT", 0, -78); craft.list:SetPoint("BOTTOMRIGHT", f, "BOTTOM", 0, 0)
-  -- карточка рецепта
-  -- карточка: рамка (box) с прокруткой; всё содержимое - на прокручиваемом листе card, который на EXTRA выше
-  -- видимой части - туда, вниз, вытягивается график. Прокрутка - колёсиком мыши.
-  local EXTRA = 210
+  -- карточка рецепта (как на макете): заголовок и уровень, строки предметов, порции, кнопки, итог и график - без прокрутки
   local box = CreateFrame("Frame", nil, f)
-  box:SetPoint("TOPLEFT", f, "TOP", 10, -86); box:SetPoint("BOTTOMRIGHT", 0, 16)
-  local sf = CreateFrame("ScrollFrame", nil, box)
-  sf:SetPoint("TOPLEFT", 4, -6); sf:SetPoint("BOTTOMRIGHT", -4, 6)
-  -- обрезать всё, что уехало за край рамки при прокрутке
-  if sf.SetClipsChildren then sf:SetClipsChildren(true) end
-  if box.SetClipsChildren then box:SetClipsChildren(true) end
-  local card = CreateFrame("Frame", nil, sf)
-  card:SetSize(400, 400)
-  sf:SetScrollChild(card)
-  local cur, maxScroll = 0, EXTRA
-  local FADE, EDGE_T, EDGE_B = 14, 12, 10 -- растушёвка и отступ линии рамки от края
-  -- прокрутка ровно до графика: заголовок графика встаёт к верхней линии рамки
-  local function range()
-    local st, tt = sf:GetTop(), card.chartTitle and card.chartTitle:GetTop()
-    if not st or not tt then return EXTRA end
-    return math.max(0, math.floor(st - (tt - cur) - EDGE_T - FADE))
-  end
-  local function resize()
-    local w, h = sf:GetWidth(), sf:GetHeight()
-    if w and w > 0 then maxScroll = math.min(EXTRA, range()); card:SetSize(w, h + maxScroll) end
-  end
-  -- растушёвка у верхней и нижней линии рамки (по внутренней линии с уголками): к линии строка гаснет полностью,
-  -- за линией её нет; погасшие кнопки не ловят мышь
-  local function fade()
-    local bt, bb = box:GetTop(), box:GetBottom()
-    if not bt or not bb then return end
-    local T, B = bt - EDGE_T, bb + EDGE_B
-    local objs = { card:GetChildren() }
-    for _, rg in ipairs({ card:GetRegions() }) do if rg.GetObjectType and rg:GetObjectType() == "FontString" then objs[#objs + 1] = rg end end
-    for _, o in ipairs(objs) do
-      if o ~= card.chart and o.GetTop then
-        local top, bot = o:GetTop(), o:GetBottom()
-        if top and bot then
-          local a = math.min((T - top) / FADE, (bot - B) / FADE)
-          a = math.max(0, math.min(1, a))
-          o:SetAlpha(a)
-          if o.EnableMouse and o.IsMouseEnabled then
-            if o.wmMouse == nil then o.wmMouse = o:IsMouseEnabled() end
-            if o.wmMouse then o:EnableMouse(a > 0.3) end
-          end
-        end
-      end
-    end
-  end
-  card.fade = function() resize(); fade() end
-  sf:SetScript("OnSizeChanged", function() resize(); fade() end); resize()
-  sf:EnableMouseWheel(true)
-  local hint = UI.Font(box, 10, UI.DIM, "OVERLAY"); hint:SetPoint("BOTTOMRIGHT", -16, 8); hint:SetText(L"колёсико мыши - ниже график")
-  sf:SetScript("OnMouseWheel", function(self, delta)
-    resize()
-    cur = math.max(0, math.min(maxScroll, cur - delta * 40))
-    self:SetVerticalScroll(cur); hint:SetShown(cur < maxScroll * 0.5)
-    fade()
-  end)
-  card.scroll = sf
+  UI.Box(box)
+  local card = box
+  card.fade = function() end
   -- второй ряд профессий сдвигает фильтры, список и карточку вниз
   function craft.setTop(dy)
     c1:ClearAllPoints(); c1:SetPoint("TOPLEFT", 0, -34 - dy)
@@ -438,27 +395,18 @@ local function buildCraft(f)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
   end
   craft.setTop(0)
-  UI.Skin(box, { theme = "mcard" })
-  -- «Цены» - обновить цены всего рецепта (результат и материалы) поиском у аукциониста
-  card.prices = UI.Button(card, L"Цены", 64, 20, function()
-    if not sel then return end
-    if not ns.AHIsOpen() then ns.say(L"цены обновляются у аукциониста - откройте аукцион.") return end
-    ns.QuickRefresh(ns.RecipePriceIDs(sel))
-  end)
-  card.prices:SetPoint("TOPRIGHT", -16, -26)
-  card.prices:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Обновить цены всего рецепта (результат и все материалы) - когда открыт аукцион, без 15-минутного ожидания.", 1, 1, 1, true); GameTooltip:Show() end)
-  card.prices:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.title = UI.Font(card, 13, UI.GOLD, "OVERLAY", "OUTLINE"); card.title:SetPoint("TOPLEFT", 16, -30); card.title:SetPoint("RIGHT", card.prices, "LEFT", -8, 0)
+  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -12, -12); card.level:SetJustifyH("RIGHT")
+  card.title = UI.Font(card, 15, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 15, ""); card.title:SetPoint("TOPLEFT", 14, -10); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
   card.rows = {}
   for i = 1, 8 do
-    local r = CreateFrame("Frame", nil, card); r:SetHeight(20)
-    r:SetPoint("TOPLEFT", 14, -52 - (i - 1) * 22); r:SetPoint("RIGHT", -14, 0)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT")
-    r.search = UI.Icon(r, "search", 16, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT")
-    r.bell = UI.Bell(r, 16, function(self) return self:GetParent().id end); r.bell:SetPoint("RIGHT", r.search, "LEFT", -5, 0)
-    r.star = UI.Icon(r, "star-off", 16, L"Избранное", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.bell, "LEFT", -5, 0)
-    r.price = UI.Font(r, 11); r.price:SetPoint("RIGHT", r.star, "LEFT", -8, 0); r.price:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
+    local r = CreateFrame("Frame", nil, card); r:SetHeight(22)
+    r:SetPoint("TOPLEFT", 10, -38 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", 2, 0)
+    r.search = UI.Icon(r, "search", 16, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT", -2, 0)
+    r.bell = UI.Bell(r, 17, function(self) return self:GetParent().id end); r.bell:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
+    r.star = UI.Icon(r, "star-off", 15, L"Избранное", function(self) ns.ToggleMark(self:GetParent().id) end); r.star:SetPoint("RIGHT", r.bell, "LEFT", -6, 0)
+    r.price = UI.Font(r, 12); r.price:SetPoint("RIGHT", r.star, "LEFT", -10, 0); r.price:SetJustifyH("RIGHT")
+    r.name = UI.Font(r, 12); r.name:SetPoint("LEFT", r.icon, "RIGHT", 7, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
     r:EnableMouse(true)
     r:SetScript("OnEnter", function(self)
       if not self.id then return end
@@ -473,8 +421,8 @@ local function buildCraft(f)
     r:Hide(); card.rows[i] = r
   end
   -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
-  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(26); card.portRow = prow
-  local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 0, 0); pl:SetText(L"Порций:")
+  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(28); card.portRow = prow
+  local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 2, 0); pl:SetText(L"Порций:")
   local function setN(v)
     if not sel then return end
     v = math.max(1, math.min(999, math.floor(tonumber(v) or 1)))
@@ -482,35 +430,52 @@ local function buildCraft(f)
     fillCard(sel)
   end
   local function cur() return sel and craft.portions and craft.portions[sel.id] or 1 end
-  local minus = UI.Button(prow, "-", 26, 24, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
-  card.portion = CreateFrame("EditBox", nil, prow, "InputBoxTemplate"); card.portion:SetSize(40, 20); card.portion:SetPoint("LEFT", minus, "RIGHT", 8, 0)
+  local minus = UI.Button(prow, "-", 28, 26, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
+  card.portion = CreateFrame("EditBox", nil, prow, "InputBoxTemplate"); card.portion:SetSize(40, 22); card.portion:SetPoint("LEFT", minus, "RIGHT", 8, 0)
   card.portion:SetAutoFocus(false); card.portion:SetNumeric(true); card.portion:SetMaxLetters(3); card.portion:SetJustifyH("CENTER")
+  if card.portion.SetFont then UI.SetFont(card.portion, UI.FONT, 13, "") end
   card.portion:SetScript("OnEnterPressed", function(self) self:ClearFocus(); setN(self:GetText()) end)
   card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
-  local plus = UI.Button(prow, "+", 26, 24, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
-  local p5 = UI.Button(prow, "+5", 34, 24, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
-  card.plan = UI.Button(prow, L"Запланировать", 140, 24, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
+  local plus = UI.Button(prow, "+", 28, 26, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
+  local p5 = UI.Button(prow, "+5", 38, 26, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
+  card.plan = UI.Button(prow, L"Запланировать", 150, 26, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
   card.plan:SetPoint("RIGHT", 0, 0)
   card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
   card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.craft = UI.Button(card, L"Крафт", 100, 26, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
-  card.craft:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6)
+  -- кнопки: Крафт / Где взять / На аукционе - на всю ширину карточки, поровну
+  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(28)
+  brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)
+  card.craft = UI.Button(brow, L"Крафт", 100, 28, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.alarm = UI.Button(card, L"Поставить сигнал", 140, 26, function() if sel then craft.openAlarms(sel) end end)
-  card.alarm:SetPoint("LEFT", card.craft, "RIGHT", 6, 0)
   -- «Где взять»: тренер, продавцы, добыча, задания, репутация и карта зоны
-  card.where = UI.Button(card, L"Где взять", 110, 26, function() if sel and ns.ShowSources then ns.ShowSources(sel) end end)
-  card.where:SetPoint("LEFT", card.alarm, "RIGHT", 6, 0)
+  card.where = UI.Button(brow, L"Где взять", 100, 28, function() if sel and ns.ShowSources then ns.ShowSources(sel) end end)
   card.where:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Где взять рецепт: тренер, продавцы, добыча, задания, нужная репутация и карта зоны (данные Wowhead WoW Forever).", 1, 1, 1, true); GameTooltip:Show() end)
   card.where:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.alarm:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Выбрать галочками предмет и ингредиенты для сигналов о скачках цены", 1, 1, 1, true); GameTooltip:Show() end)
-  card.alarm:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", card.craft, "BOTTOMLEFT", 2, -6); card.total:SetPoint("RIGHT", -10, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
-  card.chartTitle = UI.Font(card, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", 0, -10); card.chartTitle:SetPoint("RIGHT", -10, 0)
-  -- график - полноразмерный, с подписями; карточка прокручивается колёсиком мыши вниз, к графику
-  card.chart = UI.Chart(card); card.chart.showPeaks = true; card.chart.noLegend = true
-  card.chart:SetPoint("TOPLEFT", card.chartTitle, "BOTTOMLEFT", -8, -4); card.chart:SetPoint("BOTTOMRIGHT", -10, 10)
+  -- «На аукционе»: найти результат у аукциониста и обновить цены всего рецепта
+  card.onAH = UI.Button(brow, L"На аукционе", 100, 28, function()
+    if not sel then return end
+    if not ns.AHIsOpen() then ns.say(L"цены обновляются у аукциониста - откройте аукцион.") return end
+    ns.QuickRefresh(ns.RecipePriceIDs(sel))
+    if sel.out then ns.SearchAH(sel.out) end
+  end)
+  card.onAH:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"У аукциониста: найти этот предмет и обновить цены всего рецепта (результат и все материалы) без 15-минутного ожидания.", 1, 1, 1, true); GameTooltip:Show() end)
+  card.onAH:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  card.prices, card.alarm = card.onAH, card.onAH
+  local function layoutBtns()
+    local w = (brow:GetWidth() or 0); if w < 60 then w = 380 end
+    local bw = math.floor((w - 12) / 3)
+    for i, b in ipairs({ card.craft, card.where, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
+  end
+  brow:SetScript("OnSizeChanged", layoutBtns); layoutBtns()
+  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 2, -8); card.total:SetPoint("RIGHT", -12, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
+  -- график - в своей панели до низа карточки
+  local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
+  cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -4, -8); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
+  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0)
+  card.chart = UI.Chart(cbox); card.chart.showPeaks = true; card.chart.noLegend = true
+  card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
+  card.chartBox = cbox
   craft.card = card
 end
 
@@ -805,8 +770,8 @@ local function buildAuc(f)
   -- что смотрим: весь аукцион, свои лоты всех персонажей или сигналы
   aucp.views = {}
   x = x + 10
-  for _, v in ipairs({ { "all", L"Весь аукцион", 104 }, { "lots", L"Мои лоты", 128 }, { "signals", L"Сигналы", 84 } }) do
-    local b = UI.Button(f, v[2] .. (v[1] == "lots" and " · 00 ● 0" or ""), v[3], 26, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+  for _, v in ipairs({ { "all", L"Весь аукцион", 104 }, { "signals", L"Сигналы", 84 } }) do
+    local b = UI.Button(f, v[2], v[3], 26, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
     local w = b:FitWidth(v[3], 200)
     b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.views[v[1]] = b
@@ -933,29 +898,6 @@ local function buildAuc(f)
     return p
   end
   aucp.buy, aucp.dear = panel(true), panel(false)
-  -- МОИ ЛОТЫ: всё, что выставлено всеми персонажами (продано, срок, сколько осталось)
-  local lots = CreateFrame("Frame", nil, f); lots:SetPoint("TOPLEFT", 0, -50); lots:SetPoint("BOTTOMRIGHT", 0, 0)
-  UI.Skin(lots, { theme = "acard", scale = 0.25 })
-  local lh = CreateFrame("Frame", nil, lots); lh:SetPoint("TOPLEFT", 12, -8); lh:SetPoint("TOPRIGHT", -12, -8); lh:SetHeight(16)
-  local function lcol(t, x, left) local c = UI.Font(lh, 11, UI.GOLD); c:SetPoint(left and "LEFT" or "RIGHT", lh, left and "LEFT" or "RIGHT", x, 0); c:SetText(t) end
-  lcol(L"Персонаж", 4, true); lcol(L"Предмет", 150, true); lcol(L"Кол.", -330); lcol(L"Цена за шт", -228); lcol(L"Состояние", -60)
-  lots.list = UI.List(lots, 24, function(r)
-    r.who = UI.Font(r, 11); r.who:SetPoint("LEFT", 4, 0); r.who:SetWidth(130)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 140, 0)
-    r.bell = UI.Bell(r, 15, function(self) local d = self:GetParent().data; return d and d.id end); r.bell:SetPoint("RIGHT", -4, 0)
-    r.st = UI.Font(r, 11); r.st:SetPoint("RIGHT", r.bell, "LEFT", -8, 0); r.st:SetWidth(170); r.st:SetJustifyH("RIGHT")
-    r.p = UI.Font(r, 11); r.p:SetPoint("RIGHT", -228, 0); r.p:SetWidth(90); r.p:SetJustifyH("RIGHT")
-    r.q = UI.Font(r, 11, UI.DIM); r.q:SetPoint("RIGHT", -330, 0); r.q:SetWidth(40); r.q:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.q, "LEFT", -6, 0)
-    openRow(r)
-  end, function(r, x)
-    r.who:SetText(charLabel(x.ck)); r.icon:SetTexture(ns.itemIcon(x.id)); r.name:SetText(ns.itemLinkText(x.id)); r.bell:Update(x.id)
-    r.q:SetText(x.q or 1); r.p:SetText(x.p and ns.money(x.p, true) or "-"); r.st:SetText(ns.LotStatus(x))
-  end)
-  lots.list:SetPoint("TOPLEFT", 8, -28); lots.list:SetPoint("BOTTOMRIGHT", -8, 8)
-  lots.list:EnableDetail(7, function(det) UI.ItemDetail(det) end, function(det, d) det:Set(d.id) end, function(d) return (d.ck or "") .. ":" .. (d.aid or d.id) end)
-  lots.list.empty:SetText(L"Выставленных лотов нет. Список обновляется, когда персонаж открывает аукцион.")
-  aucp.lots = lots
   -- СИГНАЛЫ: что купить дешевле и что продать дороже (своя цена)
   local sf = CreateFrame("Frame", nil, f); sf:SetPoint("TOPLEFT", 0, -30); sf:SetPoint("BOTTOMRIGHT")
   buildSignals(sf)
@@ -969,31 +911,11 @@ function refreshAuc()
   local vw = S.aucView or "all"
   for k, b in pairs(aucp.kind) do b:SetGold(vw == "all" and k == mode) end
   for k, b in pairs(aucp.views) do b:SetGold(k == vw) end
-  local _, _, newSold = ns.LotsSummary()
-  local nLots = ns.LotsSummary()
-  aucp.views.lots:SetLabel(L"Мои лоты" .. " · " .. nLots .. (newSold > 0 and (" |cffff9b8a● " .. newSold .. "|r") or ""))
   aucp.cat:SetLabel(catName(cat)); aucp.cat:SetShown(vw == "all")
   aucp.search:SetShown(vw ~= "signals")
-  aucp.lots:SetShown(vw == "lots"); aucp.sig:SetShown(vw == "signals"); aucp.status:SetShown(vw ~= "signals")
+  if vw == "lots" then vw = "all"; S.aucView = "all" end
+  aucp.sig:SetShown(vw == "signals"); aucp.status:SetShown(vw ~= "signals")
   if vw == "signals" then aucp.all:Hide(); aucp.buy:Hide(); aucp.dear:Hide(); refreshSignals() return end
-  if vw == "lots" then
-    aucp.all:Hide(); aucp.buy:Hide(); aucp.dear:Hide()
-    local q = ns.lower(aucp.search:GetText() or "")
-    local rows = {}
-    for _, ck in ipairs(ns.AltList()) do
-      for _, l in ipairs(ns.CharLots(ck)) do
-        if q == "" or ns.lower(ns.itemName(l.id) or ""):find(q, 1, true) then
-          rows[#rows + 1] = { ck = ck, id = l.id, aid = l.aid, q = l.q, p = l.p, ends = l.ends, st = l.st, soldAt = l.soldAt }
-        end
-      end
-    end
-    aucp.lots.list:SetData(rows)
-    local n, sold = ns.LotsSummary()
-    aucp.status:SetText(string.format(L"Лоты всех персонажей: %d, продано: %d. Список персонажа обновляется, когда он открывает аукцион; продажи - по сообщению игры и письмам на почте.", n, sold))
-    -- просмотрели - конверты гаснут
-    if aucp.lots:IsVisible() then for _, ck in ipairs(ns.AltList()) do local c = ns.DB.chars[ck]; if c and c.lotsNew then c.lotsNew = nil end end end
-    return
-  end
   local c = ns.DB.chars[charKey] or {}
   local rk = c.realmKey or ns.realmKey or ""
   -- категория (класс предмета или профессия: готовое / ингредиенты) и поиск
@@ -1151,44 +1073,6 @@ local function openBank(ck)
   pops.bank.title:SetText(L"Банк" .. " - " .. nm)
   pops.bank.dim:Show(); refreshBank()
 end
--- лоты персонажа на аукционе
-local function fillLotsPopup()
-  local p = pops.lots
-  if not p or not p.dim:IsShown() then return end
-  p.list:SetData(ns.CharLots(p.ck))
-  local c = ns.DB.chars[p.ck] or {}
-  p.info:SetText(c.lotsT and (L"обновлено" .. " " .. ns.ago(c.lotsT) .. L" |cffaaaaaa(когда персонаж открывал аукцион)|r") or L"|cffff9966Лотов нет или аукцион этим персонажем ещё не открывали.|r")
-end
-local function openLots(ck)
-  local p = pops.lots
-  if not p then
-    p = makePopup("WolfichMarketLotsPopup", 680, 380, L"Аукцион"); pops.lots = p
-    p.info = UI.Font(p.body, 10, UI.DIM); p.info:SetPoint("TOPLEFT", 2, 0); p.info:SetPoint("RIGHT", -2, 0)
-    local hd = CreateFrame("Frame", nil, p.body); hd:SetPoint("TOPLEFT", 0, -18); hd:SetPoint("TOPRIGHT", 0, -18); hd:SetHeight(14)
-    local function col(t, x, left) local c = UI.Font(hd, 10, UI.GOLD); c:SetPoint(left and "LEFT" or "RIGHT", hd, left and "LEFT" or "RIGHT", x, 0); c:SetText(t) end
-    col(L"Предмет", 28, true); col(L"Кол.", -300); col(L"Цена за шт", -196); col(L"Состояние", -28)
-    p.list = UI.List(p.body, 22, function(r)
-      r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 4, 0)
-      r.bell = UI.Bell(r, 15, function(self) local d = self:GetParent().data; return d and d.id end); r.bell:SetPoint("RIGHT", -2, 0)
-      r.st = UI.Font(r, 11); r.st:SetPoint("RIGHT", r.bell, "LEFT", -6, 0); r.st:SetWidth(160); r.st:SetJustifyH("RIGHT")
-      r.p = UI.Font(r, 11); r.p:SetPoint("RIGHT", -196, 0); r.p:SetWidth(90); r.p:SetJustifyH("RIGHT")
-      r.q = UI.Font(r, 11, UI.DIM); r.q:SetPoint("RIGHT", -300, 0); r.q:SetWidth(40); r.q:SetJustifyH("RIGHT")
-      r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.q, "LEFT", -6, 0)
-      r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
-      r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    end, function(r, l)
-      r.icon:SetTexture(ns.itemIcon(l.id)); r.name:SetText(ns.itemLinkText(l.id)); r.bell:Update(l.id)
-      r.q:SetText(l.q or 1); r.p:SetText(l.p and ns.money(l.p, true) or "-"); r.st:SetText(ns.LotStatus(l))
-    end)
-    p.list:SetPoint("TOPLEFT", 0, -34); p.list:SetPoint("BOTTOMRIGHT")
-    p.list.empty:SetText(L"Лотов нет.")
-  end
-  p.ck = ck
-  local nm = (ns.DB.chars[ck] or {}).name or ck
-  p.title:SetText(L"Аукцион" .. " - " .. nm)
-  p.dim:Show(); fillLotsPopup()
-  ns.SeenLots(ck) -- конверт гаснет
-end
 -- журнал сообщений аддона
 function ns.OpenLog()
   if not win then return end
@@ -1277,15 +1161,8 @@ local function altCard(i)
   if c then return c end
   c = CreateFrame("Frame", nil, alts.child); c:SetSize(CARD_W, CARD_H)
   UI.Skin(c, { theme = "acard", scale = 0.22 })
-  c.hl = c:CreateTexture(nil, "BACKGROUND", nil, -6); c.hl:SetPoint("TOPLEFT", 6, -6); c.hl:SetPoint("BOTTOMRIGHT", -6, 6); c.hl:SetColorTexture(0.75, 0.25, 0.18, 0.16)
   c.name = UI.Font(c, 14, nil, "OVERLAY", "OUTLINE"); c.name:SetPoint("TOPLEFT", 16, -14); c.name:SetPoint("RIGHT", -56, 0)
   c.you = UI.Font(c, 10, UI.GOLD); c.you:SetPoint("TOPRIGHT", -16, -16); c.you:SetText(L"ВЫ")
-  -- конверт с печатью: что-то продалось (клик - список лотов)
-  c.env = CreateFrame("Button", nil, c); c.env:SetSize(40, 30); c.env:SetPoint("TOPRIGHT", -12, -8)
-  c.env.tex = c.env:CreateTexture(nil, "ARTWORK"); c.env.tex:SetAllPoints(); UI.WinTex(c.env.tex, "envelope")
-  c.env:SetScript("OnClick", function() openLots(c.ck) end)
-  c.env:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Есть проданные лоты - заберите деньги на почте", 1, 0.82, 0, true); GameTooltip:Show() end)
-  c.env:SetScript("OnLeave", function() GameTooltip:Hide() end)
   c.l2 = UI.Font(c, 11, UI.DIM); c.l2:SetPoint("TOPLEFT", c.name, "BOTTOMLEFT", 0, -4)
   c.l3 = UI.Font(c, 10, UI.DIM); c.l3:SetPoint("TOPLEFT", c.l2, "BOTTOMLEFT", 0, -3); c.l3:SetPoint("RIGHT", -16, 0)
   c.sep = c:CreateTexture(nil, "ARTWORK"); c.sep:SetHeight(1); c.sep:SetPoint("TOPLEFT", 16, -66); c.sep:SetPoint("TOPRIGHT", -16, -66); c.sep:SetColorTexture(0.55, 0.42, 0.2, 0.6)
@@ -1296,8 +1173,7 @@ local function altCard(i)
     c.rows[k] = { a, b }
   end
   c.note = UI.Font(c, 10, { 1, 0.6, 0.54 }); c.note:SetPoint("BOTTOMLEFT", 16, 44); c.note:SetPoint("RIGHT", -16, 0)
-  c.bank = UI.Button(c, L"Банк", 108, 24, function() openBank(c.ck) end); c.bank:SetPoint("BOTTOMLEFT", 14, 14)
-  c.auc = UI.Button(c, L"Аукцион", 108, 24, function() openLots(c.ck) end); c.auc:SetPoint("BOTTOMRIGHT", -14, 14)
+  c.bank = UI.Button(c, L"Банк", 108, 26, function() openBank(c.ck) end); c.bank:SetPoint("BOTTOMLEFT", 14, 14); c.bank:SetPoint("BOTTOMRIGHT", -14, 14)
   alts.cards[i] = c
   return c
 end
@@ -1307,7 +1183,7 @@ local function refreshAlts()
   local W = (alts.sf:GetWidth() or 0) > 100 and alts.sf:GetWidth() or 812
   alts.child:SetWidth(W)
   local per = math.max(1, math.floor((W + 10) / (CARD_W + 10)))
-  local gold, lots = 0, 0
+  local gold = 0
   for i, ck in ipairs(list) do
     local c = ns.DB.chars[ck] or {}
     local card = altCard(i)
@@ -1325,17 +1201,13 @@ local function refreshAlts()
       local d = rows[k]
       if d then r[1]:SetText(d[1]); r[2]:SetText(d[2]); r[1]:Show(); r[2]:Show() else r[1]:Hide(); r[2]:Hide() end
     end
-    local all, sold = 0, 0
-    for _, l in ipairs(c.lots or {}) do all = all + 1; if l.st == "sold" then sold = sold + 1 end end
-    lots = lots + all; gold = gold + (c.money or 0)
-    card.env:SetShown(c.lotsNew and true or false); card.hl:SetShown(c.lotsNew and true or false)
-    card.note:SetText(c.lotsNew and string.format(L"Продано лотов: %d - заберите на почте", sold) or (c.bankT and "" or L"|cff999999Банк ещё не открывали|r"))
-    card.auc:SetLabel(L"Аукцион" .. " · " .. (all - sold)); card.auc:SetGold(c.lotsNew and true or false)
+    gold = gold + (c.money or 0)
+    card.note:SetText(c.bankT and "" or L"|cff999999Банк ещё не открывали|r")
     card:Show()
   end
   for i = #list + 1, #alts.cards do alts.cards[i]:Hide() end
   alts.child:SetHeight(math.ceil(#list / per) * (CARD_H + 10))
-  alts.sum:SetText(L"Всего золота" .. ": " .. ns.money(gold, true) .. "   " .. L"лотов на аукционе" .. ": " .. lots)
+  alts.sum:SetText(L"Всего золота" .. ": " .. ns.money(gold, true))
 end
 
 -- ---------- раздел «Часы»: кулдауны трансмутаций и других рецептов ----------
@@ -1397,7 +1269,6 @@ local function refresh()
   if view == VIEW_HOME then refreshHome() elseif view == VIEW_ALTS then refreshAlts() elseif view == VIEW_CRAFT then refreshCraft()
   elseif view == VIEW_AUC then refreshAuc() elseif view == VIEW_CD then refreshCds() else refreshSettings() end
   if pops.bank and pops.bank.dim:IsShown() then refreshBank() end
-  if pops.lots and pops.lots.dim:IsShown() then fillLotsPopup() end
   if pops.log and pops.log.dim:IsShown() then refreshLog() end
   updateGlow()
 end
@@ -1438,7 +1309,7 @@ ns._mainAlts = alts
 ns._mainCd = cdp
 ns._mainHome = home
 ns._mainPops = pops
-ns._openBank, ns._openLots = function(ck) openBank(ck) end, function(ck) openLots(ck) end
+ns._openBank = function(ck) openBank(ck) end
 function ns.ToggleMain(section)
   if not ns.DB or not ns.charKey then return end
   build()
@@ -1450,7 +1321,7 @@ ns.Listen("MARKS", refresh)
 ns.Listen("RECIPES", refresh)
 ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
-ns.Listen("ALTS", function() if win and win:IsShown() and (view == VIEW_ALTS or view == VIEW_AUC or (pops.lots and pops.lots.dim:IsShown())) then refresh() end end)
+ns.Listen("ALTS", function() if win and win:IsShown() and view == VIEW_ALTS then refresh() end end)
 ns.Listen("CD", function() updateGlow(); if win and win:IsShown() and view == VIEW_CD then refreshCds() end end)
 ns.Listen("LOG", function() if pops.log and pops.log.dim:IsShown() then refreshLog() end end)
 ns.Listen("INVENTORY", function() if (pops.bank and pops.bank.dim:IsShown()) or ns.DB.settings.useBank then refresh() end end)

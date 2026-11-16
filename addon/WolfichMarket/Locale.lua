@@ -668,4 +668,7 @@ ns.EN = {
   ["Материалы"] = "Materials",
   ["Сортировать рецепты:"] = "Sort recipes:",
   [" - продавец почти не приходит: пропавший лот твинка - «возможно, продан»"] = " - the seller rarely comes: a missing alt auction is \"possibly sold\"",
+  ["продажа"] = "sale",
+  ["На аукционе"] = "On the auction",
+  ["У аукциониста: найти этот предмет и обновить цены всего рецепта (результат и все материалы) без 15-минутного ожидания."] = "At the auctioneer: find this item and refresh prices of the whole recipe (result and all materials) without the 15-minute wait.",
 }

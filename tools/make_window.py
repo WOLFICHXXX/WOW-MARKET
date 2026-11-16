@@ -115,7 +115,8 @@ FSIZE = {}
 for k, bb in PARTS.items():
     im = F.crop(bb)
     FSIZE[k] = im.size
-    save(im, k)
+    # части рамки - в 0.6 размера макета: в игре окна рисуют их в 0.42-0.74, без сильного уменьшения (иначе «лесенка»)
+    save(im, k, size=(max(1, round(im.width * 0.6)), max(1, round(im.height * 0.6))))
 # фон внутри рамки: тёмный, с мягким светлым центром и едва заметным зерном (лапки - отдельной текстурой, в игре)
 N = 256
 yy, xx = np.mgrid[0:N, 0:N].astype(float)
@@ -151,8 +152,8 @@ def bell(d, k, fill, line):
     d.ellipse((14 * s, 1 * s, 18 * s, 5 * s), fill=line)
 
 
-save(supersample(lambda d, k: bell(d, k, (242, 199, 97, 255), (120, 80, 20, 255)), 32, 32), 'bell-on')
-save(supersample(lambda d, k: bell(d, k, (60, 50, 36, 200), (190, 160, 100, 255)), 32, 32), 'bell-off')
+save(supersample(lambda d, k: bell(d, k, (242, 199, 97, 255), (120, 80, 20, 255)), 32, 32), 'bell-on', size=(20, 20))
+save(supersample(lambda d, k: bell(d, k, (60, 50, 36, 200), (190, 160, 100, 255)), 32, 32), 'bell-off', size=(20, 20))
 
 
 def envelope(d, k):
@@ -165,7 +166,6 @@ def envelope(d, k):
         d.ellipse(((x - 2) * s, (y - 2) * s, (x + 2) * s, (y + 2) * s), fill=(232, 180, 168, 255))
 
 
-save(supersample(envelope, 64, 48), 'envelope')
 save(supersample(lambda d, k: d.polygon([(4 * k, 2 * k), (13 * k, 8 * k), (4 * k, 14 * k)], fill=(242, 199, 97, 255), outline=(90, 60, 15, 255)), 16, 16), 'tri')
 
 # свечение клетки колонки: светлая кромка внутрь (цвет задаётся в игре)
@@ -177,6 +177,11 @@ G[dist < 3] = 1
 glow = np.dstack([np.full_like(G, 255), np.full_like(G, 255), np.full_like(G, 255), G * 255]).astype(np.uint8)
 save(Image.fromarray(glow, 'RGBA'), 'slot-glow')
 
+# линия графика: поперёк толщины - мягкие края (сглаживание вместо «лесенки»)
+lt = np.zeros((16, 8, 4), np.uint8); lt[..., :3] = 255
+for y in range(16):
+    lt[y, :, 3] = int(255 * min(1.0, max(0.0, 1 - abs(y - 7.5) / 8.0) * 1.6))
+save(Image.fromarray(lt, 'RGBA'), 'line')
 # медальон уведомления (воющий волк) - круг
 hw = Image.open(os.path.join(SRC, 'howl.png')).convert('RGBA')
 c = min(hw.size)
@@ -184,7 +189,7 @@ hw = hw.crop(((hw.width - c) // 2, 0, (hw.width - c) // 2 + c, c))
 mask = Image.new('L', (c * 4, c * 4))
 ImageDraw.Draw(mask).ellipse((6, 6, c * 4 - 6, c * 4 - 6), fill=255)
 hw.putalpha(ImageChops.multiply(hw.split()[3], mask.resize((c, c), Image.LANCZOS)))
-save(hw, 'howl', size=(64, 64))
+save(hw, 'howl', size=(48, 48))
 
 # ---------- данные для игры ----------
 with open(LUA, 'w', encoding='utf-8') as f:
@@ -221,11 +226,13 @@ BTN_CAP = 22
 for kind in ('gold', 'dark', 'blue'):
     im = cut_bg(Image.open(os.path.join(SRC, 'wm-btn_%s.png' % kind)))
     w, h = im.size
-    save(im.crop((0, 0, BTN_CAP, h)), 'btn-%s-l' % kind)
-    save(im.crop((BTN_CAP + 6, 0, w - BTN_CAP - 6, h)).resize((64, h)), 'btn-%s-m' % kind)
-    save(im.crop((w - BTN_CAP, 0, w, h)), 'btn-%s-r' % kind)
+    # высота 30: кнопки в игре 22-26 px - почти без уменьшения
+    k = 30 / h
+    save(im.crop((0, 0, BTN_CAP, h)), 'btn-%s-l' % kind, size=(round(BTN_CAP * k), 30))
+    save(im.crop((BTN_CAP + 6, 0, w - BTN_CAP - 6, h)), 'btn-%s-m' % kind, size=(64, 30))
+    save(im.crop((w - BTN_CAP, 0, w, h)), 'btn-%s-r' % kind, size=(round(BTN_CAP * k), 30))
 chk = cut_bg(Image.open(os.path.join(SRC, 'wm-chk.png')))
-save(chk, 'chk-on', size=(32, 28))
+save(chk, 'chk-on', size=(23, 20))
 off = np.array(chk).astype(int)
 # пустая галочка: внутренность рамки - ровная тёмная (галка стёрта целиком)
 ins = off[11:32, 11:35]
@@ -234,7 +241,7 @@ goldish = (r > 60) & (r - b > 18)
 dark = np.median(ins[~goldish][:, :3], axis=0) if (~goldish).any() else np.array([30, 30, 32])
 ins[:, :, :3] = dark
 off[11:32, 11:35] = ins
-save(Image.fromarray(off.astype(np.uint8)), 'chk-off', size=(32, 28))
+save(Image.fromarray(off.astype(np.uint8)), 'chk-off', size=(23, 20))
 # мягкая чёрная подложка под окном (заполняет просветы между колонкой, шапкой и рамкой)
 S2 = 128
 yy, xx = np.mgrid[0:S2, 0:S2].astype(float)
