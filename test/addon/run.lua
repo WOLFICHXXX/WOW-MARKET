@@ -872,7 +872,26 @@ do
   sent = {}
   ns.ShareScan({ t = T + 1300, items = items2 })
   for _ = 1, 50 do advance(0.2) end
-  check(#sent == 0, "цены в сети такие же - рассылать нечего (" .. #sent .. " сообщ.)")
+  local priceMsgs = 0; for _, m in ipairs(sent) do if #(zids(m)) > 0 then priceMsgs = priceMsgs + 1 end end
+  local hasH = false; for _, m in ipairs(sent) do if m:sub(1, 2) == "H^" then hasH = true end end
+  check(priceMsgs == 0 and hasH, "цены в сети такие же - цен не шлём, только подтверждение времени (H/E)")
+  -- получатель: рассылка без изменений обновляет время его цен; пропавшие с аукциона - убираются
+  do
+    local enc = function(x) local D = "0123456789abcdefghijklmnopqrstuvwxyz"; local s2 = ""; x = math.floor(x); repeat local d = x % 36; s2 = D:sub(d + 1, d + 1) .. s2; x = math.floor(x / 36) until x == 0; return s2 end
+    local rk2 = ns.NetKey()
+    local net = ns.DB.net[ns.realmKey]
+    net.items[600012] = { 777, 1, T - 5000 }       -- старое время, цена не менялась
+    net.items[600015] = { 888, 1, T - 5000 }       -- пропадёт с аукциона
+    local t5 = T + 5000
+    ns._netSeen.active = -1000
+    ns._netReceive("WolfMkt1", "H^" .. rk2 .. "^" .. enc(t5) .. "^0^2.42^0^d", "CHANNEL", "Сверщик-Realm")
+    ns._netReceive("WolfMkt1", "X^" .. rk2 .. "^" .. enc(t5) .. "^" .. ns._zenc(600015), "CHANNEL", "Сверщик-Realm")
+    ns._netReceive("WolfMkt1", "E^" .. rk2 .. "^" .. enc(t5), "CHANNEL", "Сверщик-Realm")
+    advance(1)
+    check(net.items[600012] and net.items[600012][3] == t5 and net.items[600012][1] == 777, "цена без изменений: время обновлено на время снимка")
+    check(net.items[600015] == nil, "пропавший с аукциона предмет убран")
+    net.items[600012] = nil
+  end
   -- новичок спрашивает цены (Q): весь аукцион целиком - лично ему шёпотом; в сеть - только «A» (я отвечаю)
   local log = {}
   C_ChatInfo.SendAddonMessage = function(p, m, ch, target) log[#log + 1] = { m = m, ch = ch, to = target }; return 0 end

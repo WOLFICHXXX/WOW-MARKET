@@ -265,6 +265,23 @@ local function pack(kind, t, ids, items, withQty, maxlen)
   return out
 end
 
+-- только номера предметов (для списка пропавших с аукциона)
+local function packIds(kind, t, ids, maxlen)
+  table.sort(ids)
+  local head = kind .. "^" .. RK() .. "^" .. enc(t) .. "^"
+  local out, buf, len, prev = {}, {}, #head, nil
+  for _, id in ipairs(ids) do
+    local piece = zenc(prev and (id - prev) or id)
+    if len + #piece > maxlen and #buf > 0 then
+      out[#out + 1] = head .. table.concat(buf); buf, prev, len = {}, nil, #head
+      piece = zenc(id)
+    end
+    buf[#buf + 1] = piece; len = len + #piece; prev = id
+  end
+  if #buf > 0 then out[#out + 1] = head .. table.concat(buf) end
+  return out
+end
+
 -- что разослано в прошлый раз (в памяти): для «только изменившихся цен»
 local lastSent = {}   -- [ключ аукциона] = { t, full = время полной рассылки, p = { [id] = цена } }
 
@@ -335,10 +352,17 @@ function ns.ShareScan(scan, full, again, to)
     end
   end
   local n = pri + #rest
-  if n == 0 then
-    if not to then lastSent[rk] = { t = scan.t, full = last and last.full, p = last and last.p or {} } end
-    ns.say(L"общий рынок: цены в сети уже такие же, как в вашем снимке - рассылать нечего.")
-    return
+  -- пропавшие с аукциона: были известны сети, а в снимке их нет - получатели их уберут
+  local removed = {}
+  if not full then
+    local knownIds = {}
+    for id in pairs(net and net.items or {}) do knownIds[id] = true end
+    for id in pairs(last and last.p or {}) do knownIds[id] = true end
+    for id in pairs(knownIds) do local r = scan.items[id]; if not (r and r[1] and r[1] > 0) then removed[#removed + 1] = id end end
+  end
+  -- даже если цены не поменялись, рассылка уходит: получатели обновят у этих цен время на время снимка
+  if n == 0 and not to then
+    ns.say(string.format(L"общий рынок: цены не изменились (%d) - отправляю только подтверждение времени снимка.", unchanged))
   end
   -- запомнить разосланное
   local p = {}
@@ -362,6 +386,9 @@ function ns.ShareScan(scan, full, again, to)
   -- обычные пути: сигналы и рецепты - всем путям, остальной аукцион - только каналу
   for _, m in ipairs(priParts) do send(m, false, nil, scan.t) end
   for _, m in ipairs(restParts) do send(m, false, nil, scan.t, true) end
+  -- список пропавших (только номера): в канал и Battle.net
+  for _, m in ipairs(packIds("X", scan.t, removed, MAXLEN)) do send(m, false, nil, scan.t, true) end
+  for _, m in ipairs(packIds("X", scan.t, removed, 2000)) do send(m, m, true, scan.t) end
   for _, m in ipairs(bigParts) do send(m, m, true, scan.t) end
   send("E^" .. rk .. "^" .. enc(scan.t), nil, nil, scan.t)
   sendTarget = nil
@@ -495,7 +522,19 @@ local function finish(sender, lost)
     ns.say(string.format(L"общий рынок: %s вышел из игры (или пропал из сети) раньше, чем к вам попал весь аукцион. Пришло %d из %d цен: сигналы и рецепты - %d из %d, остальной аукцион - %d из %d.",
       who, got, inc.n, priGot, inc.pri or inc.n, math.max(0, got - (inc.pri or 0)), math.max(0, inc.n - (inc.pri or 0))), true)
   else
-    ns.say(string.format(inc.delta and L"общий рынок: изменения аукциона от %s (%s) - %d цен, из них свежее ваших: %d." or L"общий рынок: весь аукцион от %s (%s) - %d цен, из них свежее ваших: %d.", who, ns.ago(inc.t), got, inc.newCount or 0))
+    -- рассылка пришла целиком: остальные известные цены подтверждены на время этого снимка,
+    -- пропавшие с аукциона - убрать (у полного снимка пропавшие - всё, чего в нём нет)
+    local net = netTable(ns.realmKey)
+    local confirmed, gone = 0, 0
+    for id, x in pairs(net.items) do
+      if x[3] < inc.t and not inc.items[id] then
+        if (inc.removed and inc.removed[id]) or not inc.delta then net.items[id] = nil; gone = gone + 1
+        else x[3] = inc.t; confirmed = confirmed + 1 end
+      end
+    end
+    if confirmed + gone > 0 then net.t = math.max(net.t or 0, inc.t); ns.Fire("PRICES") end
+    ns.say(string.format(inc.delta and L"общий рынок: изменения аукциона от %s (%s) - %d цен, из них свежее ваших: %d." or L"общий рынок: весь аукцион от %s (%s) - %d цен, из них свежее ваших: %d.", who, ns.ago(inc.t), got, inc.newCount or 0)
+      .. (confirmed > 0 and string.format(L" Время остальных цен обновлено: %d.", confirmed) or "") .. (gone > 0 and string.format(L" Пропали с аукциона: %d.", gone) or ""))
   end
 end
 
@@ -623,6 +662,17 @@ local function onMessage(prefix, msg, dist, sender)
     end
     inc.last = (GetTime and GetTime() or time()); inc.msgs = inc.msgs + 1
     if inc.msgs % 20 == 0 then apply(inc, sender) end
+  elseif kind == "X" then
+    -- пропавшие с аукциона предметы
+    sender = (alias[sender] and incoming[alias[sender]]) and alias[sender] or sender
+    local inc = incoming[sender]
+    if not inc then return end
+    local tstr, body = rest:match("^([^%^]+)%^(.*)$")
+    if not tstr or dec(tstr) ~= inc.t then return end
+    inc.removed = inc.removed or {}
+    local id = 0
+    for i, v in ipairs(zdec(body)) do id = (i == 1) and v or (id + v); inc.removed[id] = true end
+    inc.last = (GetTime and GetTime() or time())
   elseif kind == "E" then
     sender = (alias[sender] and incoming[alias[sender]]) and alias[sender] or sender
     if incoming[sender] and dec(rest) == incoming[sender].t then finish(sender) end
