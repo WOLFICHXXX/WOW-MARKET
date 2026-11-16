@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.30
+
+### ✨ Look
+- **Auctioneer bag:** a minimalist frame (cloth with paws, thin header), the slots as before; the character's money with coin icons at the bottom right.
+
+### ✨ Оформление
+- **Сумка у аукциониста:** минималистичная рамка (ткань с лапками, тонкая шапка), ячейки прежние; внизу справа - деньги персонажа значками монет.
+
 ## 2.43.29
 
 ### ✨ Look

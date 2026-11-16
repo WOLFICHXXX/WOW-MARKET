@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.30", d = "17.11.2026",
+    ru = { "Сумка у аукциониста: минималистичная рамка (ткань с лапками, тонкая шапка), ячейки прежние; внизу справа - деньги персонажа значками монет." },
+    en = { "Auctioneer bag: a minimalist frame (cloth with paws, thin header), the slots as before; the character's money with coin icons at the bottom right." } },
   { v = "2.43.29", d = "17.11.2026",
     ru = { "Компактное окно: свои простые значки разделов (дом, персонажи, колба, молоток, песочные часы, шестерёнка), выбранный раздел - золотом с чертой слева; фон - прежняя ткань с лапками." },
     en = { "Compact window: simple section icons of its own (house, characters, flask, gavel, hourglass, gear), the selected section in gold with a bar on the left; the background is the former cloth with paws." } },

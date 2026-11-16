@@ -1290,6 +1290,7 @@ do
   local B = WolfichMarketAHBags
   local btn; for _, b in ipairs(B and B.btns or {}) do if b.id == 2840 then btn = b end end
   check(B and B:IsShown() and btn ~= nil, "своя сумка у аукциониста с предметами из сумок")
+  check(B and (B.money.text or ""):find("Icon", 1, true) ~= nil and B.moneyLbl ~= nil, "сумка у аукциониста: деньги персонажа значками монет внизу")
   if btn then btn.scripts.OnClick(btn, "LeftButton") end
   check(ns._ahPages[3]:IsShown(), "клик по предмету в сумке аддона - вкладка «Продать»")
   local okP = pcall(ns.PlaceAH); check(okP, "окно аукциона и панель размещаются на экране")

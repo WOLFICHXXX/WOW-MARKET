@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.43.29"
+ns.VERSION = "2.43.30"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -89,6 +89,17 @@ function ns.money(c, short)
   if (g > 0 or s > 0) and not (short and g >= 100) then out[#out + 1] = s .. L"|cffc7c7cfс|r" end
   if g == 0 and not (short and s >= 10) then out[#out + 1] = m .. L"|cffeda55fм|r" end
   return (neg and "|cffff6060-|r" or "") .. table.concat(out, " ")
+end
+-- деньги значками монет, как в сумке игры: 1 [золото] 87 [серебро] 63 [медь]
+local COIN = "|TInterface\\MoneyFrame\\UI-%sIcon:0:0:2:0|t"
+function ns.coins(c)
+  c = math.max(0, math.floor((c or 0) + 0.5))
+  local g, s, m = math.floor(c / 10000), math.floor(c % 10000 / 100), c % 100
+  local out = {}
+  if g > 0 then out[#out + 1] = g .. COIN:format("Gold") end
+  if g > 0 or s > 0 then out[#out + 1] = s .. COIN:format("Silver") end
+  out[#out + 1] = m .. COIN:format("Copper")
+  return table.concat(out, "  ")
 end
 function ns.ago(t)
   if not t or t == 0 then return L"никогда" end

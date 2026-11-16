@@ -24,21 +24,28 @@ end
 -- ---------- своя сумка ----------
 local bagf
 local SLOT, GAP = 36, 3
+local HEAD, FOOT, TOP = 36, 30, 46 -- шапка, полоса денег внизу, отступ первого ряда
 local QUALITY = ITEM_QUALITY_COLORS
 local function build()
   if bagf then return bagf end
   local h = AuctionHouseFrame or AuctionFrame
   bagf = CreateFrame("Frame", "WolfichMarketAHBags", h)
   bagf:SetFrameStrata("HIGH")
-  UI.Skin(bagf, { theme = "ah", frame = 0.42 })
-  local t = UI.Font(bagf, 13, UI.GOLD); UI.SetFont(t, UI.TITLE_FONT, 15, ""); t:SetPoint("TOPLEFT", 30, -24); t:SetText(L"Сумки")
-  bagf.money = UI.Font(bagf, 11); bagf.money:SetPoint("LEFT", t, "RIGHT", 14, 0)
-  bagf.value = UI.Font(bagf, 11, UI.DIM); bagf.value:SetPoint("LEFT", bagf.money, "RIGHT", 16, 0)
-  -- «Упорядочить»: сортировка игры, затем аддон кладёт выгодное на аукцион наверх, торговцу - вниз
+  -- минималистичное оформление: ткань с лапками, тонкая золотая кромка, тонкая шапка; ячейки - прежние
+  local bg = bagf:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
+  UI.PawsBG(bagf)
+  UI.Edge(bagf, 0.43, 0.33, 0.16, 1)
+  local hl = bagf:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1); hl:SetPoint("TOPLEFT", 1, -HEAD); hl:SetPoint("TOPRIGHT", -1, -HEAD)
+  local t = bagf:CreateFontString(nil, "OVERLAY"); UI.SetFont(t, UI.TITLE_FONT, 17, ""); t:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); t:SetPoint("LEFT", bagf, "TOPLEFT", 14, -HEAD / 2); t:SetText(L"Сумки")
+  bagf.value = UI.Font(bagf, 11, UI.DIM); bagf.value:SetPoint("LEFT", t, "RIGHT", 14, 0)
+  -- деньги персонажа - внизу справа, как в сумке игры
+  bagf.money = UI.Font(bagf, 13); UI.SetFont(bagf.money, UI.BOLD, 13, ""); bagf.money:SetPoint("BOTTOMRIGHT", -14, 9); bagf.money:SetJustifyH("RIGHT")
+  bagf.moneyLbl = UI.Font(bagf, 11, UI.DIM); bagf.moneyLbl:SetPoint("RIGHT", bagf.money, "LEFT", -8, 0); bagf.moneyLbl:SetText(L"у персонажа:")
+  local fl = bagf:CreateTexture(nil, "BORDER"); fl:SetColorTexture(0.18, 0.15, 0.09, 1); fl:SetHeight(1); fl:SetPoint("BOTTOMLEFT", 1, FOOT); fl:SetPoint("BOTTOMRIGHT", -1, FOOT)
   bagf.sort = UI.Button(bagf, L"Упорядочить", 110, 20, function()
     if C_Container and C_Container.SortBags then pcall(C_Container.SortBags) elseif SortBags then pcall(SortBags) end
   end)
-  bagf.sort:SetPoint("TOPRIGHT", -52, -20)
+  bagf.sort:SetPoint("RIGHT", bagf, "TOPRIGHT", -12, -HEAD / 2)
   local hint = UI.Font(bagf, 10, UI.DIM); hint:SetPoint("RIGHT", bagf.sort, "LEFT", -10, 0); hint:SetPoint("LEFT", bagf.value, "RIGHT", 14, 0); hint:SetJustifyH("RIGHT")
   hint:SetText(L"клик - выставить в панели аддона, ПКМ - на аукционе игры")
   bagf.btns = {}
@@ -121,16 +128,16 @@ function ns.UpdateAHBags()
   local hb = h:GetBottom()
   local s = (h:GetEffectiveScale() or 1) / (UIParent:GetEffectiveScale() or 1)
   local avail = hb and (hb * s - 34 * s - 8) / s or 600
-  local vis = math.max(2, math.min(rows, math.floor((avail - 92) / (SLOT + GAP))))
+  local vis = math.max(2, math.min(rows, math.floor((avail - TOP - FOOT - 10) / (SLOT + GAP))))
   bagf.maxOffset = math.max(0, rows - vis)
   bagf.offset = math.min(bagf.offset or 0, bagf.maxOffset)
-  bagf:SetSize(W, 62 + vis * (SLOT + GAP) + 30)
+  bagf:SetSize(W, TOP + vis * (SLOT + GAP) - GAP + 10 + FOOT)
   -- под вкладками окна аукциона (Купить / Продать / Аукционы ...), их не закрываем
   bagf:ClearAllPoints(); bagf:SetPoint("TOPLEFT", h, "BOTTOMLEFT", 0, -34)
   local x0 = math.floor((W - cols * (SLOT + GAP) + GAP) / 2)
   if bagf.maxOffset > 0 then
     local th = vis * (SLOT + GAP) - GAP
-    bagf.track:ClearAllPoints(); bagf.track:SetPoint("TOPRIGHT", -(x0 - 10), -50); bagf.track:SetHeight(th); bagf.track:Show()
+    bagf.track:ClearAllPoints(); bagf.track:SetPoint("TOPRIGHT", -(x0 - 10), -TOP); bagf.track:SetHeight(th); bagf.track:Show()
     local bh = math.max(16, th * vis / rows)
     bagf.bar:ClearAllPoints(); bagf.bar:SetPoint("TOP", bagf.track, "TOP", 0, -(th - bh) * bagf.offset / bagf.maxOffset); bagf.bar:SetHeight(bh); bagf.bar:Show()
   else bagf.track:Hide(); bagf.bar:Hide() end
@@ -148,7 +155,7 @@ function ns.UpdateAHBags()
     shown = shown + 1
     local b = slotButton(shown)
     b.bag, b.slot, b.special = it[1], it[2], it[3]
-    b:ClearAllPoints(); b:SetPoint("TOPLEFT", x0 + ((shown - 1) % cols) * (SLOT + GAP), -50 - math.floor((shown - 1) / cols) * (SLOT + GAP))
+    b:ClearAllPoints(); b:SetPoint("TOPLEFT", x0 + ((shown - 1) % cols) * (SLOT + GAP), -TOP - math.floor((shown - 1) / cols) * (SLOT + GAP))
     local info = safe(C_Container.GetContainerItemInfo, it[1], it[2])
     b.id, b.link = info and info.itemID, info and info.hyperlink
     if b.id then
@@ -167,7 +174,7 @@ function ns.UpdateAHBags()
     b:Show()
   end
   for i = shown + 1, #bagf.btns do bagf.btns[i]:Hide() end
-  bagf.money:SetText(ns.money(GetMoney and GetMoney() or 0, true))
+  bagf.money:SetText(ns.coins(GetMoney and GetMoney() or 0))
   bagf.value:SetText(L"по аукциону" .. ": " .. ns.money(value, true))
   bagf:Show()
 end
