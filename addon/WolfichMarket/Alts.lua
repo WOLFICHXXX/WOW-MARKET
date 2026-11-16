@@ -42,9 +42,9 @@ end
 -- c.lots = { { aid, id, name, q, p (за шт), ends, st = "active" | "sold", soldAt } }; c.lotsNew - есть непросмотренные продажи
 local SOLD_KEEP = 3 * 24 * 3600
 local function lotName(id) local n = ns.itemName(id); return n end
-local function markSold(c, lot)
+local function markSold(c, lot, by)
   if lot.st == "sold" then return end
-  lot.st, lot.soldAt = "sold", time()
+  lot.st, lot.soldAt, lot.soldBy, lot.maybe = "sold", time(), by or "game", nil
   c.lotsNew = true
   ns.say(string.format(L"|cff78d98aпродано|r: %s ×%d - %s", ns.itemLinkText(lot.id), lot.q or 1, ns.money((lot.p or 0) * (lot.q or 1))), true)
   ns.Fire("ALTS")
@@ -63,9 +63,11 @@ function ns.ReadOwnedAuctions()
     if id then
       local o = old[a.auctionID] or {}
       local lot = { aid = a.auctionID, id = id, name = lotName(id), q = a.quantity or 1, p = a.buyoutAmount or a.bidAmount or o.p,
-        ends = now + (a.timeLeftSeconds or 0), st = o.st or "active", soldAt = o.soldAt, kind = ns.ahKind or "main" }
+        ends = now + (a.timeLeftSeconds or 0), st = "active", kind = ns.ahKind or "main" }
+      -- лот всё ещё выставлен - значит, не продан (исправляет ошибочные «продано» по снимку)
+      if o.st == "sold" and a.status == 1 then lot.st, lot.soldAt = "sold", o.soldAt end
       list[#list + 1] = lot
-      if a.status == 1 then markSold(c, lot) end -- 1 - продан, деньги на почте
+      if a.status == 1 then markSold(c, lot, "game") end -- 1 - продан, деньги на почте
       if a.auctionID then seen[a.auctionID] = true end
     end
   end
@@ -98,7 +100,7 @@ local function soldByName(c, name)
   for _, l in ipairs(c.lots or {}) do
     if l.st ~= "sold" and (l.name == name or ns.itemName(l.id) == name) and (not best or (l.ends or 0) < (best.ends or 0)) then best = l end
   end
-  if best then markSold(c, best) end
+  if best then markSold(c, best, "msg") end
 end
 ns.On("CHAT_MSG_SYSTEM", function(msg)
   local pat = soldPattern()
@@ -153,9 +155,10 @@ function ns.AltLotWatch(kind)
 end
 function ns.CheckAltLots(kind, watch, seen, total)
   ns.say(string.format(L"снимок: имя продавца пришло у %d из %d лотов%s", seen.withOwner, total,
-    seen.withOwner > 0 and L" - продажи твинков видны по снимку" or L" - продажи твинков по снимку определить нельзя"))
+    seen.withOwner >= total * 0.9 and L" - продажи твинков видны по снимку" or L" - продавец почти не приходит: пропавший лот твинка - «возможно, продан»"))
   if not watch then return end
-  local now, ownerMode = time(), seen.withOwner > 0
+  -- имя продавца сервер присылает не у всех лотов: по продавцу сравниваем, только если оно есть почти у всех
+  local now, ownerMode = time(), seen.withOwner >= total * 0.9
   local own, any = {}, {}
   for k, v in pairs(seen.own) do own[k] = v end
   for k, v in pairs(seen.any) do any[k] = v end
@@ -174,7 +177,7 @@ function ns.CheckAltLots(kind, watch, seen, total)
           if (pool[pk] or 0) > 0 then pool[pk] = pool[pk] - 1; found = true; break end
         end
         if found then l.maybe, l.seenT = nil, now
-        elseif ownerMode then markSold(c, l)
+        elseif ownerMode then markSold(c, l, "scan")
         elseif not l.maybe then l.maybe = now; ns.Fire("ALTS") end
       end
     end

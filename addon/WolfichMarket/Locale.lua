@@ -667,4 +667,5 @@ ns.EN = {
   ["возможно, продан (нет в снимке)"] = "possibly sold (not in the snapshot)",
   ["Материалы"] = "Materials",
   ["Сортировать рецепты:"] = "Sort recipes:",
+  [" - продавец почти не приходит: пропавший лот твинка - «возможно, продан»"] = " - the seller rarely comes: a missing alt auction is \"possibly sold\"",
 }

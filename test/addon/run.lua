@@ -1260,15 +1260,23 @@ do
   end
   ns.ahOpen, ns.ahKind, ns.ahIsBM = true, "main", false
   local function scan() ns.DB.ahLastReq = 0; ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end end
+  -- продавец пришёл у всех лотов снимка
+  local oldI0 = oldI
+  oldI = function(i) local a = { oldI0(i) }; a[14] = a[14] or "Кто-то"; return table.unpack(a, 1, 18) end
   scan()
+  oldI = oldI0
   check(tw.lots[1].st == "active" and tw.lots[2].st == "sold" and tw.lotsNew, "твинк не в игре: лот пропал из снимка до конца срока - продан, конверт горит")
-  local logged; for _, e in ipairs(ns.log) do if e.msg:find("имя продавца пришло у 1 из", 1, true) or e.msg:find("seller name came with 1 of", 1, true) then logged = e.msg end end
+  local logged; for _, e in ipairs(ns.log) do if e.msg:find("имя продавца пришло у", 1, true) or e.msg:find("seller name came with", 1, true) then logged = e.msg end end
   check(logged ~= nil, "в журнале: у скольких лотов пришло имя продавца (" .. tostring(logged) .. ")")
   -- сервер не присылает продавца: только «возможно, продан», конверт не зажигается
   tw.lots[2] = { id = 3470, q = 10, p = 140, ends = time() + 3600, st = "active", kind = "main" }; tw.lotsNew = nil
   withOwner = false
   scan()
   check(tw.lots[2].st == "active" and tw.lots[2].maybe and not tw.lotsNew and tw.lots[1].maybe == nil, "без имени продавца - только «возможно, продан»")
+  -- продавец пришёл у единиц лотов (как на сервере) - тоже только «возможно, продан»
+  tw.lots[2].maybe = nil; withOwner = true
+  scan()
+  check(tw.lots[2].st == "active" and tw.lots[2].maybe and not tw.lotsNew, "продавец у единиц лотов - не «продано», а «возможно, продан»")
   C_AuctionHouse.GetReplicateItemInfo, C_AuctionHouse.GetNumReplicateItems = oldI, oldN
   ns.DB.chars["Твинкс-CAMWOWEU4Realm6PvP"] = nil
 end

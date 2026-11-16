@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.43.2"
+ns.VERSION = "2.43.3"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -223,6 +223,15 @@ ns.On("ADDON_LOADED", function(name)
       if t.buy and t.sell then DB.alarmDir[id] = "both" elseif t.buy then DB.alarmDir[id] = DB.alarmDir[id] or "buy" elseif t.sell then DB.alarmDir[id] = DB.alarmDir[id] or "sell" end
     end
     DB.settings.sortV2 = 1
+  end
+  -- 2.43.3: «продано» по снимку в 2.43.3 могло быть ошибочным (продавец приходит у единиц лотов) - вернуть в «возможно, продан»
+  if not DB.settings.lotsFixV then
+    for ck, c in pairs(DB.chars or {}) do
+      for _, l in ipairs(c.lots or {}) do
+        if l.st == "sold" and l.soldBy == nil and (l.ends or 0) > time() then l.st, l.soldAt, l.maybe = "active", nil, time() end
+      end
+    end
+    DB.settings.lotsFixV = 1
   end
   ns.Fire("DB_READY")
 end)
