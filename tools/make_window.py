@@ -200,6 +200,27 @@ lt = np.zeros((16, 8, 4), np.uint8); lt[..., :3] = 255
 for y in range(16):
     lt[y, :, 3] = int(255 * min(1.0, max(0.0, 1 - abs(y - 7.5) / 8.0) * 1.6))
 save(Image.fromarray(lt, 'RGBA'), 'line')
+# ячейка сумки: скруглённая бронзовая рамка с бликом сверху и тёмным углублением
+def slot_img(k=4, N=48):
+    S_ = N * k
+    im = Image.new('RGBA', (S_, S_))
+    d = ImageDraw.Draw(im)
+    r = 7 * k
+    d.rounded_rectangle((0, 0, S_ - 1, S_ - 1), radius=r, fill=(58, 42, 18, 255))
+    for i in range(3 * k):
+        t = i / (3 * k)
+        c = (int(200 - 90 * t), int(150 - 70 * t), int(70 - 40 * t), 255)
+        d.rounded_rectangle((i, i, S_ - 1 - i, S_ - 1 - i), radius=max(1, r - i), outline=c)
+    d.rounded_rectangle((3 * k, 3 * k, S_ - 1 - 3 * k, S_ - 1 - 3 * k), radius=r - 3 * k + 2, fill=(14, 13, 16, 255))
+    a = np.array(im).astype(float)
+    yy, xx = np.mgrid[0:S_, 0:S_]
+    inner = (xx > 3 * k) & (xx < S_ - 3 * k) & (yy > 3 * k) & (yy < S_ - 3 * k)
+    shade = np.clip(1 - (yy - 3 * k) / (S_ * 0.5), 0, 1) * 10
+    a[..., :3][inner] += shade[inner][:, None]
+    hi = (yy < 2 * k) & (xx > r) & (xx < S_ - r)
+    a[..., :3][hi] = np.minimum(255, a[..., :3][hi] + 60)
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8)).resize((N, N), Image.LANCZOS)
+save(slot_img(), 'slot')
 # медальон уведомления (воющий волк) - круг
 hw = Image.open(os.path.join(SRC, 'howl.png')).convert('RGBA')
 c = min(hw.size)
