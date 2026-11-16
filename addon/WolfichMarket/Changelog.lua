@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.25", d = "16.11.2026",
+    ru = { "План у аукциониста: количество у каждого рецепта можно менять кнопками «-» и «+» или вписать вручную - список покупок и прибыль пересчитываются сразу." },
+    en = { "Plan at the auctioneer: change the count of every recipe with the - and + buttons or type it in - the shopping list and profit update right away." } },
   { v = "2.43.24", d = "16.11.2026",
     ru = { "Исправлено: после аукциона предметы из сумок с действием (спальник и т.п.) блокировались сообщением «доступно только интерфейсу Blizzard». Сумки игры у аукциона теперь только прячутся, а не закрываются аддоном." },
     en = { "Fixed: after visiting the auction house, usable bag items (bedroll etc.) were blocked with \"only available to the Blizzard UI\". The game's bags at the auction house are now only hidden, not closed by the addon." } },

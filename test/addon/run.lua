@@ -687,6 +687,20 @@ do
   for _ = 1, 20 do advance(1) end
   C_AuctionHouse.SendSearchQuery = oldQ
   check(#asked == 3, "«Обновить цены плана» - только рецепты плана")
+  -- количество в плане у аукциониста: + / - и ввод вручную
+  do
+    local pg = ns._ahPages[5]; pg.refresh()
+    local r; for _, x in ipairs(pg.recs.rows or {}) do if x.data then r = x; break end end
+    local n0 = ns.Plans()[1].n
+    if r then
+      local cost0 = select(2, ns.PlanProfit()).cost
+      r.plus.scripts.OnClick(r.plus); check(ns.Plans()[1].n == n0 + 1, "план: «+» увеличивает количество")
+      check(select(2, ns.PlanProfit()).cost > cost0, "план: больше порций - дороже материалы")
+      r.minus.scripts.OnClick(r.minus); r.minus.scripts.OnClick(r.minus); r.minus.scripts.OnClick(r.minus)
+      check(ns.Plans()[1].n == math.max(1, n0 - 2), "план: «-» не опускается ниже 1")
+      r.n:SetText("12"); r.n.scripts.OnEditFocusLost(r.n); check(ns.Plans()[1].n == 12 and r.n:GetText() == "12", "план: количество вписывается вручную")
+    else check(false, "план: строка рецепта с количеством") end
+  end
   ns.ClearPlans()
 end
 -- стоимость сумок: полная, «Сбросить» (только новое), «Обновить»

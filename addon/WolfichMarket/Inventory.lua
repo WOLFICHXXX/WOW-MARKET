@@ -94,6 +94,12 @@ function ns.AddPlan(rec, charKey, prof, n)
   ns.say(string.format(L"добавлено в план: %s ×%d - список покупок во вкладке «План» у аукциониста.", rec.name, n))
   ns.Fire("PLAN")
 end
+-- сколько раз скрафтить рецепт плана (поле количества у аукциониста)
+function ns.SetPlanCount(i, n)
+  local p = ns.Plans()[i]
+  n = math.max(1, math.min(999, math.floor(tonumber(n) or 1)))
+  if p and p.n ~= n then p.n = n; p.t = time(); ns.Fire("PLAN") end
+end
 function ns.RemovePlan(i) local plans = ns.Plans(); if plans[i] then table.remove(plans, i); ns.Fire("PLAN") end end
 function ns.ClearPlans() wipe(ns.Plans()); ns.Fire("PLAN") end
 -- сколько предмета есть у текущего персонажа: сумки + банк (живые данные игры или последняя запись банка)

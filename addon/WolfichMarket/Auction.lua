@@ -938,8 +938,16 @@ local function pagePlan(f)
   end); f.upd:SetPoint("RIGHT", f.clear, "LEFT", -6, 0)
   f.recs = UI.List(f, 20, function(r)
     r.x = UI.Icon(r, "skin\\ai-x", 14, L"Убрать из плана", function(self) local d = self:GetParent().data; if d then ns.RemovePlan(d.i) end end); r.x:SetPoint("RIGHT", -2, 0)
-    r.n = UI.Font(r, 11, UI.GOLD); r.n:SetPoint("RIGHT", r.x, "LEFT", -8, 0); r.n:SetJustifyH("RIGHT")
-    r.profit = UI.Font(r, 11); r.profit:SetPoint("RIGHT", r.n, "LEFT", -10, 0); r.profit:SetJustifyH("RIGHT")
+    -- количество: [-] [поле] [+], поле можно вписать вручную
+    local function setN(v) local d = r.data; if d then ns.SetPlanCount(d.i, v) end end
+    r.plus = UI.Button(r, "+", 18, 18, function() local d = r.data; if d then setN(d.p.n + 1) end end); r.plus:SetPoint("RIGHT", r.x, "LEFT", -8, 0)
+    r.n = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.n:SetSize(30, 18); r.n:SetPoint("RIGHT", r.plus, "LEFT", -4, 0)
+    r.n:SetAutoFocus(false); r.n:SetNumeric(true); r.n:SetMaxLetters(3); r.n:SetJustifyH("CENTER")
+    if r.n.SetFont then UI.SetFont(r.n, UI.FONT, 11, "") end
+    r.n:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    r.n:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
+    r.minus = UI.Button(r, "-", 18, 18, function() local d = r.data; if d then setN(d.p.n - 1) end end); r.minus:SetPoint("RIGHT", r.n, "LEFT", -6, 0)
+    r.profit = UI.Font(r, 11); r.profit:SetPoint("RIGHT", r.minus, "LEFT", -8, 0); r.profit:SetJustifyH("RIGHT")
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 2, 0)
     r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.profit, "LEFT", -6, 0)
   end, function(r, d)
@@ -947,7 +955,7 @@ local function pagePlan(f)
     r.profit:SetText(pr.profit and ((pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(pr.profit, true) .. "|r") or L"|cffaa8866нет цены|r")
     r.icon:SetTexture(d.p.out and ns.itemIcon(d.p.out) or 134400)
     local who = d.p.ck and d.p.ck ~= ns.charKey and (" |cffaaaaaa(" .. (d.p.ck:match("^(.-)%-") or d.p.ck) .. ")|r") or ""
-    r.name:SetText(d.p.name .. who); r.n:SetText("×" .. d.p.n)
+    r.name:SetText(d.p.name .. who); if not r.n:HasFocus() then r.n:SetText(tostring(d.p.n)) end
   end)
   f.recs:SetPoint("TOPLEFT", 0, -24); f.recs:SetPoint("RIGHT"); f.recs:SetHeight(84)
   f.recs.empty:SetText(L"План пуст. В главном окне (/wm) выберите рецепт, задайте порции и нажмите «Запланировать».")

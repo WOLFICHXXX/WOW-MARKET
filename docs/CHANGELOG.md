@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.25
+
+### ✨ New
+- **Plan at the auctioneer:** change the count of every recipe with the **-** and **+** buttons or type it in - the shopping list and profit update right away.
+
+### ✨ Новое
+- **План у аукциониста:** количество у каждого рецепта меняется кнопками **-** и **+** или вписывается вручную - список покупок и прибыль пересчитываются сразу.
+
 ## 2.43.24
 
 ### 🛠 Fix
