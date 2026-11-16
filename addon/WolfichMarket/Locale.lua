@@ -685,4 +685,11 @@ ns.EN = {
   ["У аукциониста: своя сумка под окном аукциона"] = "At the auctioneer: addon bag under the auction window",
   ["Восстановить"] = "Restore",
   ["Упорядочить"] = "Sort",
+  ["Предметы (шмот, ресурсы)"] = "Items (gear, materials)",
+  ["Валюта (деньги с добычи)"] = "Currency (looted money)",
+  ["Что считать: предметы и/или валюту"] = "What to count: items and/or currency",
+  ["Предметы"] = "Items",
+  ["Валюта с добычи"] = "Looted money",
+  ["Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое (и деньги, поднятые с добычи)."] = "Before farming: what is already in the bags is no longer counted - only new items (and money looted) are shown.",
+  ["клик - выставить в панели аддона, ПКМ - на аукционе игры"] = "click - post in the addon panel, right-click - in the game's auction",
 }

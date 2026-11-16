@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.43.15"
+ns.VERSION = "2.43.16"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -192,6 +192,8 @@ local DEFAULTS = {
   craftFlat = false,      -- «без уровней - общий список»
   profUI = true,          -- таблица «Где купить и где продать» и столбики в окне профессии игры
   cdNotify = true,        -- уведомление о готовом кулдауне (трансмутации)
+  farmItems = true,       -- окошко фарма: считать предметы
+  farmMoney = true,       -- окошко фарма: считать деньги с добычи
   ahBags = true,          -- у аукциониста - своя сумка под окном аукциона вместо стандартных
   ahPlace = true,         -- окно аукциона сдвигается, чтобы панель аддона помещалась на экране
   debug = false,
@@ -226,7 +228,7 @@ ns.On("ADDON_LOADED", function(name)
     end
     DB.settings.sortV2 = 1
   end
-  -- 2.43.15: «продано» по снимку в 2.43.3 могло быть ошибочным (продавец приходит у единиц лотов) - вернуть в «возможно, продан»
+  -- 2.43.16: «продано» по снимку в 2.43.3 могло быть ошибочным (продавец приходит у единиц лотов) - вернуть в «возможно, продан»
   if not DB.settings.lotsFixV then
     for ck, c in pairs(DB.chars or {}) do
       for _, l in ipairs(c.lots or {}) do

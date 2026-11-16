@@ -2,10 +2,11 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
-  { v = "2.43.15", d = "16.11.2026",
+  { v = "2.43.16", d = "16.11.2026",
     ru = {
       "Профессии: карточка рецепта как на макете - доход и прибыль на Ф и Общ, кнопки Крафт / Где взять / На аукционе, график без прокрутки; окно больше, панель аукциониста длиннее; линии графика сглажены.",
       "У аукциониста: окно аукциона и панель аддона сразу помещаются на экране; вместо стандартных сумок - сумка аддона под окном аукциона (клик - выставить, ПКМ - как в игре).",
+      "Окошко фарма: считает и поднятые с добычи деньги; треугольник - галочки «Предметы» и «Валюта».",
       "Оформление: шрифты нового макета (Inter и Forum), гладкие рамки и кнопки без «лесенки», надписи не залезают на края кнопок, выключенная кнопка читается.",
       "Новое главное окно: слева разделы - Главная, Твинки, Профессии, Аукцион, Часы, Настройки.",
       "Твинки: золото, уровень, место и профессии каждого персонажа; банк - в отдельном окне.",
@@ -19,6 +20,7 @@ ns.CHANGELOG = {
     en = {
       "Professions: the recipe card as in the design - income and profit on F and N, Craft / Where to get / On the auction buttons, chart without scrolling; bigger window, longer auctioneer panel; smooth chart lines.",
       "At the auctioneer: the auction window and the addon panel fit on the screen right away; instead of the standard bags - the addon bag under the auction window (click - post, right-click - as in the game).",
+      "Farm window: counts looted money too; the triangle has \"Items\" and \"Currency\" checkboxes.",
       "Look: the new design's fonts (Inter and Forum), smooth frames and buttons without jagged edges, labels stay inside buttons, disabled buttons stay readable.",
       "New main window: sections on the left - Home, Alts, Professions, Auction, Cooldowns, Settings.",
       "Alts: gold, level, location and professions of every character; the bank in a popup.",
