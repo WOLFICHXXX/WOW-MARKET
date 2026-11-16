@@ -351,6 +351,10 @@ do
       nt.items[3470] = { p = 90000000, q = 1 }; nt.items[2862] = { p = 1, q = 1 }
       ns.DB.settings.profSort = "neutral"; ns.ApplyRecipeSort()
       check(cat.nodes[1].data.recipeInfo.recipeID == 9001, "окно профессии: сортировка по прибыли на общем")
+      -- пришла новая цена от игрока (не свой снимок) - порядок не дёргается
+      nt.items[3470] = { p = 1, q = 1 }; ns.ApplyRecipeSort()
+      check(cat.nodes[1].data.recipeInfo.recipeID == 9001, "окно профессии: от каждой пришедшей цены строки не меняются местами")
+      nt.items[3470] = { p = 90000000, q = 1 }
       ns.DB.settings.profSort = nil; ns.ApplyRecipeSort()
       check(cat.nodes[1].data.recipeInfo.recipeID == 9002, "окно профессии: без галочки - исходный порядок игры")
       local mtb = ns._marketTable

@@ -434,11 +434,18 @@ function ns.ApplyRecipeSort()
     walk(root); dp.wmIndexed = true
   end
   local mode = ns.DB.settings.profSort
-  local val = {}
-  if mode then
-    indexRecipes()
-    for rid, pr in pairs(recipeIndex) do if pr.rec.out then val[rid] = ns.ProfitIn(pr.rec, mode) end end
+  -- значения для сортировки запоминаются и не меняются от каждой пришедшей цены - иначе строки «дёргаются».
+  -- Пересчёт - только при смене галочки, новом своём снимке аукциона или смене профессии.
+  local stamp = (mode or "") .. "|" .. (ns.curProf or "") .. "|" .. ((ns.CurrentScan() or {}).t or 0)
+  if ns._sortStamp ~= stamp then
+    local v = {}
+    if mode then
+      indexRecipes()
+      for rid, pr in pairs(recipeIndex) do if pr.rec.out then v[rid] = ns.ProfitIn(pr.rec, mode) end end
+    end
+    ns._sortVal, ns._sortStamp = v, stamp
   end
+  local val = ns._sortVal or {}
   local function key(node)
     local d = node.GetData and node:GetData()
     local ri = d and d.recipeInfo
@@ -448,7 +455,8 @@ function ns.ApplyRecipeSort()
     local ra, rb = key(a), key(b)
     if mode and ra and rb then
       local x, y = val[ra], val[rb]
-      if x and y and x ~= y then return x > y end
+      -- разница меньше 1 медной - считаем равными (порядок игры)
+      if x and y and math.abs(x - y) >= 1 then return x > y end
       if (x ~= nil) ~= (y ~= nil) then return x ~= nil end
     end
     return (a.wmIdx or 0) < (b.wmIdx or 0)
@@ -556,7 +564,7 @@ local function buildMarketTable(form)
   -- сортировка списка рецептов: одна галочка всегда стоит (по умолчанию - Ф)
   local S = ns.DB.settings
   local function setSort(k)
-    S.profSort = k
+    S.profSort = k; ns._sortStamp = nil
     mt.sortMain:SetChecked(S.profSort == "main"); mt.sortNt:SetChecked(S.profSort == "neutral")
     ns.ApplyRecipeSort()
   end
@@ -690,7 +698,7 @@ local function hookRows()
   end
   if sb.Update then pcall(hooksecurefunc, sb, "Update", function() ns.DecorateRecipeRows() end) end
   -- игра пересобрала список (поиск, фильтр, другая профессия) - снова отсортировать
-  if sb.SetDataProvider then pcall(hooksecurefunc, sb, "SetDataProvider", function() if ns.DB.settings.profSort then ns.After(0, ns.ApplyRecipeSort) end end) end
+  if sb.SetDataProvider then pcall(hooksecurefunc, sb, "SetDataProvider", function() if ns.DB.settings.profSort then pcall(ns.ApplyRecipeSort) end end) end
   hookForm()
 end
 ns._hookRows = hookRows

@@ -2,7 +2,7 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.9
+## 2.43.10
 
 - Professions: the recipe card as in the design - income and profit on F and N, Craft / Where to get / On the auction buttons, the chart without scrolling; bigger main window, longer auctioneer panel; smooth chart lines.
 - Look: the new design's fonts (Inter and Forum, OFL), smooth frames and buttons without jagged edges, labels stay inside buttons, disabled buttons stay readable.
