@@ -661,4 +661,8 @@ ns.EN = {
   ["%s - доступно для трансмутации (%s)"] = "%s - ready to transmute (%s)",
   ["%s - кулдаун прошёл (%s)"] = "%s - cooldown is over (%s)",
   ["Добавьте предметы в избранное |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t -\nв главном окне, во вкладке «Мой крафт»\nили Alt+клик по предмету в сумке."] = "Add items to favorites |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t -\nin the main window, on the \"My crafts\" tab\nor Alt+click an item in your bags.",
+  ["снимок: имя продавца пришло у %d из %d лотов%s"] = "snapshot: seller name came with %d of %d auctions%s",
+  [" - продажи твинков видны по снимку"] = " - alt sales are detected from the snapshot",
+  [" - продажи твинков по снимку определить нельзя"] = " - alt sales cannot be detected from the snapshot",
+  ["возможно, продан (нет в снимке)"] = "possibly sold (not in the snapshot)",
 }

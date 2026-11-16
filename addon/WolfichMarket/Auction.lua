@@ -94,12 +94,22 @@ local function finishScan()
   processing = true
   local items = {}
   local i = 0
+  -- лоты твинков, которых сейчас нет в игре: ищем их в снимке по продавцу, предмету, количеству и цене
+  local watch = ns.AltLotWatch and ns.AltLotWatch(ns.ahKind or "main") or nil
+  local lotsSeen = { own = {}, any = {}, withOwner = 0 }
   local function step()
     local last = math.min(i + 1000, n - 1)
     for k = i, last do
-      local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = safe(C_AuctionHouse.GetReplicateItemInfo, k)
+      local name, _, count, _, _, _, _, _, _, buyout, _, _, _, owner, ownerFull, _, itemID = safe(C_AuctionHouse.GetReplicateItemInfo, k)
       if itemID then
         count = math.max(count or 1, 1)
+        if owner and owner ~= "" then lotsSeen.withOwner = lotsSeen.withOwner + 1 end
+        if watch and watch.items[itemID] then
+          local key = itemID .. "|" .. count .. "|" .. math.floor((buyout or 0) / count + 0.5)
+          lotsSeen.any[key] = (lotsSeen.any[key] or 0) + 1
+          local who = (owner and owner ~= "" and owner) or (ownerFull and ownerFull:match("^([^%-]+)")) or nil
+          if who and watch.names[who] then local ok2 = who .. "|" .. key; lotsSeen.own[ok2] = (lotsSeen.own[ok2] or 0) + 1 end
+        end
         local rec = items[itemID]
         if not rec then rec = { 0, 0, 0 }; items[itemID] = rec end -- мин. цена за шт, количество, лотов
         if buyout and buyout > 0 then local u = math.floor(buyout / count + 0.5); if rec[1] == 0 or u < rec[1] then rec[1] = u end end
@@ -112,6 +122,7 @@ local function finishScan()
     ns.progress = math.floor(i / n * 100)
     setStatus()
     if i < n then ns.After(0, step) return end
+    if ns.ahKind ~= "off" and ns.CheckAltLots then ns.CheckAltLots(ns.ahKind or "main", watch, lotsSeen, n) end
     if ns.ahKind == "off" then
       busy, processing, ns.progress = false, false, nil
       ns.say(L"аукцион в Лесоречье аддон не учитывает - снимок не сохранён.")

@@ -1244,6 +1244,34 @@ do
   ns.DB.settings.profUI = true
   W.tabs[3].scripts.OnClick(W.tabs[3])
 end
+-- продажи твинка, которого нет в игре: по снимку аукциона другим персонажем (продавец, предмет, количество, цена)
+do
+  local tw = { realmKey = ns.realmKey, name = "Твинкс", profs = {}, lots = {
+    { id = 2840, q = 20, p = 310, ends = time() + 3600, st = "active", kind = "main" },
+    { id = 3470, q = 10, p = 140, ends = time() + 3600, st = "active", kind = "main" } } }
+  ns.DB.chars["Твинкс-CAMWOWEU4Realm6PvP"] = tw
+  local oldI, oldN = C_AuctionHouse.GetReplicateItemInfo, C_AuctionHouse.GetNumReplicateItems
+  local n0 = oldN()
+  local withOwner = true
+  C_AuctionHouse.GetNumReplicateItems = function() return n0 + 1 end
+  C_AuctionHouse.GetReplicateItemInfo = function(i)
+    if i == n0 then return "x", 0, 20, 1, true, 1, 0, 0, 0, 6200, 0, nil, nil, withOwner and "Твинкс" or nil, nil, 0, 2840, true end
+    return oldI(i)
+  end
+  ns.ahOpen, ns.ahKind, ns.ahIsBM = true, "main", false
+  local function scan() ns.DB.ahLastReq = 0; ns.StartScan(); fire("REPLICATE_ITEM_LIST_UPDATE"); for _ = 1, 15 do advance(1) end end
+  scan()
+  check(tw.lots[1].st == "active" and tw.lots[2].st == "sold" and tw.lotsNew, "твинк не в игре: лот пропал из снимка до конца срока - продан, конверт горит")
+  local logged; for _, e in ipairs(ns.log) do if e.msg:find("имя продавца пришло у 1 из", 1, true) or e.msg:find("seller name came with 1 of", 1, true) then logged = e.msg end end
+  check(logged ~= nil, "в журнале: у скольких лотов пришло имя продавца (" .. tostring(logged) .. ")")
+  -- сервер не присылает продавца: только «возможно, продан», конверт не зажигается
+  tw.lots[2] = { id = 3470, q = 10, p = 140, ends = time() + 3600, st = "active", kind = "main" }; tw.lotsNew = nil
+  withOwner = false
+  scan()
+  check(tw.lots[2].st == "active" and tw.lots[2].maybe and not tw.lotsNew and tw.lots[1].maybe == nil, "без имени продавца - только «возможно, продан»")
+  C_AuctionHouse.GetReplicateItemInfo, C_AuctionHouse.GetNumReplicateItems = oldI, oldN
+  ns.DB.chars["Твинкс-CAMWOWEU4Realm6PvP"] = nil
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

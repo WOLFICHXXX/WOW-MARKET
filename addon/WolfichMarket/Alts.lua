@@ -63,7 +63,7 @@ function ns.ReadOwnedAuctions()
     if id then
       local o = old[a.auctionID] or {}
       local lot = { aid = a.auctionID, id = id, name = lotName(id), q = a.quantity or 1, p = a.buyoutAmount or a.bidAmount or o.p,
-        ends = now + (a.timeLeftSeconds or 0), st = o.st or "active", soldAt = o.soldAt }
+        ends = now + (a.timeLeftSeconds or 0), st = o.st or "active", soldAt = o.soldAt, kind = ns.ahKind or "main" }
       list[#list + 1] = lot
       if a.status == 1 then markSold(c, lot) end -- 1 - продан, деньги на почте
       if a.auctionID then seen[a.auctionID] = true end
@@ -123,6 +123,64 @@ ns.On("MAIL_INBOX_UPDATE", function()
   end
 end)
 
+-- ---------- продажи твинков по снимку аукциона другим персонажем ----------
+-- В полном снимке у лота нет номера и срока, но есть продавец, предмет, количество и цена. Лот твинка, которого нет в игре,
+-- снять с аукциона некому: пропал из снимка до конца срока - значит, куплен.
+local function sameAH(c, kind, lot)
+  if (lot.kind or "main") ~= kind then return false end
+  if kind == "main" then return c.realmKey == ns.realmKey end
+  -- общий аукцион один для обеих фракций режима
+  return (c.realmKey or ""):match("^[^|]*") == (ns.realmKey or ""):match("^[^|]*")
+end
+local function lotUnits(l)
+  local q = math.max(1, l.q or 1)
+  local u = {}
+  if l.p then u[#u + 1] = math.floor(l.p + 0.5); u[#u + 1] = math.floor(l.p / q + 0.5) end -- цена за шт или за весь лот
+  return u
+end
+-- что искать в снимке: имена твинков и предметы их активных лотов на этом аукционе
+function ns.AltLotWatch(kind)
+  local w = { names = {}, items = {}, n = 0 }
+  local now = time()
+  for ck, c in pairs(ns.DB.chars or {}) do
+    if ck ~= ns.charKey and c.name then
+      for _, l in ipairs(c.lots or {}) do
+        if l.st ~= "sold" and (l.ends or 0) > now and sameAH(c, kind, l) then w.names[c.name] = true; w.items[l.id] = true; w.n = w.n + 1 end
+      end
+    end
+  end
+  return w.n > 0 and w or nil
+end
+function ns.CheckAltLots(kind, watch, seen, total)
+  ns.say(string.format(L"снимок: имя продавца пришло у %d из %d лотов%s", seen.withOwner, total,
+    seen.withOwner > 0 and L" - продажи твинков видны по снимку" or L" - продажи твинков по снимку определить нельзя"))
+  if not watch then return end
+  local now, ownerMode = time(), seen.withOwner > 0
+  local own, any = {}, {}
+  for k, v in pairs(seen.own) do own[k] = v end
+  for k, v in pairs(seen.any) do any[k] = v end
+  for ck, c in pairs(ns.DB.chars or {}) do
+    if ck ~= ns.charKey and c.name and watch.names[c.name] then
+      -- сначала лоты, которые кончатся раньше (одинаковые лоты пропадают по одному)
+      local list = {}
+      for _, l in ipairs(c.lots or {}) do if l.st ~= "sold" and (l.ends or 0) > now and sameAH(c, kind, l) then list[#list + 1] = l end end
+      table.sort(list, function(a, b) return (a.ends or 0) > (b.ends or 0) end)
+      for _, l in ipairs(list) do
+        local found = false
+        for _, u in ipairs(lotUnits(l)) do
+          local key = l.id .. "|" .. math.max(1, l.q or 1) .. "|" .. u
+          local pool = ownerMode and own or any
+          local pk = ownerMode and (c.name .. "|" .. key) or key
+          if (pool[pk] or 0) > 0 then pool[pk] = pool[pk] - 1; found = true; break end
+        end
+        if found then l.maybe, l.seenT = nil, now
+        elseif ownerMode then markSold(c, l)
+        elseif not l.maybe then l.maybe = now; ns.Fire("ALTS") end
+      end
+    end
+  end
+end
+
 -- лоты персонажа для показа: активные, срок вышел, проданные
 function ns.CharLots(ck)
   local c = ns.DB.chars[ck]
@@ -140,6 +198,7 @@ function ns.LotStatus(l)
   if l.st == "sold" then return "|cff78d98a" .. L"Продано" .. "|r" .. ((l.p and l.q) and (" · " .. ns.money(l.p * l.q, true)) or "") end
   local left = (l.ends or 0) - time()
   if left <= 0 then return "|cffaaaaaa" .. L"срок вышел - на почте" .. "|r" end
+  if l.maybe then return "|cffffd060" .. L"возможно, продан (нет в снимке)" .. "|r" end
   local h, m = math.floor(left / 3600), math.floor(left % 3600 / 60)
   return L"осталось" .. " " .. (h > 0 and (h .. L" ч ") or "") .. m .. L" м"
 end

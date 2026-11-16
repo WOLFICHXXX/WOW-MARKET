@@ -10,6 +10,7 @@ Each release takes its notes from the matching "## version" section below; they 
 - Professions: "no skill groups - one list" checkbox sorts by profit across all recipes; faction profit sort is the default; F and N profit columns.
 - Auction: "My auctions" of all characters (sold or time left) and "Alerts"; a triangle on every item opens crafting cost, profit on F and N, and a price chart.
 - Cooldowns: transmutes and other recipe cooldowns of all characters with timers; when ready - a message at the top of the screen and a glowing hourglass.
+- Sales of an offline alt are detected by a full auction snapshot made by any other character: its auctions are matched by seller, item, quantity and price; one that disappears before its end time is marked sold. The log shows how many auctions came with a seller name.
 - A bell next to every item: your own buy or sell price alert. Stars are now favorites only.
 - Auctioneer panel: Favorites, Buy, Sell, My crafts, Plan tabs; the Chart and Settings tabs are gone - the chart opens in every row, settings live in the main window.
 - Settings: the "where to buy and where to sell" table and F / N columns in the game's profession window can be turned off; the message log opens with a button.
