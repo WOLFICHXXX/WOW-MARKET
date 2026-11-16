@@ -658,7 +658,7 @@ local function fillMarketTable(rec)
   -- высота блока: по содержимому, но не ниже низа окна профессии; лишнее - прокруткой колёсиком
   local form = mt:GetParent()
   local top, bot = mt:GetTop(), form and form:GetBottom()
-  local avail = (top and bot) and (top - bot - 58) or 400 -- над «Отслеживать» и кнопками «Создать»
+  local avail = (top and bot) and (top - bot - 34) or 400 -- над «Отслеживать» и кнопками «Создать»
   mt:SetHeight(math.max(110, math.min(need + 44 + 26, avail)))
   local max = math.max(0, need - (mt.sf:GetHeight() or need))
   mt.scroll = math.min(mt.scroll or 0, max); mt.sf:SetVerticalScroll(mt.scroll)

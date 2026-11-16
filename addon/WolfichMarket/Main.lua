@@ -6,7 +6,9 @@ local UI, M = ns.UI, ns.MEDIA
 local win, view, charKey, prof, sel
 local setChar
 -- окно игры открылось поверх - наше уступает ему место сверху
-local function lower() if win and win:IsShown() and win.Lower then win:Lower() end end
+-- (окно уходит в слой окон игры, пока открыто окно профессии или сумки; клик по нашему окну - снова сверху всего)
+local function lower() if win and win:IsShown() then win:SetFrameStrata("MEDIUM"); if win.Lower then win:Lower() end end end
+local function raise() if win and win:GetFrameStrata() ~= "HIGH" then win:SetFrameStrata("HIGH"); if win.Raise then win:Raise() end end end
 local function sigDir(id) return ns.DB.alarmDir and ns.DB.alarmDir[id] end
 local DIFF = { [0] = "|cffff8040", [1] = "|cffffff00", [2] = "|cff40c040", [3] = "|cff808080" }
 
@@ -1295,7 +1297,7 @@ function setChar(ck) charKey = ck; prof = nil; sel = nil; refresh() end
 local function build()
   if win then return end
   win = CreateFrame("Frame", "WolfichMarketMainFrame", UIParent)
-  win:SetPoint("CENTER"); win:SetFrameStrata("MEDIUM") -- как окна игры: окно профессии и сумки открываются поверх; win:SetToplevel(true)
+  win:SetPoint("CENTER"); win:SetFrameStrata("HIGH"); win:SetToplevel(true)
   win:SetMovable(true); win:EnableMouse(true); win:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
   win.content = UI.MainChrome(win, function(i) selectView(i) end, NAV_NAMES)
@@ -1307,7 +1309,9 @@ local function build()
     local f = CreateFrame("Frame", nil, win.content); f:SetAllPoints()
     builder(f); f:Hide(); win.pages[i] = f
   end
-  win:SetScript("OnShow", refresh)
+  win:SetScript("OnShow", function() raise(); refresh() end)
+  win:HookScript("OnMouseDown", raise)
+  if win.content then win.content:EnableMouse(true); win.content:HookScript("OnMouseDown", raise) end
   charKey = ns.charKey
   selectView(ns.DB.settings.mainView or VIEW_HOME)
   win:Hide() -- новые фреймы видимы сразу; показываем по кнопке
@@ -1327,10 +1331,20 @@ function ns.ToggleMain(section)
   if win:IsShown() then win:Hide() else win:Show(); refresh() end
 end
 -- открылось окно игры (профессия, сумки, банк, почта) - наше окно уступает ему место сверху
-for _, e in ipairs({ "TRADE_SKILL_SHOW", "BAG_OPEN", "BANKFRAME_OPENED", "MAIL_SHOW", "MERCHANT_SHOW" }) do ns.On(e, function() ns.After(0, lower) end) end
+for _, e in ipairs({ "TRADE_SKILL_SHOW", "BAG_OPEN" }) do ns.On(e, function() ns.After(0, lower) end) end
 if hooksecurefunc then
   for _, fn in ipairs({ "ToggleAllBags", "OpenAllBags", "ToggleBackpack", "OpenBackpack", "ToggleBag" }) do if _G[fn] then pcall(hooksecurefunc, fn, function() ns.After(0, lower) end) end end
 end
+-- окно профессии и сумки закрыты - наше снова над всем
+ns.On("TRADE_SKILL_CLOSE", function() ns.After(0.1, function()
+  local bagsOpen = (ContainerFrameCombinedBags and ContainerFrameCombinedBags:IsShown()) or (ContainerFrame1 and ContainerFrame1:IsShown())
+  if not bagsOpen then raise() end
+end) end)
+ns.On("BAG_CLOSED", function() ns.After(0.1, function()
+  local prof = (ProfessionsFrame and ProfessionsFrame:IsShown()) or (TradeSkillFrame and TradeSkillFrame:IsShown())
+  local bagsOpen = (ContainerFrameCombinedBags and ContainerFrameCombinedBags:IsShown()) or (ContainerFrame1 and ContainerFrame1:IsShown())
+  if not prof and not bagsOpen then raise() end
+end) end)
 ns.Listen("PRICES", refresh)
 ns.Listen("MARKS", refresh)
 ns.Listen("RECIPES", refresh)

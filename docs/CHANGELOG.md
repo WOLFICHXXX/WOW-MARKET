@@ -2,9 +2,10 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
-## 2.43.19
+## 2.43.20
 
-- The main window no longer covers the game windows: the profession window, bags, bank, mail and merchant open on top of it.
+- The main window stays above everything; only the profession window and bags open on top of it (a click on the main window brings it back on top).
+- Profession window: the price block uses the free space down to the bottom buttons.
 
 - Profession window: the "where to buy and where to sell" block never goes below the window - the rest scrolls with the mouse wheel.
 - Bag sorting waits until the game finishes its own sort (no more "Locked" errors).
