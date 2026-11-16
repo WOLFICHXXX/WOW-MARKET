@@ -2,6 +2,15 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.26", d = "16.11.2026",
+    ru = {
+      "«Обновить цены» больше не шлёт запрос, пока аукцион не ответил на прошлый: раньше это держало аукцион «занятым» и окно игры зависало на «Поиск...». Следующий запрос уходит сразу, как аукцион освободился, - обновление быстрее.",
+      "Выставление: если аукцион долго пишет «занят», лот всё равно отправляется по нажатию; убрано ложное «Аукцион не отвечает» сразу после открытия.",
+    },
+    en = {
+      "Refresh prices no longer sends a query while the auction house has not answered the previous one: this used to keep it \"busy\" and the game window stuck on \"Searching...\". The next query goes out as soon as the auction house is free - refreshing is faster.",
+      "Posting: if the auction house stays \"busy\" for long, the lot is still sent on click; the false \"not responding\" right after opening is gone.",
+    } },
   { v = "2.43.25", d = "16.11.2026",
     ru = { "План у аукциониста: количество у каждого рецепта можно менять кнопками «-» и «+» или вписать вручную - список покупок и прибыль пересчитываются сразу." },
     en = { "Plan at the auctioneer: change the count of every recipe with the - and + buttons or type it in - the shopping list and profit update right away." } },

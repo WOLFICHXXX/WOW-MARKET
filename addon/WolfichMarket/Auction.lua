@@ -22,6 +22,22 @@ function ns.AHReady()
   if not f then return true end
   return safe(f) ~= false
 end
+-- «аукцион занят» при выставлении: серия начинается с первого отказа и сбрасывается, когда аукцион освободился
+-- или окно открыли заново. После полного снимка сервер иногда долго держит флаг «занят», хотя лоты принимает,
+-- поэтому через 3 с отказов аддон всё равно пробует выставить (нажатие игрока это разрешает).
+local busyStreak
+function ns.PostGate()
+  if ns.AHReady() then busyStreak = nil return "ready" end
+  local now = GetTime()
+  if not busyStreak or now - busyStreak.last > 15 then busyStreak = { first = now, last = now } end
+  busyStreak.last = now
+  if now - busyStreak.first < 3 then return "wait" end
+  return "force"
+end
+ns.On("AUCTION_HOUSE_SHOW", function() busyStreak = nil end)
+ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() busyStreak = nil end)
+-- снимок всего аукциона закончился недавно - сервер может пару минут отвечать медленно
+function ns.AfterScan() return ns.lastScanEnd and (GetTime() - ns.lastScanEnd) < 180 end
 -- окно «Продать» самой игры с положенным предметом: оно само шлёт запросы - выставлять параллельно нельзя
 function ns.BlizzSellBusy()
   local A = AuctionHouseFrame
@@ -138,6 +154,7 @@ local function finishScan()
     for id in pairs(ns.DB.marked) do want[id] = true end
     for id in pairs(want) do local r = items[id]; if r and r[1] > 0 then ns.AddHistory(id, r[1], r[2], scan.t) end end
     busy, processing, ns.progress = false, false, nil
+    ns.lastScanEnd = GetTime()
     local cnt = 0; for _ in pairs(items) do cnt = cnt + 1 end
     ns.say(string.format(L"|cff78d98aснимок аукциона готов|r: %d лотов, %d предметов.", n, cnt))
     setStatus()
@@ -246,12 +263,24 @@ function ns.QuickRefresh(ids)
   local mine = ids == nil
   ids = ids or myIDs()
   if #ids == 0 then ns.say(L"нечего обновлять: откройте окна своих профессий или положите предметы в сумки.") return end
-  quick = { ids = ids, i = 0, mine = mine, wait = 0 }
+  quick = { ids = ids, i = 0, mine = mine, since = GetTime() }
   local function step()
-    if not quick then return end
-    -- аукцион ещё не ответил на прошлый запрос - подождать (не больше ~10 с)
-    if not ns.AHReady() and quick.wait < 30 then quick.wait = quick.wait + 1; ns.After(0.3, step) return end
-    quick.wait = 0
+    if not quick or quick.stepping then return end
+    -- Аукцион ещё не ответил на прошлый запрос - ждём сигнала «свободен» (AUCTION_HOUSE_THROTTLED_SYSTEM_READY).
+    -- Новый запрос поверх неотвеченного теряет ответ и держит аукцион «занятым» дальше (и окно игры висит на «Поиск...»),
+    -- поэтому без готовности не шлём ничего. Ждём не больше 60 с, потом останавливаемся.
+    if not ns.AHReady() then
+      if GetTime() - quick.since > 60 then
+        quick = nil; if updateQuick then updateQuick() end
+        ns.say(ns.AfterScan and ns.AfterScan() and L"|cffffb060Аукцион не отвечает: после снимка всего аукциона сервер ещё досылает данные. Подождите пару минут и нажмите «Обновить цены» снова.|r"
+          or L"|cffffb060Аукцион не отвечает - обновление цен остановлено. Попробуйте через минуту.|r")
+        return
+      end
+      local my = quick; my.tok = (my.tok or 0) + 1; my.stepping = my.tok; local tok = my.tok
+      ns.After(1, function() if quick == my and my.stepping == tok then my.stepping = nil; step() end end) -- запасной опрос, если сигнал не придёт
+      return
+    end
+    quick.since = GetTime()
     quick.i = quick.i + 1
     local id = quick.ids[quick.i]
     if not id or not ns.ahOpen then
@@ -267,11 +296,18 @@ function ns.QuickRefresh(ids)
       pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
     end
     if updateQuick then updateQuick() end
-    ns.After(0.5, step) -- сервер не любит частые запросы
+    -- следующий - когда аукцион ответит (сигнал готовности), но не чаще раза в 0.2 с
+    local my = quick; my.tok = (my.tok or 0) + 1; my.stepping = my.tok; my.sent = GetTime(); local tok = my.tok
+    ns.After(0.2, function() if quick == my and my.stepping == tok then my.stepping = nil; step() end end)
   end
+  quick.step = step
   step()
 end
 function ns.QuickBusy() return quick ~= nil end
+-- аукцион освободился - следующий запрос сразу (но не раньше 0.2 с после прошлого)
+ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
+  if quick and quick.step and (not quick.sent or GetTime() - quick.sent >= 0.2) then quick.stepping = nil; quick.step() end
+end)
 -- профессию удалили/добавили, сняли отметку, поменяли план - пересобрать очередь «Обновить цены» на ходу
 local function rebuildQuick()
   if not quick or not quick.mine then return end
@@ -818,7 +854,7 @@ local function pageSell(f)
   f.doPost = function()
     local d = sellSel; if not d or not d.loc then return end
     if ns.BlizzSellBusy() then ns.say(L"|cffffb060В окне «Продать» самой игры лежит предмет - уберите его (или откройте там «Купить»), иначе аукцион зависает на «Поиск...».|r") return end
-    if not ns.AHReady() then ns.say(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r") return end
+    if ns.PostGate() == "wait" then ns.say(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r") return end
     local q, unit = tonumber(f.qty:GetText()) or 0, f.money:Get()
     local ok, err
     if d.commodity then ok, err = pcall(C_AuctionHouse.PostCommodity, d.loc, f.dur, q, unit)
@@ -857,17 +893,11 @@ local function pageSell(f)
       f.bulkInfo:SetText(L"|cffffb060В окне «Продать» самой игры лежит предмет - уберите его (или откройте там «Купить»), иначе аукцион зависает на «Поиск...».|r")
       return
     end
-    -- аукцион принимает следующий лот только когда освободится (иначе молча отказывает)
-    if not ns.AHReady() then
-      f.busySince = f.busySince or GetTime()
-      if GetTime() - f.busySince > 8 then
-        f.bulkInfo:SetText(L"|cffff6060Аукцион не отвечает. Закройте окно аукциона и откройте снова - очередь сохранится.|r")
-      else
-        f.bulkInfo:SetText(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r")
-      end
+    -- аукцион занят: первые секунды ждём, дальше пробуем всё равно (флаг «занят» после снимка бывает ложным)
+    if ns.PostGate() == "wait" then
+      f.bulkInfo:SetText(L"|cffffb060Аукцион ещё обрабатывает прошлый лот - нажмите через секунду.|r")
       return
     end
-    f.busySince = nil
     local q = f.queue()
     local it = q[1]; if not it then f.updateBulk() return end
     local d = it.d
@@ -886,7 +916,8 @@ local function pageSell(f)
         if f.pending == my then
           f.pending = nil
           f.list:SetData(bagItems()); f.updateBulk()
-          f.bulkInfo:SetText(L"|cffffb060Игра не подтвердила лот - нажмите ещё раз.|r")
+          f.bulkInfo:SetText(ns.AfterScan() and L"|cffffb060Игра не подтвердила лот: после снимка всего аукциона сервер 1-2 минуты отвечает медленно. Подождите и нажмите ещё раз.|r"
+            or L"|cffffb060Игра не подтвердила лот - нажмите ещё раз.|r")
         end
       end)
     else

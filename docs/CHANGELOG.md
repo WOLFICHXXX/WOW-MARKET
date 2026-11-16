@@ -2,6 +2,16 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.26
+
+### 🛠 Fixes
+- **Refresh prices** no longer sends a query while the auction house has not answered the previous one - this used to keep it busy and the game window stuck on *"Searching..."*. The next query goes out as soon as the auction house is free, so refreshing is faster.
+- **Posting:** if the auction house stays busy for long, the lot is still sent on click; the false *"not responding"* right after opening is gone.
+
+### 🛠 Исправлено
+- **«Обновить цены»** больше не шлёт запрос, пока аукцион не ответил на прошлый - раньше это держало аукцион занятым и окно игры зависало на *«Поиск...»*. Следующий запрос уходит сразу, как аукцион освободился, - обновление быстрее.
+- **Выставление:** если аукцион долго «занят», лот всё равно отправляется по нажатию; убрано ложное *«Аукцион не отвечает»* сразу после открытия.
+
 ## 2.43.25
 
 ### ✨ New

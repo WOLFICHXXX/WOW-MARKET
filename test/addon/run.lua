@@ -149,6 +149,17 @@ do
     check(postedLot == nil and ((sell.bulkInfo.text or ""):find("Продать", 1, true) or (sell.bulkInfo.text or ""):find("Sell", 1, true)), "окно «Продать» игры занято - выставление не уходит, подсказка")
     AuctionHouseFrame = oldA
   end
+  -- аукцион «занят»: первые секунды - подождать, дальше аддон пробует выставить всё равно
+  do
+    advance(20); sell.pending = nil
+    C_AuctionHouse.IsThrottledMessageSystemReady = function() return false end
+    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+    check(postedLot == nil, "аукцион занят - сначала просим подождать")
+    advance(4); sell.pending = nil
+    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
+    check(postedLot ~= nil, "аукцион долго «занят» - лот всё равно отправляется по нажатию")
+    C_AuctionHouse.IsThrottledMessageSystemReady = nil; sell.pending = nil
+  end
 
 end
 check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
@@ -672,6 +683,20 @@ do
   for _ = 1, 20 do advance(1) end
   C_AuctionHouse.SendSearchQuery = oldQ
   check(#asked == 3, "цены рецепта из карточки")
+  -- аукцион занят: запросы не уходят поверх неотвеченного; сигнал «свободен» - сразу следующий
+  do
+    local ready = false
+    C_AuctionHouse.IsThrottledMessageSystemReady = function() return ready end
+    asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID; ready = false end
+    ready = true; ns.QuickRefresh(ns.RecipePriceIDs(rec)); advance(0.5)
+    for _ = 1, 20 do advance(1) end
+    check(#asked == 1 and ns.QuickBusy(), "аукцион занят - новый запрос не уходит поверх неотвеченного")
+    ready = true; fire("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+    check(#asked == 2, "сигнал «аукцион свободен» - сразу следующий запрос")
+    for _ = 1, 70 do advance(1) end
+    check(not ns.QuickBusy(), "аукцион не отвечает минуту - обновление останавливается")
+    C_AuctionHouse.IsThrottledMessageSystemReady = nil; C_AuctionHouse.SendSearchQuery = oldQ
+  end
   local d = ns.PlanNeeds()[1]
   check(d.bags ~= nil and d.bank ~= nil, "план: отдельно в сумках и в банке")
   ns.DB.settings.planUseStock = false
