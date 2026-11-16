@@ -321,6 +321,16 @@ do
     end
     local okF = pcall(ns._fillMarketTable, rec)
     check(okF, "таблица «где купить, где продать» заполняется без ошибок")
+    do
+      local m = ns._marketTable
+      local ln = m and m.lines[1]
+      if ln and ln.id then
+        ln.scripts.OnClick(ln)
+        check(m.det:IsShown() and m.open == ln.id and ln.star and ln.bell, "окно профессии: клик по строке - график цены под ней; у строки звезда и колокольчик")
+        ln.scripts.OnClick(ln)
+        check(m.open == nil, "окно профессии: повторный клик сворачивает график")
+      end
+    end
     -- сортировка списка рецептов игры по прибыли: фиктивное дерево как у игры
     do
       local function node(data, kids) local n = { data = data, nodes = kids or {} }

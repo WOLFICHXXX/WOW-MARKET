@@ -479,28 +479,29 @@ function ns.RecipeMarket(rec)
   return { rows = rows, out = out, profit = by, best = best }
 end
 local mt
+-- Блок «Где купить и где продать» под реагентами: компактно, всё внутри рамки.
+-- Строка: ▸ (график ниже) · значок · название · Ф · Общ · ☆ избранное · колокольчик сигнала
+local ROW = 18
 local function buildMarketTable(form)
   mt = CreateFrame("Frame", nil, form)
   ns._marketTable = mt
-  -- сразу под списком реагентов игры, чтобы не налезать на него; высота - по числу строк
   local reag = type(form.Reagents) == "table" and form.Reagents.GetBottom and form.Reagents or nil
-  if reag then mt:SetPoint("TOPLEFT", reag, "BOTTOMLEFT", 0, -8); mt:SetPoint("RIGHT", form, "RIGHT", -26, 0)
-  else mt:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 26, 46); mt:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -26, 46) end
+  if reag then mt:SetPoint("TOPLEFT", reag, "BOTTOMLEFT", 0, -6); mt:SetPoint("RIGHT", form, "RIGHT", -30, 0)
+  else mt:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 26, 46); mt:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -30, 46) end
   mt.anchoredTop = reag ~= nil
   mt:SetHeight(160)
-  -- оформление нового макета: тёмная панель с золотой кромкой
-  UI.Box(mt, 0.78)
-  mt.title = mt:CreateFontString(nil, "OVERLAY"); UI.SetFont(mt.title, UI.TITLE_FONT, 16, "OUTLINE"); mt.title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
-  mt.title:SetPoint("TOPLEFT", 10, -8); mt.title:SetText(L"Где купить и где продать")
-  -- «В план»: +1 порция этого рецепта в план закупки (список покупок - во вкладке «План» у аукциониста)
-  mt.plan = UI.Button(mt, L"В план", 84, 22, function()
+  if mt.SetClipsChildren then mt:SetClipsChildren(true) end
+  UI.Box(mt, 0.82)
+  mt.title = UI.Font(mt, 12, UI.GOLD); UI.SetFont(mt.title, UI.BOLD, 12, ""); mt.title:SetPoint("TOPLEFT", 8, -7); mt.title:SetText(L"Где купить и где продать")
+  -- «В план»: +1 порция рецепта в план закупки
+  mt.plan = UI.Button(mt, L"В план", 78, 16, function()
     local rec = mt.rec
     if not rec then return end
     local cur = 0
     for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then cur = p.n end end
     ns.AddPlan(rec, ns.charKey, ns.curProf, cur + 1)
   end)
-  mt.plan:SetPoint("TOPRIGHT", -8, -5)
+  mt.plan:SetPoint("TOPRIGHT", -6, -3)
   mt.plan:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine(L"Добавить в план закупки", 1, 0.82, 0)
@@ -508,93 +509,119 @@ local function buildMarketTable(form)
     GameTooltip:Show()
   end)
   mt.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  -- шапка столбиков: материалы, Ф, Общ
-  local colX = { main = -100, neutral = -34 }
-  mt.colX = colX
-  local hm = UI.Font(mt, 10, UI.GOLD); hm:SetPoint("TOPLEFT", 28, -32); hm:SetText(L"Материалы")
+  -- столбики: Ф, Общ, затем звезда и колокольчик (по 18)
+  local XN, XF = -46, -100
+  mt.colX = { main = XF, neutral = XN }
+  local hdr = UI.Font(mt, 10, UI.DIM); hdr:SetPoint("TOPLEFT", 22, -30); hdr:SetText(L"Материалы")
   for _, k in ipairs(KINDS) do
-    local h = UI.Font(mt, 10, UI.GOLD); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", colX[k], -32); h:SetWidth(62); h:SetJustifyH("RIGHT")
+    local h = UI.Font(mt, 10, UI.GOLD); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", mt.colX[k], -30); h:SetWidth(54); h:SetJustifyH("RIGHT")
     h:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
   end
-  local hl0 = mt:CreateTexture(nil, "ARTWORK"); hl0:SetHeight(1); hl0:SetPoint("TOPLEFT", 8, -45); hl0:SetPoint("TOPRIGHT", -8, -45); hl0:SetColorTexture(0.42, 0.33, 0.17, 0.8)
+  local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(0.42, 0.33, 0.17, 0.8)
   mt.lines = {}
-  local ROW = 18
-  for i = 1, 9 do
-    local ln = {}
-    local y = -48 - (i - 1) * ROW
-    ln.bg = mt:CreateTexture(nil, "BACKGROUND", nil, 1); ln.bg:SetPoint("TOPLEFT", 6, y); ln.bg:SetPoint("TOPRIGHT", -6, y); ln.bg:SetHeight(ROW); ln.bg:Hide()
-    ln.icon = mt:CreateTexture(nil, "ARTWORK"); ln.icon:SetSize(15, 15); ln.icon:SetPoint("TOPLEFT", 10, y - 2)
-    ln.name = UI.Font(mt, 11); ln.name:SetPoint("LEFT", ln.icon, "RIGHT", 5, 0); ln.name:SetPoint("RIGHT", mt, "RIGHT", -170, 0)
+  for i = 1, 10 do
+    local ln = CreateFrame("Button", nil, mt); ln:SetHeight(ROW); ln:SetPoint("LEFT", 4, 0); ln:SetPoint("RIGHT", -4, 0)
+    ln.bg = ln:CreateTexture(nil, "BACKGROUND", nil, 1); ln.bg:SetAllPoints(); ln.bg:Hide()
+    local hl = ln:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.45, 0.07)
+    ln.tri = ln:CreateTexture(nil, "ARTWORK"); ln.tri:SetSize(9, 9); ln.tri:SetPoint("LEFT", 2, 0); UI.WinTex(ln.tri, "tri")
+    ln.icon = ln:CreateTexture(nil, "ARTWORK"); ln.icon:SetSize(14, 14); ln.icon:SetPoint("LEFT", 14, 0)
+    ln.bell = UI.Bell(ln, 14, function(self) return self:GetParent().id end); ln.bell:SetPoint("RIGHT", -2, 0)
+    ln.star = UI.Icon(ln, "star-off", 13, L"Избранное", function(self) local id = self:GetParent().id; if id then ns.ToggleMark(id) end end); ln.star:SetPoint("RIGHT", ln.bell, "LEFT", -3, 0)
     ln.p = {}
     for _, k in ipairs(KINDS) do
-      local fs = UI.Font(mt, 11); fs:SetPoint("RIGHT", mt, "TOPRIGHT", colX[k], y - ROW / 2); fs:SetWidth(62); fs:SetJustifyH("RIGHT")
-      ln.p[k] = fs
+      local fs = UI.Font(ln, 11); fs:SetPoint("RIGHT", ln, "RIGHT", mt.colX[k] + 4, 0); fs:SetWidth(54); fs:SetJustifyH("RIGHT"); ln.p[k] = fs
     end
-    ln.bell = UI.Bell(mt, 14, function(self) return self.id end); ln.bell:SetPoint("RIGHT", mt, "TOPRIGHT", -10, y - ROW / 2); ln.bell:Hide()
-    mt.lines[i] = ln
+    ln.name = UI.Font(ln, 11); ln.name:SetPoint("LEFT", ln.icon, "RIGHT", 4, 0); ln.name:SetPoint("RIGHT", ln, "RIGHT", XF - 54 + 2, 0)
+    -- клик - график цены этого предмета под строками; ещё раз - свернуть
+    ln:SetScript("OnClick", function(self) if self.id then mt.open = (mt.open ~= self.id) and self.id or nil; ns._fillMarketTable(mt.rec) end end)
+    ln:SetScript("OnEnter", function(self)
+      if not self.id then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id)
+      if self.tip then GameTooltip:AddLine(self.tip, 0.9, 0.9, 0.9, true) end
+      GameTooltip:AddLine(L"Клик - график цены", 0.9, 0.7, 0.3); GameTooltip:Show()
+    end)
+    ln:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    ln:Hide(); mt.lines[i] = ln
   end
-  mt.ROW = ROW
-  mt.foot = UI.Font(mt, 11); mt.foot:SetPoint("BOTTOMLEFT", 10, 34); mt.foot:SetPoint("BOTTOMRIGHT", -10, 34); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
-  local hl1 = mt:CreateTexture(nil, "ARTWORK"); hl1:SetHeight(1); hl1:SetPoint("BOTTOMLEFT", 8, 28); hl1:SetPoint("BOTTOMRIGHT", -8, 28); hl1:SetColorTexture(0.42, 0.33, 0.17, 0.8)
-  -- сортировка списка рецептов по прибыли: одна галочка всегда стоит (по умолчанию - Ф)
+  -- график раскрытой строки: продано за 24 ч и лотов - сверху
+  local det = CreateFrame("Frame", nil, mt); det:SetHeight(96); det:SetPoint("LEFT", 6, 0); det:SetPoint("RIGHT", -6, 0)
+  local dbg = det:CreateTexture(nil, "BACKGROUND"); dbg:SetAllPoints(); dbg:SetColorTexture(0, 0, 0, 0.35)
+  det.info = UI.Font(det, 10, UI.DIM); det.info:SetPoint("TOPLEFT", 6, -3); det.info:SetPoint("RIGHT", -6, 0)
+  det.chart = UI.Chart(det); det.chart.compact = true; det.chart.noLegend = true
+  det.chart:SetPoint("TOPLEFT", -14, -10); det.chart:SetPoint("BOTTOMRIGHT", 4, -2)
+  det:Hide(); mt.det = det
+  mt.foot = UI.Font(mt, 10, UI.TEXT); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
+  mt.foot:SetPoint("BOTTOMLEFT", 8, 28); mt.foot:SetPoint("RIGHT", -8, 0)
+  local l1 = mt:CreateTexture(nil, "ARTWORK"); l1:SetHeight(1); l1:SetPoint("BOTTOMLEFT", 6, 24); l1:SetPoint("BOTTOMRIGHT", -6, 24); l1:SetColorTexture(0.42, 0.33, 0.17, 0.8)
+  -- сортировка списка рецептов: одна галочка всегда стоит (по умолчанию - Ф)
   local S = ns.DB.settings
   local function setSort(k)
     S.profSort = k
     mt.sortMain:SetChecked(S.profSort == "main"); mt.sortNt:SetChecked(S.profSort == "neutral")
     ns.ApplyRecipeSort()
   end
-  local sl = UI.Font(mt, 10, UI.DIM); sl:SetPoint("BOTTOMLEFT", 10, 10); sl:SetText(L"Сортировать рецепты:")
+  local sl = UI.Font(mt, 10, UI.DIM); sl:SetPoint("BOTTOMLEFT", 8, 7); sl:SetText(L"Сортировать:")
   mt.sortMain = UI.Check(mt, L"по прибыли Ф", function() return S.profSort == "main" end, function(v) setSort("main", v) end)
-  mt.sortMain:SetPoint("LEFT", sl, "RIGHT", 8, 0)
+  mt.sortMain:SetSize(16, 16); mt.sortMain:SetPoint("LEFT", sl, "RIGHT", 6, 0)
   mt.sortNt = UI.Check(mt, L"по прибыли Общ", function() return S.profSort == "neutral" end, function(v) setSort("neutral", v) end)
-  mt.sortNt:SetPoint("LEFT", mt.sortMain.label, "RIGHT", 14, 0)
+  mt.sortNt:SetSize(16, 16); mt.sortNt:SetPoint("LEFT", mt.sortMain.label, "RIGHT", 10, 0)
+  for _, c in ipairs({ mt.sortMain, mt.sortNt }) do UI.SetFont(c.label, UI.FONT, 10, "") end
 end
 local function sm(c) return c and ns.money(c, true) or nil end
 local function fillMarketTable(rec)
   if not mt then return end
-  for _, ln in ipairs(mt.lines) do ln.icon:Hide(); ln.name:SetText(""); ln.bg:Hide(); ln.bell:Hide(); for _, fs in pairs(ln.p) do fs:SetText("") end end
+  for _, ln in ipairs(mt.lines) do ln:Hide(); ln.id = nil end
   if not rec or ns.DB.settings.profUI == false then mt:Hide() return end
+  if mt.rec ~= rec then mt.open = nil end
   mt.rec = rec
   local inPlan = 0
   for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then inPlan = p.n end end
   mt.plan:SetLabel(inPlan > 0 and (L"В плане" .. " ×" .. inPlan) or L"В план"); mt.plan:SetGold(inPlan > 0)
   local M = ns.RecipeMarket(rec)
-  local i = 0
-  for _, r in ipairs(M.rows) do
-    i = i + 1; local ln = mt.lines[i]; if not ln then break end
-    ln.icon:SetTexture(ns.itemIcon(r.id)); ln.icon:Show()
-    ln.bell.id = r.id; ln.bell:Update(r.id); ln.bell:Show()
-    ln.name:SetText(ns.itemName(r.id) .. (r.n ~= 1 and (" |cffaaaaaa×" .. r.n .. "|r") or "") .. (r.bestKind == "vendor" and L" |cffaaaaaa(торговец " .. sm(r.vendor * r.n) .. ")|r" or ""))
-    for _, k in ipairs(KINDS) do
-      local p = r.p[k]
-      ln.p[k]:SetText(p and ((r.bestKind == k and "|cff5dff7a" or "|cff9a9a9a") .. sm(p * r.n) .. "|r") or "|cff555555-|r")
+  local y, i = -46, 0
+  local function line(id, name, vals, bg, tip)
+    i = i + 1; local ln = mt.lines[i]; if not ln then return end
+    ln.id, ln.tip = id, tip
+    ln:ClearAllPoints(); ln:SetPoint("TOPLEFT", 4, y); ln:SetPoint("RIGHT", -4, 0); y = y - ROW
+    ln.icon:SetShown(id ~= nil); ln.tri:SetShown(id ~= nil); ln.star:SetShown(id ~= nil); ln.bell:SetShown(id ~= nil)
+    if id then
+      ln.icon:SetTexture(ns.itemIcon(id)); ln.bell:Update(id); ln.star:SetIcon(ns.IsMarked(id) and "star-on" or "star-off")
+      pcall(ln.tri.SetRotation, ln.tri, mt.open == id and -math.pi / 2 or 0)
     end
+    ln.name:SetText(name)
+    for _, k in ipairs(KINDS) do ln.p[k]:SetText(vals[k] or "|cff555555-|r") end
+    if bg then ln.bg:SetColorTexture(bg[1], bg[2], bg[3], bg[4]); ln.bg:Show() else ln.bg:Hide() end
+    ln:Show()
+    -- график раскрытой строки - сразу под ней
+    if id and mt.open == id then
+      local d = mt.det
+      d:ClearAllPoints(); d:SetPoint("TOPLEFT", 6, y - 2); d:SetPoint("RIGHT", -6, 0); y = y - d:GetHeight() - 4
+      local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
+      local p = ns.AHPrice(id)
+      d.info:SetText("|cfff2c761" .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
+      d:Show()
+      local h = ns.History(id)
+      ns.After(0, function() if mt.open == id then d.chart:SetPoints(h) end end)
+    end
+  end
+  if not mt.open then mt.det:Hide() end
+  for _, r in ipairs(M.rows) do
+    local v = {}
+    for _, k in ipairs(KINDS) do local p = r.p[k]; v[k] = p and ((r.bestKind == k and "|cff5dff7a" or "|cff9a9a9a") .. sm(p * r.n) .. "|r") end
+    line(r.id, ns.itemName(r.id) .. (r.n ~= 1 and (" |cffaaaaaa×" .. r.n .. "|r") or ""), v, nil,
+      r.vendor and (L"торговец" .. ": " .. sm(r.vendor * r.n)) or nil)
   end
   if M.out then
-    i = i + 1; local ln = mt.lines[i]
-    if ln then
-      ln.icon:SetTexture(ns.itemIcon(M.out.id)); ln.icon:Show()
-      ln.bell.id = M.out.id; ln.bell:Update(M.out.id); ln.bell:Show()
-      ln.bg:SetColorTexture(0.42, 0.33, 0.17, 0.18); ln.bg:Show()
-      ln.name:SetText("|cffe6b450" .. L"Продажа: " .. "|r" .. ns.itemName(M.out.id) .. (M.out.q ~= 1 and (" |cffaaaaaa×" .. M.out.q .. "|r") or ""))
-      local bestSell
-      for _, k in ipairs(KINDS) do local p = M.out.p[k]; if p and (not bestSell or p > M.out.p[bestSell]) then bestSell = k end end
-      for _, k in ipairs(KINDS) do
-        local p = M.out.p[k]
-        ln.p[k]:SetText(p and ((k == bestSell and "|cffffd100" or "|cff9a9a9a") .. sm(p * M.out.q) .. "|r") or "|cff555555-|r")
-      end
-    end
-    i = i + 1; local pl = mt.lines[i]
-    if pl then
-      pl.name:SetText("|cffe6b450" .. L"Прибыль" .. "|r |cff888888" .. L"(комиссия Ф 5%, Общ 15%)" .. "|r")
-      pl.bg:SetColorTexture(0.47, 0.85, 0.54, 0.10); pl.bg:Show()
-      for _, k in ipairs(KINDS) do
-        local v = M.profit[k]
-        pl.p[k]:SetText(v and ((v >= 0 and (k == M.best and "|cff5dff7a" or "|cff4f9a5c") or "|cffff7a66") .. short(v) .. "|r") or "|cff555555-|r")
-      end
-    end
+    local bestSell
+    for _, k in ipairs(KINDS) do local p = M.out.p[k]; if p and (not bestSell or p > M.out.p[bestSell]) then bestSell = k end end
+    local v = {}
+    for _, k in ipairs(KINDS) do local p = M.out.p[k]; v[k] = p and ((k == bestSell and "|cffffd100" or "|cff9a9a9a") .. sm(p * M.out.q) .. "|r") end
+    line(M.out.id, "|cffe6b450» |r" .. ns.itemName(M.out.id) .. (M.out.q ~= 1 and (" |cffaaaaaa×" .. M.out.q .. "|r") or ""), v, { 0.42, 0.33, 0.17, 0.2 }, L"Продажа")
+    local pv = {}
+    for _, k in ipairs(KINDS) do local x = M.profit[k]; pv[k] = x and ((x >= 0 and (k == M.best and "|cff5dff7a" or "|cff4f9a5c") or "|cffff7a66") .. short(x) .. "|r") end
+    line(nil, "|cffe6b450" .. L"Прибыль" .. "|r |cff888888" .. L"(-5% / -15%)" .. "|r", pv, { 0.47, 0.85, 0.54, 0.10 })
   end
-  -- итог словами
+  -- итог одной-двумя короткими строками
   local buyAt = {}
   for _, r in ipairs(M.rows) do
     local w = r.bestKind == "vendor" and L"торговец" or r.bestKind and KSHORT[r.bestKind]
@@ -603,9 +630,10 @@ local function fillMarketTable(rec)
   local parts = {}
   for w, n in pairs(buyAt) do parts[#parts + 1] = w .. (n > 1 and (" ×" .. n) or "") end
   table.sort(parts)
-  mt:SetHeight(52 + i * (mt.ROW or 18) + 64)
-  mt.foot:SetText((#parts > 0 and (L"Материалы дешевле: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
-    .. (M.best and ("\n" .. L"Продать выгоднее: " .. ns.ALT_COLOR[M.best] .. ns.AltName(M.best) .. "|r, " .. L"прибыль " .. short(M.profit[M.best])) or ""))
+  mt.foot:SetText((#parts > 0 and (L"Дешевле купить: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
+    .. (M.best and ("   ·   " .. L"Продать: " .. ns.ALT_COLOR[M.best] .. KSHORT[M.best] .. "|r " .. short(M.profit[M.best])) or ""))
+  local fh = mt.foot:GetStringHeight(); if type(fh) ~= "number" or fh < 10 then fh = 13 end
+  mt:SetHeight(-y + 8 + fh + 30)
   mt:Show()
 end
 ns._fillMarketTable = fillMarketTable
