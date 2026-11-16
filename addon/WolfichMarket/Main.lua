@@ -1048,6 +1048,10 @@ local function buildSettings(f)
   jb:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Все сообщения аддона: снимки, общий рынок, сигналы, продажи и кулдауны.", 1, 1, 1, true); GameTooltip:Show() end)
   jb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   setp.journal = jb
+  -- /reload одной кнопкой (всегда видна)
+  local rl = UI.Button(f, L"Перезагрузить интерфейс (/reload)", 230, 22, function() if ReloadUI then ReloadUI() end end)
+  rl:SetPoint("LEFT", jb, "RIGHT", 10, 0)
+  setp.reloadAlways = rl
   local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 4, 4); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
   about:SetText("WolfichMarket " .. (ns.VERSION or "") .. L"  -  обновление: WolfichMarket-Updater.bat с сайта или CurseForge.  Команды: /wm help")
   setp.refresh = function() rAuto(); rChat(); rLang() end
