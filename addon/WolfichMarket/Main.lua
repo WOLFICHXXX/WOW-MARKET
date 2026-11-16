@@ -260,9 +260,13 @@ end
 local function buildCraft(f)
   local S = ns.DB.settings
   -- персонаж: < имя > (профессии - правее)
-  local prevC = UI.Icon(f, "skin\\mi-left", 22, L"Предыдущий персонаж", function() craft.stepChar(-1) end); prevC:SetPoint("TOPLEFT", 0, -2)
+  local prevC = UI.Button(f, "‹", 22, 18, function() craft.stepChar(-1) end); prevC:SetPoint("TOPLEFT", 0, -2)
   craft.charName = UI.Font(f, 13, nil, "OVERLAY", "OUTLINE"); craft.charName:SetPoint("LEFT", prevC, "RIGHT", 4, 0); craft.charName:SetWidth(150); craft.charName:SetJustifyH("CENTER")
-  local nextC = UI.Icon(f, "skin\\mi-right", 22, L"Следующий персонаж", function() craft.stepChar(1) end); nextC:SetPoint("LEFT", craft.charName, "RIGHT", 4, 0)
+  local nextC = UI.Button(f, "›", 22, 18, function() craft.stepChar(1) end); nextC:SetPoint("LEFT", craft.charName, "RIGHT", 4, 0)
+  for bt, tip in pairs({ [prevC] = L"Предыдущий персонаж", [nextC] = L"Следующий персонаж" }) do
+    bt:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(tip, 1, 1, 1); GameTooltip:Show() end)
+    bt:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
   craft.X0 = 210
   function craft.stepChar(d)
     local l = chars()

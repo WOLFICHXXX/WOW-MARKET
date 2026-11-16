@@ -222,58 +222,46 @@ function UI.Close(parent, onClick)
   return b
 end
 
--- кнопка из 3 частей (края + растягиваемая середина); b:SetGold(on) - золотая/тёмная
--- оформление 2.43: кнопки нового макета (золотая - тёмный текст, тёмная - золотой)
-local GOLD_TXT, DARK_TXT = { 0.17, 0.10, 0.02 }, { 0.97, 0.83, 0.53 }
-local function hasWinBtn() return ns.WIN_TC and ns.WIN_TC["btn-dark-l"] ~= nil end
+-- кнопка (2.43.33): своя плоская - заливка и тонкая кромка, без картинок; b:SetGold(on) - золотая (главная / выбрана) или тёмная
+local GOLD_TXT, DARK_TXT = { 0.12, 0.08, 0.02 }, { 0.94, 0.88, 0.77 }
+local BTN = {
+  dark = { bg = { 0.09, 0.075, 0.05, 0.92 }, edge = { 0.45, 0.35, 0.16, 1 } },
+  gold = { bg = { 0.85, 0.64, 0.25, 1 }, edge = { 0.98, 0.82, 0.45, 1 } },
+  off = { bg = { 0.07, 0.06, 0.05, 0.85 }, edge = { 0.28, 0.23, 0.15, 1 } },
+}
+UI.BTN_COLORS = BTN
 function UI.Button(parent, text, w, h, onClick, gold)
   local b = CreateFrame("Button", nil, parent)
   w, h = w or 100, h or 22
-  local win = hasWinBtn()
-  -- кнопки макета выше: надпись не сливается с рамкой кнопки
-  if win then h = h + 6 end
+  h = h + 4 -- чуть выше: надпись не прилипает к кромке
   b:SetSize(w, h)
-  local th = themeOf(parent)
-  local pre = (th and UI.THEMES[th] and UI.THEMES[th].btn) or "mbtn"
-  local cap = win and math.max(4, math.floor(h * (ns.WIN_BTN_CAP or 0.4) + 0.5)) or math.max(4, math.floor(h * 36 / 82 + 0.5))
-  if cap * 2 > w - 2 then cap = math.floor((w - 2) / 2) end
-  local parts, hls = {}, {}
-  local function place(t, k)
-    if k == "l" then t:SetPoint("TOPLEFT"); t:SetPoint("BOTTOMLEFT"); t:SetWidth(cap)
-    elseif k == "r" then t:SetPoint("TOPRIGHT"); t:SetPoint("BOTTOMRIGHT"); t:SetWidth(cap)
-    else t:SetPoint("TOPLEFT", cap, 0); t:SetPoint("BOTTOMRIGHT", -cap, 0) end
-  end
-  for _, k in ipairs({ "l", "m", "r" }) do
-    local t = b:CreateTexture(nil, "BACKGROUND"); place(t, k); parts[k] = t
-    local hl = b:CreateTexture(nil, "HIGHLIGHT"); place(hl, k); hl:SetBlendMode("ADD"); hl:SetAlpha(0.35); hls[k] = hl
-  end
+  local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
+  local edges = UI.Edge(b, 0, 0, 0, 1, "BORDER")
+  local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetPoint("TOPLEFT", 1, -1); hl:SetPoint("BOTTOMRIGHT", -1, 1); hl:SetColorTexture(1, 0.85, 0.45, 0.14)
   local fs = b:CreateFontString(nil, "OVERLAY")
-  local FONT = win and UI.BOLD or UI.FONT
-  -- шрифт - примерно треть высоты кнопки (с учётом увеличения шрифтов макета): между верхней и нижней кромкой остаётся воздух
-  local base = math.max(10, math.min(12, math.floor(h * 0.36)))
+  local FONT = UI.BOLD
+  local base = math.max(10, math.min(12, math.floor(h * 0.42)))
   setFont(fs, FONT, base, "") -- шрифт до первого SetText, иначе игра выдаёт ошибку
-  fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
+  fs:SetPoint("CENTER", 0, 0); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs
   local isGold
   local function sw() return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end
-  -- надпись - только между краями кнопки (рамки по бокам не заходит); не влезает - шрифт меньше, до 9
+  -- надпись не выходит за кнопку; не влезает - шрифт меньше, до 9
   local function fit()
-    local maxw = (b:GetWidth() or w) - cap - 8
+    local maxw = (b:GetWidth() or w) - 10
     local size = base
     setFont(fs, FONT, size, ""); fs:SetWidth(0)
     while sw() > maxw and size > 9 do size = size - 1; setFont(fs, FONT, size, "") end
     if sw() > maxw then fs:SetWidth(maxw) end
   end
-  -- вид: золотая (выбрана) или тёмная; выключенная - всегда тёмная с приглушённым, но читаемым текстом
   local function paint()
     local en = b:IsEnabled() ~= false
-    local kind = (isGold and en) and "-gold-" or "-dark-"
-    if win then for k, t in pairs(parts) do UI.WinTex(t, "btn" .. kind .. k); UI.WinTex(hls[k], "btn" .. kind .. k) end
-    else for k, t in pairs(parts) do UI.SkinTex(t, pre .. kind .. k); UI.SkinTex(hls[k], pre .. kind .. k) end end
-    for _, t in pairs(parts) do t:SetDesaturated(not en); t:SetAlpha(en and 1 or 0.85) end
-    local c = not en and { 0.82, 0.78, 0.68 } or (isGold and GOLD_TXT or DARK_TXT)
+    local st = not en and BTN.off or (isGold and BTN.gold or BTN.dark)
+    bg:SetColorTexture(st.bg[1], st.bg[2], st.bg[3], st.bg[4])
+    for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
+    local c = not en and { 0.6, 0.56, 0.48 } or (isGold and GOLD_TXT or DARK_TXT)
     fs:SetTextColor(c[1], c[2], c[3])
-    if fs.SetShadowColor then fs:SetShadowColor(0, 0, 0, (isGold and en) and 0 or 0.85) end
+    if fs.SetShadowColor then fs:SetShadowColor(0, 0, 0, (isGold and en) and 0 or 0.8) end
   end
   function b:SetGold(on) isGold = on and true or false; paint() end
   function b:IsGold() return isGold end
@@ -282,15 +270,15 @@ function UI.Button(parent, text, w, h, onClick, gold)
   function b:FitWidth(minW, maxW)
     setFont(fs, FONT, base, ""); fs:SetWidth(0)
     local tw = sw()
-    self:SetWidth(math.max(minW or 0, math.min(maxW or 1000, math.floor(tw + cap + 18))))
+    self:SetWidth(math.max(minW or 0, math.min(maxW or 1000, math.floor(tw + 22))))
     fit()
     return self:GetWidth()
   end
   b:SetGold(gold); b:SetLabel(text)
   b:SetScript("OnDisable", paint)
   b:SetScript("OnEnable", paint)
-  b:HookScript("OnMouseDown", function(self) if self:IsEnabled() ~= false then fs:SetPoint("CENTER", 1, 0) end end)
-  b:HookScript("OnMouseUp", function() fs:SetPoint("CENTER", 0, 1) end)
+  b:HookScript("OnMouseDown", function(self) if self:IsEnabled() ~= false then fs:SetPoint("CENTER", 1, -1) end end)
+  b:HookScript("OnMouseUp", function() fs:SetPoint("CENTER", 0, 0) end)
   b:HookScript("OnSizeChanged", fit)
   if onClick then b:SetScript("OnClick", onClick) end
   return b

@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.33
+
+### ✨ Look
+- **Flat buttons everywhere:** dark fill with a thin gold edge, the main or selected button gold; the character arrows are the same buttons. Checkboxes stay as before.
+
+### ✨ Оформление
+- **Плоские кнопки везде:** тёмная заливка с тонкой золотой кромкой, главная или выбранная - золотая; стрелки выбора персонажа - такие же кнопки. Галочки - прежние.
+
 ## 2.43.32
 
 ### ✨ Look
