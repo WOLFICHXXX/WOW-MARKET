@@ -84,18 +84,6 @@ local function fillCard(rec)
   if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
   elseif not ns.IsLearned(rec) then card.craft:Disable(); card.craft.tip = L"Рецепт ещё не изучен"
   else card.craft:Enable(); card.craft.tip = nil end
-  -- своё окно крафта: «Создать ×N» и «Все (сколько можно из сумок)»
-  local live = mine and ns.CraftModeActive and ns.CraftModeActive() and prof == ns.curProf and ns.IsLearned(rec)
-  if live then
-    local ri = C_TradeSkillUI and C_TradeSkillUI.GetRecipeInfo and ns.safe(C_TradeSkillUI.GetRecipeInfo, rec.id)
-    local avail = ri and ri.numAvailable or 0
-    card.all.n = avail
-    card.all:SetLabel(L"Все" .. " (" .. avail .. ")"); card.all:FitWidth(60, 110); card.all:Show(); card.all:SetEnabled(avail > 0)
-    card.craft:SetLabel(L"Создать" .. " ×" .. ((craft.portions and craft.portions[rec.id]) or 1))
-    card.craft.tip = string.format(L"Создать прямо отсюда. Хватит материалов на %d.", avail)
-  else
-    card.all:Hide(); card.craft:SetLabel(L"Крафт")
-  end
   local c = ns.DB.chars[charKey] or {}
   local stock = ns.DB.settings.useBank and ns.Stock(charKey) or nil
   craft.portions = craft.portions or {}
@@ -459,9 +447,6 @@ local function buildCraft(f)
   card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
   local plus = UI.Button(prow, "+", 28, 26, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
   local p5 = UI.Button(prow, "+5", 38, 26, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
-  -- «Все (N)»: столько порций, сколько можно создать из материалов в сумках (только в своём окне крафта)
-  card.all = UI.Button(prow, L"Все", 60, 26, function() if card.all.n and card.all.n > 0 then setN(card.all.n) end end)
-  card.all:SetPoint("LEFT", p5, "RIGHT", 4, 0); card.all:Hide()
   card.plan = UI.Button(prow, L"Запланировать", 150, 26, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
   card.plan:SetPoint("RIGHT", 0, 0)
   card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
@@ -469,17 +454,7 @@ local function buildCraft(f)
   -- кнопки: Крафт / Где взять / На аукционе - на всю ширину карточки, поровну
   local brow = CreateFrame("Frame", nil, card); brow:SetHeight(34)
   brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)
-  card.craft = UI.Button(brow, L"Крафт", 100, 28, function()
-    if not sel then return end
-    -- своё окно крафта открыто для этой профессии этого персонажа - создаём прямо отсюда
-    if ns.CraftModeActive and ns.CraftModeActive() and charKey == ns.charKey and prof == ns.curProf and C_TradeSkillUI and C_TradeSkillUI.CraftRecipe then
-      local n = (craft.portions and craft.portions[sel.id]) or 1
-      local ok, err = pcall(C_TradeSkillUI.CraftRecipe, sel.id, n)
-      if not ok then ns.say(L"не удалось создать: " .. tostring(err)) end
-      return
-    end
-    ns.OpenRecipeInGame(sel, prof)
-  end, true)
+  card.craft = UI.Button(brow, L"Крафт", 100, 28, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- «Где взять»: тренер, продавцы, добыча, задания, репутация и карта зоны
@@ -1078,7 +1053,6 @@ local function buildSettings(f)
   setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
   local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Окно профессии игры и часы"); b.y = b.y - 72
-  chk(b, L"Своё окно крафта вместо окна профессии игры", "craftUI", function(v) if not v and ns._leaveCraft then ns._leaveCraft(true) end end, true)
   chk(b, L"Таблица «Где купить и где продать» и столбики Ф / Общ", "profUI", function() if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end; if ns.RefreshMarketTable then ns.RefreshMarketTable() end end, true)
   chk(b, L"Уведомлять, когда готов кулдаун (трансмутации)", "cdNotify", nil, true)
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
@@ -1328,7 +1302,6 @@ local function selectView(i)
 end
 function setChar(ck) charKey = ck; prof = nil; sel = nil; refresh() end
 
-local craftMode, craftOff, blocker, leaveCraft = false, false, nil, nil -- своё окно крафта (ниже)
 local function build()
   if win then return end
   win = CreateFrame("Frame", "WolfichMarketMainFrame", UIParent)
@@ -1350,15 +1323,6 @@ local function build()
     builder(f); f:Hide(); win.pages[i] = f
   end
   win:SetScript("OnShow", function() raise(); refresh() end)
-  -- «Окно игры»: вернуть обычное окно профессии до следующего открытия
-  win.gameBtn = UI.Button(win.closeBtn:GetParent(), L"Окно игры", 100, 18, function() craftOff = true; leaveCraft() end)
-  win.gameBtn:SetPoint("RIGHT", win.closeBtn, "LEFT", -10, 0); win.gameBtn:FitWidth(90, 160); win.gameBtn:Hide()
-  win:HookScript("OnHide", function()
-    if craftMode then
-      leaveCraft(true)
-      if C_TradeSkillUI and C_TradeSkillUI.CloseTradeSkill then pcall(C_TradeSkillUI.CloseTradeSkill) end
-    end
-  end)
   win:HookScript("OnMouseDown", raise)
   if win.content then win.content:EnableMouse(true); win.content:HookScript("OnMouseDown", raise) end
   charKey = ns.charKey
@@ -1367,7 +1331,6 @@ local function build()
 end
 
 ns._mainCraft = craft -- для автотестов
-craft.select = function(rec) fillCard(rec) end
 ns._mainSig = sig
 ns._mainAlts = alts
 ns._mainCd = cdp
@@ -1380,58 +1343,8 @@ function ns.ToggleMain(section)
   if section then win:Show(); selectView(section) return end
   if win:IsShown() then win:Hide() else win:Show(); refresh() end
 end
--- ---------- своё окно крафта: при открытии профессии - раздел «Профессии» на месте окна игры ----------
--- Окно игры не закрывается кодом аддона (иначе игра начинает блокировать действия): оно становится прозрачным,
--- а невидимая подложка не даёт случайно нажать его кнопки. Закрыли наше окно - закрывается и профессия.
-local function gameProf() return ProfessionsFrame or TradeSkillFrame end
-local function hideGame(on)
-  local g = gameProf()
-  if not g then return end
-  pcall(g.SetAlpha, g, on and 0 or 1)
-  if on then
-    if not blocker then
-      blocker = CreateFrame("Frame", nil, UIParent); blocker:EnableMouse(true); blocker:EnableMouseWheel(true)
-      blocker:SetScript("OnMouseWheel", function() end)
-    end
-    blocker:SetFrameStrata(g:GetFrameStrata() or "MEDIUM"); blocker:SetFrameLevel((g:GetFrameLevel() or 1) + 50)
-    blocker:ClearAllPoints(); blocker:SetAllPoints(g); blocker:Show()
-  elseif blocker then blocker:Hide() end
-end
-function ns.CraftModeActive() return craftMode end
-function leaveCraft(keepWin)
-  if not craftMode then return end
-  craftMode = false
-  hideGame(false)
-  if win and win.gameBtn then win.gameBtn:Hide() end
-  if not keepWin and win then win:Hide() end
-  refresh()
-end
-function ns.EnterCraftMode()
-  if ns.DB.settings.craftUI == false or craftOff or not ns.curProf or not ns.charKey then return end
-  local mine = ns.DB.chars[ns.charKey] and ns.DB.chars[ns.charKey].profs[ns.curProf]
-  if not mine or mine.virtual then return end -- профессия не сохранена у этого персонажа - обычное окно игры
-  local g = gameProf()
-  if not g or not g:IsShown() then return end
-  build()
-  local wasOn = craftMode
-  craftMode = true
-  if not wasOn then
-    win:ClearAllPoints(); win:SetPoint("TOPLEFT", UIParent, "TOPLEFT", math.max(0, g:GetLeft() or 0), (g:GetTop() or 0) - (UIParent:GetTop() or 0))
-  end
-  charKey = ns.charKey
-  if prof ~= ns.curProf then prof = ns.curProf; sel = nil end
-  hideGame(true)
-  win:Show(); selectView(VIEW_CRAFT); raise()
-  if win.gameBtn then win.gameBtn:Show() end
-end
-ns.On("TRADE_SKILL_CLOSE", function() craftOff = false; leaveCraft() end)
--- окно профессии открылось - сразу прозрачное (без мелькания), пока аддон читает рецепты; чужие рецепты - показать обратно
-ns.On("TRADE_SKILL_SHOW", function() if ns.DB and ns.DB.settings.craftUI ~= false and not craftOff then hideGame(true) end end)
-function ns.CraftReveal() if not craftMode then hideGame(false) end end
-ns._leaveCraft = leaveCraft
-
 -- открылось окно игры (профессия, сумки, банк, почта) - наше окно уступает ему место сверху
-for _, e in ipairs({ "TRADE_SKILL_SHOW", "BAG_OPEN" }) do ns.On(e, function() ns.After(0, function() if not craftMode then lower() end end) end) end
+for _, e in ipairs({ "TRADE_SKILL_SHOW", "BAG_OPEN" }) do ns.On(e, function() ns.After(0, lower) end) end
 if hooksecurefunc then
   for _, fn in ipairs({ "ToggleAllBags", "OpenAllBags", "ToggleBackpack", "OpenBackpack", "ToggleBag" }) do if _G[fn] then pcall(hooksecurefunc, fn, function() ns.After(0, lower) end) end end
 end
