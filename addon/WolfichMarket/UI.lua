@@ -20,6 +20,8 @@ end
 -- темы оформления (макеты пользователя, нарезанные tools/make_skin.py)
 -- scale - во сколько раз уменьшать части макета; title/close - места в пикселях макета
 UI.THEMES = {
+  -- новый макет: места заголовка и крестика - в пикселях рамки (умножаются на масштаб)
+  win = { title = { 64, -74 }, close = { -20, -13, 48, 48 }, btn = "mbtn" },
   main = { scale = 0.85, title = { 84, -40 }, close = { -2, -6, 60, 62 }, btn = "mbtn" },
   ah = { scale = 0.5, title = { 186, -60 }, close = { -56, -38, 56, 48 }, btn = "abtn" },
   mcard = { scale = 0.5, btn = "mbtn" },
@@ -43,6 +45,7 @@ UI.ThemeOf = themeOf
 
 -- старая рамка (дерево + бронза) - для всплывающих уведомлений
 local function plainSkin(f, opts)
+  if ns.WIN_TC and ns.WIN_TC["f-tl"] and not opts.old then return UI.Box(f, opts.alpha or 0.92) end
   local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
   bg:SetTexture(M .. "bg", "REPEAT", "REPEAT")
   bg:SetHorizTile(true); bg:SetVertTile(true)
@@ -72,9 +75,70 @@ local function plainSkin(f, opts)
   return f
 end
 
+-- ---------- оформление нового макета (2.43): рамка из частей и простые панели ----------
+local function winReady() return ns.WIN and ns.WIN_TC and ns.WIN_TC["f-tl"] ~= nil end
+-- рамка окна: уголки, кристаллы и лапа - без растяжения; s - масштаб частей
+function UI.FrameSkin(f, s)
+  s = s or 0.5
+  f.wmTheme, f.wmScale = "win", s
+  local W = ns.WIN
+  local function tex(name, layer, sub) local t = f:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t end
+  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
+  local c = tex("f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 44 * s, -58 * s); c:SetPoint("BOTTOMRIGHT", -46 * s, 34 * s)
+  -- украшение фона: несколько едва заметных лапок (места - доли размера окна)
+  if ns.WIN_TC["paw-bg"] then
+    local PAWS = { { 0.10, 0.24, 0.17, -25, 0.075 }, { 0.32, 0.72, 0.12, 15, 0.06 }, { 0.56, 0.30, 0.10, -8, 0.05 },
+      { 0.80, 0.64, 0.16, 30, 0.07 }, { 0.91, 0.17, 0.09, -40, 0.05 }, { 0.46, 0.90, 0.08, 10, 0.045 } }
+    local paws = {}
+    for i, p in ipairs(PAWS) do
+      local t = f:CreateTexture(nil, "BACKGROUND", nil, -7); UI.WinTex(t, "paw-bg"); t:SetVertexColor(0.95, 0.75, 0.42); t:SetAlpha(p[5])
+      pcall(t.SetRotation, t, math.rad(p[4]))
+      paws[i] = t
+    end
+    local function place()
+      local w, h = f:GetWidth() or 0, f:GetHeight() or 0
+      if w < 50 or h < 50 then return end
+      for i, p in ipairs(PAWS) do
+        local t, size = paws[i], math.min(w, h) * p[3]
+        t:SetSize(size, size); t:ClearAllPoints(); t:SetPoint("CENTER", f, "TOPLEFT", w * p[1], -h * p[2])
+      end
+    end
+    place()
+    if f.HookScript then f:HookScript("OnSizeChanged", place) end
+  end
+  local tlw, tlh = sz("f-tl"); local trw = sz("f-tr"); local lw = sz("f-l"); local blw, bh = sz("f-bl"); local brw = sz("f-br"); local emw = sz("f-em")
+  local t = tex("f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
+  local l = tex("f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
+  local r = tex("f-r"); r:SetWidth(lw); r:SetPoint("TOPRIGHT", 0, -tlh); r:SetPoint("BOTTOMRIGHT", 0, bh)
+  local bf = tex("f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT"); bf:SetPoint("BOTTOMRIGHT")
+  local q = tex("f-tl", "BORDER", 1); q:SetSize(tlw, tlh); q:SetPoint("TOPLEFT")
+  q = tex("f-tr", "BORDER", 1); q:SetSize(trw, tlh); q:SetPoint("TOPRIGHT")
+  q = tex("f-bl", "BORDER", 1); q:SetSize(blw, bh); q:SetPoint("BOTTOMLEFT")
+  q = tex("f-br", "BORDER", 1); q:SetSize(brw, bh); q:SetPoint("BOTTOMRIGHT")
+  q = tex("f-em", "BORDER", 2); q:SetSize(emw, bh); q:SetPoint("BOTTOM")
+  return f
+end
+-- панель внутри окна: тёмная подложка и тонкая золотая кромка
+function UI.Box(f, alpha)
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.02, 0.02, 0.03, alpha or 0.42)
+  local function line(p1, p2, horiz)
+    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.42, 0.33, 0.17, 0.95)
+    if horiz then t:SetHeight(1) else t:SetWidth(1) end
+    t:SetPoint(p1); t:SetPoint(p2)
+  end
+  line("TOPLEFT", "TOPRIGHT", true); line("BOTTOMLEFT", "BOTTOMRIGHT", true); line("TOPLEFT", "BOTTOMLEFT"); line("TOPRIGHT", "BOTTOMRIGHT")
+  f.wmBox = true
+  return f
+end
+
 -- рамка из 9 частей: UI.Skin(f, { theme = "main" | "ah" | "mcard" | "acard", scale = ... })
+-- с 2.43 окна и панели - в оформлении нового макета: окна - рамка из частей, карточки и меню - простая панель
 function UI.Skin(f, opts)
   opts = opts or {}
+  if winReady() and not opts.old then
+    if opts.theme == "main" or opts.theme == "ah" then return UI.FrameSkin(f, opts.frame or (opts.theme == "ah" and 0.55 or 0.42)) end
+    return UI.Box(f, opts.theme and 0.42 or 0.9)
+  end
   local sz = opts.theme and ns.SKIN and ns.SKIN[opts.theme]
   if not sz then return plainSkin(f, opts) end
   local s = opts.scale or UI.THEMES[opts.theme].scale
@@ -112,7 +176,7 @@ function UI.Title(parent, text)
   if th and th.title then
     local s = parent.wmScale
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    setFont(fs, UI.TITLE_FONT, s >= 0.8 and 18 or 15, "OUTLINE")
+    setFont(fs, UI.TITLE_FONT, (parent.wmTheme == "win" and 17) or (s >= 0.8 and 18 or 15), "OUTLINE")
     fs:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); fs:SetJustifyH("LEFT"); fs:SetWordWrap(false)
     fs:SetPoint("LEFT", parent, "TOPLEFT", th.title[1] * s, th.title[2] * s); fs:SetText(text)
     return fs
@@ -144,14 +208,17 @@ function UI.Close(parent, onClick)
 end
 
 -- кнопка из 3 частей (края + растягиваемая середина); b:SetGold(on) - золотая/тёмная
-local GOLD_TXT, DARK_TXT = { 1, 0.95, 0.82 }, { 0.98, 0.84, 0.48 }
+-- оформление 2.43: кнопки нового макета (золотая - тёмный текст, тёмная - золотой)
+local GOLD_TXT, DARK_TXT = { 0.17, 0.10, 0.02 }, { 0.97, 0.83, 0.53 }
+local function hasWinBtn() return ns.WIN_TC and ns.WIN_TC["btn-dark-l"] ~= nil end
 function UI.Button(parent, text, w, h, onClick, gold)
   local b = CreateFrame("Button", nil, parent)
   w, h = w or 100, h or 22
   b:SetSize(w, h)
   local th = themeOf(parent)
   local pre = (th and UI.THEMES[th] and UI.THEMES[th].btn) or "mbtn"
-  local cap = math.max(4, math.floor(h * 36 / 82 + 0.5))
+  local win = hasWinBtn()
+  local cap = win and math.max(4, math.floor(h * (ns.WIN_BTN_CAP or 0.4) + 0.5)) or math.max(4, math.floor(h * 36 / 82 + 0.5))
   if cap * 2 > w - 2 then cap = math.floor((w - 2) / 2) end
   local parts, hls = {}, {}
   local function place(t, k)
@@ -169,26 +236,30 @@ function UI.Button(parent, text, w, h, onClick, gold)
   fs:SetPoint("CENTER", 0, 1); fs:SetJustifyH("CENTER"); fs:SetWordWrap(false)
   b.label = fs
   -- надпись уменьшается, пока не влезет в кнопку; если и на 8 не влезает - обрезается
+  local isGold
+  -- на золотой кнопке тёмный текст без обводки
+  local function flags() return (win and isGold) and "" or "OUTLINE" end
   local function fit()
     local maxw = (b:GetWidth() or w) - math.max(8, cap)
     local size = base
-    setFont(fs, UI.FONT, size, "OUTLINE"); fs:SetWidth(0)
+    setFont(fs, UI.FONT, size, flags()); fs:SetWidth(0)
     local function sw() return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end
-    while sw() > maxw and size > 8 do size = size - 1; setFont(fs, UI.FONT, size, "OUTLINE") end
+    while sw() > maxw and size > 8 do size = size - 1; setFont(fs, UI.FONT, size, flags()) end
     if sw() > maxw then fs:SetWidth(maxw) end
   end
-  local isGold
   function b:SetGold(on)
     isGold = on and true or false
     local kind = isGold and "-gold-" or "-dark-"
-    for k, t in pairs(parts) do UI.SkinTex(t, pre .. kind .. k); UI.SkinTex(hls[k], pre .. kind .. k) end
+    if win then for k, t in pairs(parts) do UI.WinTex(t, "btn" .. kind .. k); UI.WinTex(hls[k], "btn" .. kind .. k) end
+    else for k, t in pairs(parts) do UI.SkinTex(t, pre .. kind .. k); UI.SkinTex(hls[k], pre .. kind .. k) end end
+    if win then local sz = select(2, fs:GetFont()); if sz then setFont(fs, UI.FONT, sz, flags()) end end
     if self:IsEnabled() ~= false then local c = isGold and GOLD_TXT or DARK_TXT; fs:SetTextColor(c[1], c[2], c[3]) end
   end
   function b:IsGold() return isGold end
   function b:SetLabel(t) fs:SetText(t or ""); fit() end
   -- ширина по тексту (шрифт base не уменьшается): для кнопок со своей шириной
   function b:FitWidth(minW, maxW)
-    setFont(fs, UI.FONT, base, "OUTLINE"); fs:SetWidth(0)
+    setFont(fs, UI.FONT, base, flags()); fs:SetWidth(0)
     local tw = (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0
     self:SetWidth(math.max(minW or 0, math.min(maxW or 1000, math.floor(tw + cap * 2 + 14))))
     fit()
@@ -231,6 +302,13 @@ end
 function UI.CheckBox(parent, size)
   local c = CreateFrame("CheckButton", nil, parent)
   c:SetSize(size or 20, size or 20)
+  if ns.WIN_TC and ns.WIN_TC["chk-on"] then
+    c:SetNormalTexture(M .. "win\\chk-off"); UI.WinTex(c:GetNormalTexture(), "chk-off")
+    c:SetCheckedTexture(M .. "win\\chk-on"); UI.WinTex(c:GetCheckedTexture(), "chk-on")
+    c:SetDisabledCheckedTexture(M .. "win\\chk-on"); UI.WinTex(c:GetDisabledCheckedTexture(), "chk-on")
+    local hl = c:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); UI.WinTex(hl, "chk-off"); hl:SetBlendMode("ADD"); hl:SetAlpha(0.35)
+    return c
+  end
   c:SetNormalTexture(M .. "skin\\mchk-off"); UI.SkinTex(c:GetNormalTexture(), "mchk-off")
   c:SetCheckedTexture(M .. "skin\\mchk-on"); UI.SkinTex(c:GetCheckedTexture(), "mchk-on")
   c:SetDisabledCheckedTexture(M .. "skin\\mchk-on"); UI.SkinTex(c:GetDisabledCheckedTexture(), "mchk-on")
@@ -704,27 +782,21 @@ local NAV = { { 146, 66 }, { 212, 69 }, { 281, 71 }, { 352, 69 }, { 421, 71 }, {
 function UI.MainChrome(win, onNav, navTips)
   win:SetSize(WIN_W, WIN_H)
   local s = 0.74
-  local W = ns.WIN or {}
+  -- мягкая чёрная подложка: заполняет просветы между колонкой, шапкой и рамкой
+  -- (сплошная часть - под колонкой, шапкой и рамкой, её края не видны; вокруг - размытая тень)
+  local shade = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(shade, "shade")
+  shade:SetPoint("TOPLEFT", 40, 24); shade:SetPoint("BOTTOMRIGHT", 34, -34); shade:SetAlpha(0.8)
+  local fill = win:CreateTexture(nil, "BACKGROUND", nil, -7); fill:SetColorTexture(0.02, 0.02, 0.03, 0.92)
+  fill:SetPoint("TOPLEFT", 140, -30); fill:SetPoint("BOTTOMRIGHT", -20, 14)
   local fr = CreateFrame("Frame", nil, win); fr:SetPoint("TOPLEFT", 168, -90); fr:SetPoint("BOTTOMRIGHT", 0, 2)
   win.frameBox = fr
+  UI.FrameSkin(fr, s)
   local function tex(parent, name, layer, sub)
     local t = parent:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t
   end
-  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
-  local c = tex(fr, "f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 33, -43); c:SetPoint("BOTTOMRIGHT", -34, 25)
-  local tlw, tlh = sz("f-tl"); local trw = sz("f-tr"); local lw = sz("f-l"); local blw, bh = sz("f-bl"); local brw = sz("f-br"); local emw = sz("f-em")
-  local t = tex(fr, "f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
-  local l = tex(fr, "f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
-  local r = tex(fr, "f-r"); r:SetWidth(lw); r:SetPoint("TOPRIGHT", 0, -tlh); r:SetPoint("BOTTOMRIGHT", 0, bh)
-  local bf = tex(fr, "f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT"); bf:SetPoint("BOTTOMRIGHT")
-  local tl = tex(fr, "f-tl", "BORDER", 1); tl:SetSize(tlw, tlh); tl:SetPoint("TOPLEFT")
-  local tr = tex(fr, "f-tr", "BORDER", 1); tr:SetSize(trw, tlh); tr:SetPoint("TOPRIGHT")
-  local bl = tex(fr, "f-bl", "BORDER", 1); bl:SetSize(blw, bh); bl:SetPoint("BOTTOMLEFT")
-  local br = tex(fr, "f-br", "BORDER", 1); br:SetSize(brw, bh); br:SetPoint("BOTTOMRIGHT")
-  local em = tex(fr, "f-em", "BORDER", 2); em:SetSize(emw, bh); em:SetPoint("BOTTOM")
   -- шапка и колонка - поверх рамки
   local top = CreateFrame("Frame", nil, win); top:SetAllPoints(); top:SetFrameLevel((fr:GetFrameLevel() or 1) + 5)
-  local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", 150, -2); bar:SetSize(930, 102)
+  local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", 150, -2); bar:SetSize(817, 102)
   local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(175, 692)
   local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.TITLE_FONT, 22, "OUTLINE")
   title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", 380, -52); title:SetText("WolfichMarket")

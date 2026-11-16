@@ -665,4 +665,6 @@ ns.EN = {
   [" - продажи твинков видны по снимку"] = " - alt sales are detected from the snapshot",
   [" - продажи твинков по снимку определить нельзя"] = " - alt sales cannot be detected from the snapshot",
   ["возможно, продан (нет в снимке)"] = "possibly sold (not in the snapshot)",
+  ["Материалы"] = "Materials",
+  ["Сортировать рецепты:"] = "Sort recipes:",
 }

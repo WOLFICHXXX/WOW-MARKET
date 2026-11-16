@@ -68,7 +68,8 @@ SIDE_W, SIDE_H = S.size
 save(S, 'side', size=(256, 256 * SIDE_H / SIDE_W))
 
 # ---------- шапка: левый край (кристаллы) срезан и растушёван - он уходит под колонку; фон-дымка прозрачный ----------
-bar = Image.open(os.path.join(SRC, 'bar.png')).convert('RGBA').crop((150, 0, 1100, 115))
+# правый конец (синие кристаллы) срезан: там уже есть украшения рамки - иначе они накладываются
+bar = Image.open(os.path.join(SRC, 'bar.png')).convert('RGBA').crop((150, 0, 985, 115))
 a = np.array(bar).astype(int)
 r, g, b = a[..., 0], a[..., 1], a[..., 2]
 mxb, mnb = a[..., :3].max(2), a[..., :3].min(2)
@@ -82,8 +83,8 @@ a[..., 3] = (a[..., 3] * np.array(M) / 255).astype(int)
 w = a.shape[1]
 for i in range(40):
     a[:, i, 3] = (a[:, i, 3] * (i / 40)).astype(int)
-for i in range(14):
-    a[:, w - 1 - i, 3] = (a[:, w - 1 - i, 3] * (i / 14)).astype(int)
+for i in range(60):
+    a[:, w - 1 - i, 3] = (a[:, w - 1 - i, 3] * (i / 60) ** 1.4).astype(int)
 BAR = Image.fromarray(a.astype(np.uint8))
 save(BAR, 'bar')
 
@@ -115,18 +116,25 @@ for k, bb in PARTS.items():
     im = F.crop(bb)
     FSIZE[k] = im.size
     save(im, k)
-# ткань под рамкой: середина рамки + мелкое зерно (растягивается на всю внутреннюю часть)
-inner = P.crop((60, 70, 455, 465)).resize((512, 512), Image.BICUBIC)
-ai = np.array(inner).astype(float)
-rng = np.random.default_rng(3)
-n1 = rng.normal(0, 1, (512, 512))
-n1 = np.array(Image.fromarray(((n1 * 40) + 128).clip(0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7))).astype(float) - 128
-n2 = rng.normal(0, 1, (90, 90))
-n2 = np.array(Image.fromarray(((n2 * 40) + 128).clip(0, 255).astype(np.uint8)).resize((512, 512), Image.BICUBIC)).astype(float) - 128
-ai[..., :3] += (n1 * 0.16 + n2 * 0.1)[..., None]
-ai[..., 3] = 255
-save(Image.fromarray(ai.clip(0, 255).astype(np.uint8)), 'f-c', size=(256, 256))
-
+# фон внутри рамки: тёмный, с мягким светлым центром и едва заметным зерном (лапки - отдельной текстурой, в игре)
+N = 256
+yy, xx = np.mgrid[0:N, 0:N].astype(float)
+rr = np.sqrt(((xx - N / 2) / (N / 2)) ** 2 + ((yy - N / 2) / (N / 2)) ** 2)
+base = 23 - 9 * np.clip(rr, 0, 1.4) ** 1.6
+rng = np.random.default_rng(5)
+grain = np.array(Image.fromarray(((rng.normal(0, 1, (N, N)) * 40) + 128).clip(0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2))).astype(float) - 128
+v = base + grain * 0.05
+bgc = np.dstack([v * 0.97, v * 0.95, v * 1.06, np.full((N, N), 255.0)]).clip(0, 255).astype(np.uint8)
+save(Image.fromarray(bgc, 'RGBA').filter(ImageFilter.GaussianBlur(0.8)), 'f-c')
+# лапка для украшения фона: светлый силуэт, чуть размытый (цвет и прозрачность - в игре)
+def paw(d, k):
+    s = k
+    d.ellipse((34 * s, 54 * s, 94 * s, 106 * s), fill=(255, 255, 255, 255))
+    for (x, y, rx, ry) in ((22, 40, 11, 15), (44, 20, 12, 16), (74, 20, 12, 16), (98, 40, 11, 15)):
+        d.ellipse(((x - rx) * s, (y - ry) * s, (x + rx) * s, (y + ry) * s), fill=(255, 255, 255, 255))
+pw_img = Image.new('RGBA', (128 * 4, 128 * 4)); paw(ImageDraw.Draw(pw_img), 4)
+pw_img = pw_img.resize((128, 128), Image.LANCZOS).filter(ImageFilter.GaussianBlur(2.2))
+save(pw_img, 'paw-bg')
 # ---------- значки ----------
 def supersample(draw_fn, W, H, k=4):
     im = Image.new('RGBA', (W * k, H * k))
@@ -193,3 +201,49 @@ with open(LUA, 'w', encoding='utf-8') as f:
         f.write('  ["%s"] = { %.5f, %.5f },\n' % (k, TC[k][0], TC[k][1]))
     f.write('}\n')
 print('ok', len(TC), 'textures')
+
+# ---------- кнопки (3 части), галочка, тень под окном ----------
+def cut_bg(img, tol=46):
+    """Фон картинки вокруг рамки (заливка от краёв по цвету угла) - прозрачный."""
+    a = np.array(img.convert('RGBA')).astype(int)
+    h, w = a.shape[:2]
+    ref = a[[0, 0, h - 1, h - 1], [0, w - 1, 0, w - 1], :3].mean(0)
+    d = np.abs(a[..., :3] - ref).sum(2)
+    lab, _ = ndimage.label(d < tol)
+    edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    bgm = np.isin(lab, list(edge))
+    m = Image.fromarray(np.where(bgm, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7))
+    a[..., 3] = (a[..., 3] * np.array(m) / 255).astype(int)
+    return Image.fromarray(a.astype(np.uint8))
+
+
+BTN_CAP = 22
+for kind in ('gold', 'dark', 'blue'):
+    im = cut_bg(Image.open(os.path.join(SRC, 'wm-btn_%s.png' % kind)))
+    w, h = im.size
+    save(im.crop((0, 0, BTN_CAP, h)), 'btn-%s-l' % kind)
+    save(im.crop((BTN_CAP + 6, 0, w - BTN_CAP - 6, h)).resize((64, h)), 'btn-%s-m' % kind)
+    save(im.crop((w - BTN_CAP, 0, w, h)), 'btn-%s-r' % kind)
+chk = cut_bg(Image.open(os.path.join(SRC, 'wm-chk.png')))
+save(chk, 'chk-on', size=(32, 28))
+off = np.array(chk).astype(int)
+# пустая галочка: внутренность рамки - ровная тёмная (галка стёрта целиком)
+ins = off[11:32, 11:35]
+r, g, b = ins[..., 0], ins[..., 1], ins[..., 2]
+goldish = (r > 60) & (r - b > 18)
+dark = np.median(ins[~goldish][:, :3], axis=0) if (~goldish).any() else np.array([30, 30, 32])
+ins[:, :, :3] = dark
+off[11:32, 11:35] = ins
+save(Image.fromarray(off.astype(np.uint8)), 'chk-off', size=(32, 28))
+# мягкая чёрная подложка под окном (заполняет просветы между колонкой, шапкой и рамкой)
+S2 = 128
+yy, xx = np.mgrid[0:S2, 0:S2].astype(float)
+dd = np.minimum.reduce([xx, yy, S2 - 1 - xx, S2 - 1 - yy])
+al = np.clip(dd / 16, 0, 1) ** 1.3 * 232
+save(Image.fromarray(np.dstack([np.full((S2, S2), 6), np.full((S2, S2), 6), np.full((S2, S2), 9), al]).astype(np.uint8), 'RGBA'), 'shade')
+# доли текстур - ещё раз (новые записи)
+with open(LUA, 'a', encoding='utf-8') as f:
+    f.write('ns.WIN_BTN_CAP = %d / 55\n' % BTN_CAP)
+    for k in sorted(TC):
+        f.write('ns.WIN_TC["%s"] = { %.5f, %.5f }\n' % (k, TC[k][0], TC[k][1]))
+print('ok buttons')

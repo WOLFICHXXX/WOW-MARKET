@@ -328,10 +328,10 @@ end)
 
 local function header()
   local S = ns.DB.settings
-  panel.scanBtn = UI.Button(panel, L"Сканировать", 120, 22, function() ns.StartScan() end, true)
-  panel.scanBtn:SetPoint("TOPRIGHT", -62, -19)
-  panel.quickBtn = UI.Button(panel, L"Обновить цены", 128, 22, function() ns.QuickRefresh() end, true)
-  panel.quickBtn:SetPoint("TOPRIGHT", -24, -56)
+  panel.scanBtn = UI.Button(panel, L"Сканировать", 120, 24, function() ns.StartScan() end, true)
+  panel.scanBtn:SetPoint("TOPRIGHT", -46, -26)
+  panel.quickBtn = UI.Button(panel, L"Обновить цены", 128, 24, function() ns.QuickRefresh() end, true)
+  panel.quickBtn:SetPoint("TOPRIGHT", -26, -62)
   panel.quickBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:AddLine(L"Свежие цены без 15-минутного ожидания: всё, что лежит в сумках, результаты и материалы рецептов ваших профессий, отмеченные и план. Предметы проверяются по очереди, примерно 2 в секунду; повторное нажатие - стоп.", 1, 1, 1, true)
@@ -341,10 +341,10 @@ local function header()
   -- какой это аукцион: три кнопки (горит текущий); нажатие - исправить, запоминается для аукциониста
   panel.kindBtn = {}
   local KB = { { "main", L"Фракционный", 104 }, { "neutral", L"Общий", 72 } }
-  local x = 20
+  local x = 26
   for _, k in ipairs(KB) do
-    local b = UI.Button(panel, k[2], k[3], 22, function() ns.SetAHKind(k[1]) end)
-    b:SetPoint("TOPLEFT", x, -56); x = x + k[3] + 4
+    local b = UI.Button(panel, k[2], k[3], 24, function() ns.SetAHKind(k[1]) end)
+    b:SetPoint("TOPLEFT", x, -62); x = x + k[3] + 4
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:AddLine(ns.AltName(k[1]), 1, 0.82, 0)
@@ -354,7 +354,7 @@ local function header()
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     panel.kindBtn[k[1]] = b
   end
-  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 20, -118); panel.state:SetPoint("RIGHT", -24, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
+  panel.state = UI.Font(panel, 10, UI.DIM); panel.state:SetPoint("TOPLEFT", 26, -122); panel.state:SetPoint("RIGHT", -24, 0); panel.state:SetWordWrap(true); panel.state:SetMaxLines(2)
 end
 
 local function updateHeader()
@@ -1017,19 +1017,22 @@ function ns.BuildAHPanel()
   panel:SetPoint("TOPLEFT", h, "TOPRIGHT", 2, 0); panel:SetPoint("BOTTOMLEFT", h, "BOTTOMRIGHT", 2, 0)
   panel:EnableMouse(true)
   UI.Skin(panel, { theme = "ah" })
-  UI.Title(panel, "WolfichMarket")
+  -- медальон и название, как в главном окне
+  local medal = panel:CreateTexture(nil, "OVERLAY"); medal:SetSize(36, 36); medal:SetPoint("TOPLEFT", 24, -20); UI.WinTex(medal, "howl")
+  local tfs = UI.Title(panel, "WolfichMarket")
+  if tfs and tfs.SetPoint then tfs:ClearAllPoints(); tfs:SetPoint("LEFT", medal, "RIGHT", 8, 0) end
   UI.Close(panel, function() panel:Hide() end)
   header()
   -- вкладки в один ряд
   tabs = {}
   for i, n in ipairs(NAMES) do
     local b = UI.Button(panel, L(n), 76, 24, function() tabs.select(i) end)
-    b:SetPoint("TOPLEFT", 20 + (i - 1) * 80, -88)
+    b:SetPoint("TOPLEFT", 26 + (i - 1) * 78, -92)
     tabs[i] = b
   end
   for i, build in ipairs(BUILDERS) do
     local f = CreateFrame("Frame", nil, panel)
-    f:SetPoint("TOPLEFT", 20, -146); f:SetPoint("BOTTOMRIGHT", -24, 16)
+    f:SetPoint("TOPLEFT", 26, -152); f:SetPoint("BOTTOMRIGHT", -26, 42)
     build(f); f:Hide()
     pages[i] = f
   end
