@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.39
+
+### ✨ Look
+- **Auctioneer panel:** the *Scan* and *Refresh prices* buttons are more compact.
+
+### ✨ Оформление
+- **Панель у аукциониста:** кнопки *«Сканировать»* и *«Обновить цены»* компактнее.
+
 ## 2.43.38
 
 ### 🛠 Maintenance
