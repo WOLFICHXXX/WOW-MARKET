@@ -761,17 +761,19 @@ end
 -- раскрытая строка предмета: слева себестоимость и прибыль (или цены), справа - график цены и продаж
 function UI.ItemDetail(det, opts)
   opts = opts or {}
-  local left = CreateFrame("Frame", nil, det); left:SetPoint("TOPLEFT", 16, -8); left:SetPoint("BOTTOMLEFT", 16, 8); left:SetWidth(opts.leftW or 170)
+  -- сверху - строка легенды и чисел (продано за 24 ч, лоты) на всю ширину; ниже слева - цифры, справа - график
+  det.legend = UI.Font(det, 10, UI.DIM); det.legend:SetPoint("TOPLEFT", 16, -5); det.legend:SetPoint("RIGHT", -10, 0)
+  local lw = opts.leftW or 170
+  local left = CreateFrame("Frame", nil, det); left:SetPoint("TOPLEFT", 16, -24); left:SetPoint("BOTTOMLEFT", 16, 8); left:SetWidth(lw)
   det.lbl, det.val = {}, {}
   for i = 1, 3 do
-    local l = UI.Font(left, 10, UI.DIM); l:SetPoint("TOPLEFT", 0, -(i - 1) * 34)
-    local v = UI.Font(left, 13, UI.TEXT, "OVERLAY", "OUTLINE"); v:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2)
+    local l = UI.Font(left, 10, UI.DIM); l:SetPoint("TOPLEFT", 0, -(i - 1) * 32); l:SetWidth(lw - 6)
+    local v = UI.Font(left, 12, UI.TEXT); UI.SetFont(v, UI.BOLD, 12, ""); v:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2); v:SetWidth(lw - 6)
     det.lbl[i], det.val[i] = l, v
   end
-  det.btn = UI.Button(left, "", 120, 22); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
+  det.btn = UI.Button(left, "", lw - 20, 18); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
   det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact
-  det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 4); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
-  det.legend = UI.Font(det, 9, UI.DIM); det.legend:SetPoint("TOPRIGHT", -10, -3)
+  det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
   det.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
   function det:Set(id)
     self.id = id
