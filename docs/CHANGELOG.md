@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.35
+
+### ✨ New
+- **Buy tab at the auctioneer:** a search box and a category picker - items from the latest auction snapshot, cheapest first; the bag next to an item opens the purchase. An empty search shows your recipe materials again.
+
+### ✨ Новое
+- **Вкладка «Купить» у аукциониста:** строка поиска и выбор категории - предметы из последнего снимка аукциона, сначала дешёвые; сумка у предмета открывает покупку. Пустой поиск - снова материалы ваших рецептов.
+
 ## 2.43.34
 
 ### ✨ Look

@@ -517,8 +517,59 @@ local function pageCraft(f)
 end
 
 -- вкладка: покупка
+-- поиск по снимку аукциона: название содержит текст, категория - класс предмета; сначала дешёвые
+function ns.BuySearch(text, cat, limit)
+  local out = {}
+  local sc = ns.CurrentScan()
+  text = text and text ~= "" and text:lower() or nil
+  if not text and cat == nil then return out end
+  for id in pairs(sc and sc.items or {}) do
+    local ok = true
+    if cat ~= nil then ok = ns._itemClass and ns._itemClass(id) == cat end
+    if ok and text then
+      local n = ns.itemName(id)
+      ok = n and n:lower():find(text, 1, true) ~= nil
+    end
+    if ok then out[#out + 1] = { id = id, p = ns.AHPrice(id) or math.huge } end
+  end
+  table.sort(out, function(a, b) if a.p ~= b.p then return a.p < b.p end return a.id < b.id end)
+  for i = (limit or 300) + 1, #out do out[i] = nil end
+  return out
+end
 local function pageBuy(f)
-  f.icon = f:CreateTexture(nil, "ARTWORK"); f.icon:SetSize(32, 32); f.icon:SetPoint("TOPLEFT", 4, -2)
+  -- сверху: строка поиска и выбор категории
+  f.search = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); f.search:SetHeight(20); f.search:SetAutoFocus(false)
+  f.cat = nil
+  f.catBtn = UI.Button(f, L"Все категории", 150, 20, function(self) f.openCats(self) end); f.catBtn:SetPoint("TOPRIGHT", 0, 0)
+  f.search:SetPoint("TOPLEFT", 6, -3); f.search:SetPoint("RIGHT", f.catBtn, "LEFT", -10, 0)
+  f.hint = UI.Font(f.search, 10, UI.DIM); f.hint:SetPoint("LEFT", 2, 0); f.hint:SetText(L"поиск по названию...")
+  f.search:SetScript("OnTextChanged", function(self, user) f.hint:SetShown(self:GetText() == ""); if user then buyItem = nil end; f.refresh() end)
+  f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+  f.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  function f.openCats(anchor)
+    local m = f.catMenu
+    if not m then
+      m = CreateFrame("Frame", nil, f); m:SetFrameStrata("DIALOG"); m:EnableMouse(true)
+      local bg = m:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.06, 0.05, 0.04, 0.97)
+      UI.Edge(m, 0.43, 0.33, 0.16, 1)
+      m.btns = {}
+      f.catMenu = m
+      m:Hide() -- новый фрейм виден сразу - иначе первое нажатие его «закрыло» бы
+    end
+    if m:IsShown() then m:Hide() return end
+    local list = { false }; for _, c in ipairs(ns.AucCats or {}) do list[#list + 1] = c end
+    for i, c in ipairs(list) do
+      local b = m.btns[i] or UI.Button(m, "", 170, 18); m.btns[i] = b
+      local val = c ~= false and c or nil
+      b:ClearAllPoints(); b:SetPoint("TOPLEFT", 6, -6 - (i - 1) * 24)
+      b:SetLabel(ns.AucCatName and ns.AucCatName(val) or tostring(val)); b:SetGold(f.cat == val)
+      b:SetScript("OnClick", function() m:Hide(); f.cat = val; buyItem = nil; f.catBtn:SetLabel(ns.AucCatName and ns.AucCatName(val) or L"Все категории"); f.refresh() end)
+      b:Show()
+    end
+    m:SetSize(182, 12 + #list * 24 - 2)
+    m:ClearAllPoints(); m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2); m:Show()
+  end
+  f.icon = f:CreateTexture(nil, "ARTWORK"); f.icon:SetSize(32, 32); f.icon:SetPoint("TOPLEFT", 4, -32)
   f.title = UI.Font(f, 13, UI.GOLD, "OVERLAY", "OUTLINE"); f.title:SetPoint("TOPLEFT", f.icon, "TOPRIGHT", 8, -2); f.title:SetPoint("RIGHT", -4, 0)
   f.sub = UI.Font(f, 10, UI.DIM); f.sub:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -3); f.sub:SetPoint("RIGHT", -4, 0)
   f.list = UI.List(f, 20, function(r)
@@ -533,7 +584,7 @@ local function pageBuy(f)
     r.qty:SetText("× " .. (d.qty or 1))
     r.btn:SetShown(not d.commodity)
   end)
-  f.list:SetPoint("TOPLEFT", 0, -42); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 64)
+  f.list:SetPoint("TOPLEFT", 0, -72); f.list:SetPoint("RIGHT"); f.list:SetPoint("BOTTOM", 0, 64)
   -- покупка «товара» (стакается): количество → цена → подтверждение
   f.qtyLabel = UI.Font(f, 11); f.qtyLabel:SetPoint("BOTTOMLEFT", 4, 40); f.qtyLabel:SetText(L"Количество:")
   f.qty = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); f.qty:SetSize(60, 20); f.qty:SetPoint("LEFT", f.qtyLabel, "RIGHT", 10, 0); f.qty:SetAutoFocus(false); f.qty:SetNumeric(true); f.qty:SetText("1")
@@ -587,10 +638,10 @@ local function pageBuy(f)
   f.setCommodity(false)
   -- список материалов для всех рецептов персонажа, по профессиям
   f.back = UI.Button(f, L"< Назад", 110, 20, function() buyItem = nil; if f.fromPlan then f.fromPlan = nil; tabs.select(TAB_PLAN) else f.refresh() end end)
-  f.back:SetPoint("TOPRIGHT", 0, 0)
+  f.back:SetPoint("TOPRIGHT", 0, -32)
   f.mats = UI.List(f, 22, itemRow, fillItemRow)
   withDetail(f.mats) -- треугольник: себестоимость, прибыль и график
-  f.mats:SetPoint("TOPLEFT", 0, -42); f.mats:SetPoint("BOTTOMRIGHT")
+  f.mats:SetPoint("TOPLEFT", 0, -72); f.mats:SetPoint("BOTTOMRIGHT")
   f.mats.empty:SetText(L"Откройте окна своих профессий - здесь появятся\nвсе материалы для ваших рецептов.")
   local function count(id)
     local n = (C_Item and C_Item.GetItemCount and safe(C_Item.GetItemCount, id, true)) or (GetItemCount and safe(GetItemCount, id, true))
@@ -629,10 +680,22 @@ local function pageBuy(f)
     f.mats:SetShown(not item); f.list:SetShown(item); f.back:SetShown(item)
     if not item then
       f.setCommodity(false)
-      f.icon:SetTexture(ns.MEDIA .. "bag")
-      f.title:SetText(L"Материалы для ваших рецептов")
-      f.sub:SetText(L"Нажмите на сумку у материала, чтобы купить. Зелёным - сколько уже есть.")
-      f.mats:SetData(f.matsData())
+      local text = f.search:GetText() or ""
+      if text ~= "" or f.cat ~= nil then
+        -- поиск: предметы со снимка аукциона по названию и категории
+        local res = ns.BuySearch(text, f.cat)
+        f.icon:SetTexture(ns.MEDIA .. "search")
+        f.title:SetText(L"Поиск" .. ": " .. (f.cat ~= nil and ns.AucCatName and ns.AucCatName(f.cat) or L"все категории") .. (text ~= "" and (" · «" .. text .. "»") or ""))
+        f.sub:SetText(#res > 0 and string.format(L"Найдено: %d. Нажмите на сумку у предмета, чтобы купить.", #res) or L"Ничего не найдено в последнем снимке аукциона.")
+        f.mats.empty:SetText(L"Ничего не найдено в последнем снимке аукциона.")
+        f.mats:SetData(res)
+      else
+        f.icon:SetTexture(ns.MEDIA .. "bag")
+        f.title:SetText(L"Материалы для ваших рецептов")
+        f.sub:SetText(L"Нажмите на сумку у материала, чтобы купить. Зелёным - сколько уже есть.")
+        f.mats.empty:SetText(L"Откройте окна своих профессий - здесь появятся\nвсе материалы для ваших рецептов.")
+        f.mats:SetData(f.matsData())
+      end
     end
   end
 end

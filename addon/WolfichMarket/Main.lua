@@ -728,6 +728,7 @@ local function itemClass(id)
   return c or nil
 end
 ns._itemClass = itemClass
+ns.AucCats, ns.AucCatName = CATS, catName -- для поиска во вкладке «Купить» у аукциониста
 
 local aucp = {}
 local refreshAuc

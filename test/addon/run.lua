@@ -184,6 +184,17 @@ check(confirmedBuy and confirmedBuy[2] == 5, "покупка подтвержд�
 buy.back.scripts.OnClick(buy.back)
 local md = buy.mats.data
 check(#md >= 4 and md[1].header == "Кузнечное дело", "покупка: список материалов по профессиям (" .. #md .. " строк)")
+-- «Купить»: строка поиска и категории
+do
+  buy.search:SetText("слиток"); buy.search.scripts.OnTextChanged(buy.search, true)
+  local ok = #buy.mats.data > 0
+  for _, d in ipairs(buy.mats.data) do if not ns.itemName(d.id):lower():find("слиток", 1, true) then ok = false end end
+  check(ok, "«Купить»: поиск по названию в снимке аукциона (" .. #buy.mats.data .. ")")
+  buy.catBtn.scripts.OnClick(buy.catBtn)
+  check(buy.catMenu and buy.catMenu:IsShown() and #buy.catMenu.btns == #ns.AucCats + 1, "«Купить»: меню категорий")
+  buy.search:SetText(""); buy.search.scripts.OnTextChanged(buy.search, true); buy.catMenu:Hide()
+  check(buy.mats.data[1] and buy.mats.data[1].header ~= nil, "«Купить»: пустой поиск - снова материалы рецептов")
+end
 ns.OpenChart(2840)
 -- подсказка
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
