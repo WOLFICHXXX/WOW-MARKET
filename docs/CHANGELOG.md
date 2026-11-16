@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.43.36
+
+### 🛠 Fix
+- **Buy:** the category button fits the name length - long category names fit in full; the category menu is wider.
+
+### 🛠 Исправлено
+- **«Купить»:** кнопка категории подстраивается под длину названия - длинные названия влезают целиком; меню категорий шире.
+
 ## 2.43.35
 
 ### ✨ New

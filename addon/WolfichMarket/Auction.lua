@@ -541,6 +541,9 @@ local function pageBuy(f)
   f.search = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); f.search:SetHeight(20); f.search:SetAutoFocus(false)
   f.cat = nil
   f.catBtn = UI.Button(f, L"Все категории", 150, 20, function(self) f.openCats(self) end); f.catBtn:SetPoint("TOPRIGHT", 0, 0)
+  -- ширина кнопки - по названию категории, чтобы оно влезало целиком (строка поиска сжимается)
+  f.setCatLabel = function(text) f.catBtn:SetLabel(text); f.catBtn:FitWidth(130, 230) end
+  f.setCatLabel(L"Все категории")
   f.search:SetPoint("TOPLEFT", 6, -3); f.search:SetPoint("RIGHT", f.catBtn, "LEFT", -10, 0)
   f.hint = UI.Font(f.search, 10, UI.DIM); f.hint:SetPoint("LEFT", 2, 0); f.hint:SetText(L"поиск по названию...")
   f.search:SetScript("OnTextChanged", function(self, user) f.hint:SetShown(self:GetText() == ""); if user then buyItem = nil end; f.refresh() end)
@@ -559,14 +562,14 @@ local function pageBuy(f)
     if m:IsShown() then m:Hide() return end
     local list = { false }; for _, c in ipairs(ns.AucCats or {}) do list[#list + 1] = c end
     for i, c in ipairs(list) do
-      local b = m.btns[i] or UI.Button(m, "", 170, 18); m.btns[i] = b
+      local b = m.btns[i] or UI.Button(m, "", 200, 18); m.btns[i] = b
       local val = c ~= false and c or nil
       b:ClearAllPoints(); b:SetPoint("TOPLEFT", 6, -6 - (i - 1) * 24)
       b:SetLabel(ns.AucCatName and ns.AucCatName(val) or tostring(val)); b:SetGold(f.cat == val)
-      b:SetScript("OnClick", function() m:Hide(); f.cat = val; buyItem = nil; f.catBtn:SetLabel(ns.AucCatName and ns.AucCatName(val) or L"Все категории"); f.refresh() end)
+      b:SetScript("OnClick", function() m:Hide(); f.cat = val; buyItem = nil; f.setCatLabel(ns.AucCatName and ns.AucCatName(val) or L"Все категории"); f.refresh() end)
       b:Show()
     end
-    m:SetSize(182, 12 + #list * 24 - 2)
+    m:SetSize(212, 12 + #list * 24 - 2)
     m:ClearAllPoints(); m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2); m:Show()
   end
   f.icon = f:CreateTexture(nil, "ARTWORK"); f.icon:SetSize(32, 32); f.icon:SetPoint("TOPLEFT", 4, -32)

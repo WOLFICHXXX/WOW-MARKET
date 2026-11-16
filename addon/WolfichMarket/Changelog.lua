@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.43.36", d = "17.11.2026",
+    ru = { "«Купить»: кнопка категории подстраивается под длину названия - «Хозяйственные товары» и другие длинные названия влезают целиком; меню категорий шире." },
+    en = { "Buy: the category button fits the name length - long category names fit in full; the category menu is wider." } },
   { v = "2.43.35", d = "17.11.2026",
     ru = { "Вкладка «Купить» у аукциониста: строка поиска по названию и выбор категории - предметы из последнего снимка аукциона, сначала дешёвые; сумка у предмета открывает покупку. Пустой поиск - снова материалы ваших рецептов." },
     en = { "Buy tab at the auctioneer: a search box and a category picker - items from the latest auction snapshot, cheapest first; the bag next to an item opens the purchase. An empty search shows your recipe materials again." } },
