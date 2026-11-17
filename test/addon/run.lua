@@ -813,6 +813,14 @@ do
   ns.AddSignal(2840, "buy"); ns.DB.target[2840] = { buy = 500 }
   ns.Fire("SCAN_DONE", { t = time(), items = { [2840] = { 450, 5, 1 } } }, nil)
   check(played, "сигнал покупки - цена опустилась до своей")
+  -- цена из обычного поиска / «Обновить цены» (без снимка всего аукциона) тоже проверяет сигналы
+  ns.SeenPrice(3470, 9000, 5); ns.Fire("PRICES"); advance(2)
+  played = false
+  ns.SeenPrice(3470, 13000, 5); ns.Fire("PRICES"); advance(2)
+  check(played, "скачок цены, пойманный поиском на аукционе, - сигнал продажи")
+  played = false
+  ns.SeenPrice(3470, 13500, 5); ns.Fire("PRICES"); advance(2)
+  check(not played, "поиск: пока цена выше, сигнал не дублируется")
   ns.charKey = main
   ns.RemoveSignal(3470, "sell"); ns.RemoveSignal(2840, "buy")
   check(ns.DB.target[3470] == nil and ns.DB.target[2840] == nil, "убранный сигнал забывает свою цену")

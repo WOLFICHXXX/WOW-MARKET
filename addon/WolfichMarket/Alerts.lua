@@ -9,39 +9,53 @@ local function sound()
   pcall(PlaySound, id, "Master")
 end
 
-local function onScan(scan, prev)
+-- Свои цены сигналов проверяются по ТЕКУЩЕЙ цене предмета (своя, из «Обновить цены»/поиска или от других игроков -
+-- что свежее), а не только по снимку всего аукциона: иначе скачок, пойманный обычным поиском, проходил без уведомления.
+local function checkTargets(scan)
   local S = ns.DB.settings
-  -- скачки цен по отмеченным
-  if S.alerts then
-    -- своя цена: покупка - когда цена опустилась до неё, продажа - когда поднялась до неё
-    local hits = {}
-    ns.DB.targetHit = ns.DB.targetHit or {}
-    for id, t in pairs(ns.DB.target or {}) do
-      local r = scan.items and scan.items[id]
-      local p = r and r[1] and r[1] > 0 and r[1]
-      if p then
-        for _, side in ipairs({ "buy", "sell" }) do
-          local v = t[side]
-          if v then
-            local ok = (side == "buy" and p <= v) or (side == "sell" and p >= v)
-            local key = id .. side
-            if ok and not ns.DB.targetHit[key] then hits[#hits + 1] = { id = id, p = p, side = side, v = v } end
-            ns.DB.targetHit[key] = ok or nil
-          end
+  if not S.alerts or not ns.DB.target then return end
+  local hits = {}
+  ns.DB.targetHit = ns.DB.targetHit or {}
+  for id, t in pairs(ns.DB.target) do
+    local p, pt = ns.RegularPrice(id)
+    local r = scan and scan.items and scan.items[id] -- только что пришедший снимок - если он не старше известной цены
+    if r and r[1] and r[1] > 0 and (not pt or (scan.t or 0) >= pt) then p = r[1] end
+    if p and p > 0 then
+      for _, side in ipairs({ "buy", "sell" }) do
+        local v = t[side]
+        local key = id .. side
+        if v then
+          local ok = (side == "buy" and p <= v) or (side == "sell" and p >= v)
+          if ok and not ns.DB.targetHit[key] then hits[#hits + 1] = { id = id, p = p, side = side, v = v } end
+          ns.DB.targetHit[key] = ok or nil
+        else
+          ns.DB.targetHit[key] = nil
         end
       end
     end
-    if #hits > 0 then
-      for _, h in ipairs(hits) do
-        ns.say(string.format("%s %s - %s (%s %s)", h.side == "sell" and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r",
-          ns.itemLinkText(h.id), ns.money(h.p), h.side == "sell" and L"ваша цена продажи" or L"ваша цена покупки", ns.money(h.v)), true)
-      end
-      local top = hits[1]
-      UI.Toast(string.format("%s %s", top.side == "sell" and L"Пора продавать:" or L"Пора покупать:", ns.itemName(top.id)),
-        ns.money(top.p) .. L" за шт" .. (#hits > 1 and (L"  /  ещё сигналов: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
-      sound()
-    end
   end
+  if #hits == 0 then return end
+  for _, h in ipairs(hits) do
+    ns.say(string.format("%s %s - %s (%s %s)", h.side == "sell" and "|cff78d98a|TInterface\\AddOns\\WolfichMarket\\media\\up:12:12|t|r" or "|cffff7a66|TInterface\\AddOns\\WolfichMarket\\media\\down:12:12|t|r",
+      ns.itemLinkText(h.id), ns.money(h.p), h.side == "sell" and L"ваша цена продажи" or L"ваша цена покупки", ns.money(h.v)), true)
+  end
+  local top = hits[1]
+  UI.Toast(string.format("%s %s", top.side == "sell" and L"Пора продавать:" or L"Пора покупать:", ns.itemName(top.id)),
+    ns.money(top.p) .. L" за шт" .. (#hits > 1 and (L"  /  ещё сигналов: " .. (#hits - 1)) or ""), ns.itemIcon(top.id))
+  sound()
+end
+ns.CheckTargets = checkTargets
+-- любая новая цена (поиск, «Обновить цены», цены от других) - проверка не чаще раза в секунду
+local queued
+ns.Listen("PRICES", function()
+  if queued then return end
+  queued = true
+  ns.After(1, function() queued = false; checkTargets(nil) end)
+end)
+
+local function onScan(scan, prev)
+  local S = ns.DB.settings
+  checkTargets(scan)
   -- лучший крафт
   if S.bestCraftAlert then
     local best = ns.BestCraft()

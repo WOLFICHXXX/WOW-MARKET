@@ -2,6 +2,13 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.7
+
+### 🐞 Fixed
+- **Alerts with your own price** now fire on any fresh price — *Refresh prices*, a regular auction search, prices from other players — not only on a full auction snapshot. Before, a price spike caught by a search passed without a notification.
+
+---
+
 ## 2.44.6
 
 ### ✨ New

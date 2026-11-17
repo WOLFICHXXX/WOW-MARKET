@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.7", d = "17.11.2026",
+    ru = { "Сигналы своей цены теперь срабатывают на любую свежую цену: «Обновить цены», обычный поиск на аукционе, цены от других игроков - а не только на снимок всего аукциона. Раньше скачок, пойманный поиском, проходил без уведомления." },
+    en = { "Your-price alerts now fire on any fresh price: Refresh prices, a regular auction search, prices from other players - not only on a full auction snapshot. Before, a spike caught by a search passed without a notification." } },
   { v = "2.44.6", d = "17.11.2026",
     ru = { "Новое маленькое окошко денег персонажа - как окошко фарма: золото значками монет, в подсказке - сколько заработано за эту игру. Перетаскивается; включается в настройках или командой /wm money." },
     en = { "A new small character money window - like the farm window: gold with coin icons, the tooltip shows how much was earned this session. Draggable; switch it in Settings or with /wm money." } },

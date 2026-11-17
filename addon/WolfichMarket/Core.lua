@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.44.6"
+ns.VERSION = "2.44.7"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -419,7 +419,7 @@ function ns.RegularPrice(id)
   local rec = scan and scan.items and scan.items[id]
   if rec and rec[1] and rec[1] > 0 then p, t, q = rec[1], scan.t, rec[2] end
   local s = ns.DB.seen[id]
-  if s and s.p and s.p > 0 and (not t or s.t > t) and s.r == (ns.priceRealm or ns.realmKey) then p, t = s.p, s.t; q = s.q or q end
+  if s and s.p and s.p > 0 and (not t or s.t >= t) and s.r == (ns.priceRealm or ns.realmKey) then p, t = s.p, s.t; q = s.q or q end
   -- цена от другого игрока с аддоном (общий рынок) - только если она свежее нашей
   if ns.NetPrice then
     local np, nt, nq = ns.NetPrice(id)
