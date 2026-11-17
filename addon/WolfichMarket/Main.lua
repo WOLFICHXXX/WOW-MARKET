@@ -475,7 +475,7 @@ local function buildCraft(f)
   local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
   cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -4, -8); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
   card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0)
-  card.chart = UI.Chart(cbox); card.chart.showPeaks = true; card.chart.noLegend = true
+  card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
   card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
   card.chartBox = cbox
   craft.card = card
@@ -506,24 +506,29 @@ function ns.ShowChartDialog(id)
   if not chartDlg then
     -- отдельное окно (не внутри главного): открывается и из вкладки «Продать» у аукциониста
     chartDlg = CreateFrame("Frame", "WolfichMarketChartDialog", UIParent)
-    chartDlg:SetSize(620, 380); chartDlg:SetPoint("CENTER"); chartDlg:SetFrameStrata("DIALOG"); chartDlg:EnableMouse(true); chartDlg:SetToplevel(true)
+    chartDlg:SetSize(940, 560); chartDlg:SetPoint("CENTER"); chartDlg:SetFrameStrata("DIALOG"); chartDlg:EnableMouse(true); chartDlg:SetToplevel(true)
     chartDlg:SetMovable(true); chartDlg:RegisterForDrag("LeftButton"); chartDlg:SetClampedToScreen(true)
     chartDlg:SetScript("OnDragStart", chartDlg.StartMoving); chartDlg:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     tinsert(UISpecialFrames, "WolfichMarketChartDialog")
     UI.Skin(chartDlg, { theme = "main", scale = 0.6 })
     UI.Title(chartDlg, L"График цены")
     UI.Close(chartDlg)
-    chartDlg.icon = chartDlg:CreateTexture(nil, "ARTWORK"); chartDlg.icon:SetSize(28, 28); chartDlg.icon:SetPoint("TOPLEFT", 20, -50)
-    chartDlg.name = UI.Font(chartDlg, 13, UI.GOLD); chartDlg.name:SetPoint("TOPLEFT", chartDlg.icon, "TOPRIGHT", 8, -1); chartDlg.name:SetPoint("RIGHT", -20, 0)
+    chartDlg.icon = chartDlg:CreateTexture(nil, "ARTWORK"); chartDlg.icon:SetSize(34, 34); chartDlg.icon:SetPoint("TOPLEFT", 22, -52)
+    chartDlg.name = UI.Font(chartDlg, 15, UI.GOLD); UI.SetFont(chartDlg.name, UI.BOLD, 15, ""); chartDlg.name:SetPoint("TOPLEFT", chartDlg.icon, "TOPRIGHT", 10, -1); chartDlg.name:SetPoint("RIGHT", -20, 0)
     chartDlg.info = UI.Font(chartDlg, 11, UI.DIM); chartDlg.info:SetPoint("TOPLEFT", chartDlg.name, "BOTTOMLEFT", 0, -3); chartDlg.info:SetPoint("RIGHT", -20, 0)
-    chartDlg.chart = UI.Chart(chartDlg); chartDlg.chart.showPeaks = true
-    chartDlg.chart:SetPoint("TOPLEFT", 16, -88); chartDlg.chart:SetPoint("BOTTOMRIGHT", -20, 18)
+    chartDlg.chart = UI.Chart(chartDlg)
+    chartDlg.chart:SetPoint("TOPLEFT", 18, -96); chartDlg.chart:SetPoint("BOTTOMRIGHT", -22, 22)
   end
   chartDlg.id = id
   chartDlg.icon:SetTexture(ns.itemIcon(id))
   chartDlg.name:SetText(ns.itemLinkText(id))
   local p, avg = ns.AHPrice(id), ns.AvgPrice(id, 24)
-  chartDlg.info:SetText((p and (L"сейчас" .. " " .. ns.money(p, true)) or L"|cff777777нет цены|r") .. (avg and ("   |cffaaaaaa" .. L"среднее за 24 ч" .. "|r " .. ns.money(avg, true)) or ""))
+  local nt = ns.PriceIn and ns.PriceIn("neutral", id)
+  local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
+  chartDlg.info:SetText((p and (L"Ф" .. " |cffffffff" .. ns.money(p, true) .. "|r") or L"|cff777777нет цены|r")
+    .. (nt and ("   |cff4ab3a6" .. L"Общ" .. "|r |cffffffff" .. ns.money(nt, true) .. "|r") or "")
+    .. (avg and ("   |cffaaaaaa" .. L"среднее за 24 ч" .. "|r " .. ns.money(avg, true)) or "")
+    .. "   |cffaaaaaa" .. L"продано за 24 ч" .. "|r " .. (sold or "-") .. "   |cffaaaaaa" .. L"лотов" .. "|r " .. (lots or "-") .. (qty and qty > 0 and (" (" .. qty .. " " .. L"шт" .. ")") or ""))
   chartDlg:Show()
   local h = ns.History(id)
   ns.After(0, function() chartDlg.chart:SetPoints(h) end)

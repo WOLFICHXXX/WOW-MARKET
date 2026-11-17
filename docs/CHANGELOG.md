@@ -2,6 +2,36 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.0
+
+**🇬🇧 English** · 🇷🇺 Русский - ниже
+
+### 🎯 Focused on the market
+- Features that **Mastercraft** already has are removed: *Alts*, *Cooldowns*, *Where to get* a recipe, the farm window, auto-selling junk and repairs, bag icons and sorting, the shopping *Plan*.
+- Main window: **Home, Professions, Auction, Settings**. The *where to buy and where to sell* block in the profession window stays.
+- The addon is lighter: recipe data without the *Where to get* sources.
+
+### 📈 Detailed price charts
+- Fill under the price line, **sold** bars, grid, price and quantity scales.
+- **min / avg / max** lines and a summary line: now, min, max, avg, change for the period, sold.
+- Periods **24 h / 3 d / 7 d / 30 d / all**; a crosshair with a tooltip under the cursor (date, price, sold since the previous snapshot).
+- The chart window is bigger.
+
+---
+
+**🇷🇺 Русский**
+
+### 🎯 Только рынок
+- Убрано то, что уже делает **Mastercraft**: *«Твинки»*, *«Часы»* (кулдауны), *«Где взять»* рецепт, окошко фарма, автопродажа хлама и починка, значки и сортировка сумок, *«План»* закупки.
+- Главное окно: **Главная, Профессии, Аукцион, Настройки**. Блок *«Где купить и где продать»* в окне профессии остался.
+- Аддон стал легче: данные рецептов без источников *«Где взять»*.
+
+### 📈 Подробные графики цены
+- Заливка под линией цены, столбики **«продано»**, сетка, шкалы цены и штук.
+- Линии **мин / сред / макс** и строка итогов: сейчас, мин, макс, сред, изменение за период, продано.
+- Периоды **24 ч / 3 д / 7 д / 30 д / всё**; перекрестие с подсказкой под курсором (дата, цена, продано с прошлого снимка).
+- Окно графика стало крупнее.
+
 ## 2.43.41
 
 ### 🛠 Fixes

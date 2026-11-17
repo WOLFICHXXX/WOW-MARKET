@@ -2,6 +2,19 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.0", d = "17.11.2026",
+    ru = {
+      "Аддон сосредоточен на рынке: убрано то, что уже делает Mastercraft, - «Твинки», «Часы» (кулдауны), «Где взять» рецепт, окошко фарма, автопродажа хлама и починка, значки и сортировка сумок, «План» закупки. Главное окно: Главная, Профессии, Аукцион, Настройки.",
+      "Блок «Где купить и где продать» в окне профессии остался.",
+      "Новые подробные графики цены: заливка под линией, столбики «продано», сетка, шкалы цены и штук, линии мин / сред / макс, строка «сейчас / мин / макс / сред / изменение / продано», периоды 24 ч / 3 д / 7 д / 30 д / всё, перекрестие с подсказкой под курсором. Окно графика стало крупнее.",
+      "Аддон стал легче: данные рецептов без источников «Где взять».",
+    },
+    en = {
+      "The addon focuses on the market: features Mastercraft already has are removed - Alts, Cooldowns, Where to get a recipe, the farm window, auto-selling junk and repairs, bag icons and sorting, the shopping Plan. Main window: Home, Professions, Auction, Settings.",
+      "The where to buy and where to sell block in the profession window stays.",
+      "New detailed price charts: fill under the line, sold bars, grid, price and quantity scales, min / avg / max lines, a now / min / max / avg / change / sold line, periods 24 h / 3 d / 7 d / 30 d / all, a crosshair with a tooltip under the cursor. The chart window is bigger.",
+      "The addon is lighter: recipe data without the Where to get sources.",
+    } },
   { v = "2.43.41", d = "17.11.2026",
     ru = {
       "Крафт: после каждого созданного предмета аддон больше не перечитывает всю профессию, если вырос только навык, - игра не подвисает (уровень и цвета рецептов обновляются быстро).",

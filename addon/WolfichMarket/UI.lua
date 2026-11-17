@@ -5,15 +5,13 @@ local M = ns.MEDIA
 local UI = {}
 ns.UI = UI
 
--- палитра «Тортуга» (2.44): корабельное дерево, латунь, пергамент, морская волна, хвоя
-UI.GOLD = { 0.94, 0.78, 0.45 }   -- латунь (заголовки, выбранное)
-UI.TEXT = { 0.93, 0.87, 0.74 }   -- пергамент (основной текст)
-UI.DIM = { 0.68, 0.60, 0.47 }    -- выцветший пергамент (подписи)
+UI.GOLD = { 0.95, 0.80, 0.42 }
+UI.TEXT = { 0.93, 0.89, 0.80 }
+UI.DIM = { 0.66, 0.62, 0.53 }
+-- цвета графиков и рамок (прежнее минималистичное оформление)
 UI.PAL = {
-  brass = { 0.79, 0.60, 0.24 }, brassLight = { 0.95, 0.80, 0.45 }, brassDark = { 0.43, 0.31, 0.12 },
-  wood = { 0.24, 0.15, 0.09 }, woodDark = { 0.13, 0.08, 0.05 }, ink = { 0.08, 0.05, 0.03 },
-  sea = { 0.29, 0.70, 0.65 }, pine = { 0.20, 0.40, 0.28 },
-  up = { 0.56, 0.82, 0.42 }, down = { 0.89, 0.38, 0.29 },
+  brass = { 0.95, 0.78, 0.38 }, brassLight = { 0.95, 0.80, 0.42 }, brassDark = { 0.42, 0.33, 0.17 },
+  sea = { 0.40, 0.85, 0.80 }, up = { 0.47, 0.85, 0.54 }, down = { 1.0, 0.48, 0.40 },
 }
 
 -- шрифты нового макета (2.43): Inter - текст и кнопки, Forum - заголовки (оба с кириллицей, лицензия OFL - media\fonts).
@@ -38,8 +36,7 @@ UI.SetFont = setFont
 -- scale - во сколько раз уменьшать части макета; title/close - места в пикселях макета
 UI.THEMES = {
   -- новый макет: места заголовка и крестика - в пикселях рамки (умножаются на масштаб)
-  -- деревянная рамка «Тортуга»: заголовок и крестик в пикселях (масштаб 1)
-  win = { title = { 22, -24 }, close = { -8, -8, 26, 26 }, btn = "mbtn", glyph = true },
+  win = { title = { 64, -74 }, close = { -20, -13, 48, 48 }, btn = "mbtn" },
   main = { scale = 0.85, title = { 84, -40 }, close = { -2, -6, 60, 62 }, btn = "mbtn" },
   ah = { scale = 0.5, title = { 186, -60 }, close = { -56, -38, 56, 48 }, btn = "abtn" },
   mcard = { scale = 0.5, btn = "mbtn" },
@@ -118,68 +115,34 @@ function UI.PawsBG(f)
     if f.HookScript then f:HookScript("OnSizeChanged", place) end
   end
 end
--- ---------- оформление «Тортуга»: доски, латунь, канат, ели ----------
--- доски во весь фрейм, плиткой (512 px), без растяжения
-function UI.WoodBG(f, name, layer, sub, tint)
-  local t = f:CreateTexture(nil, layer or "BACKGROUND", nil, sub or -8)
-  t:SetTexture(M .. "win\\" .. (name or "wood"), "REPEAT", "REPEAT")
-  if t.SetHorizTile then t:SetHorizTile(true); t:SetVertTile(true) end
-  t:SetAllPoints()
-  local function fit() local w, h = f:GetWidth() or 0, f:GetHeight() or 0; if w > 0 and h > 0 then t:SetTexCoord(0, w / 512, 0, h / 512) end end
-  fit(); if f.HookScript then f:HookScript("OnSizeChanged", fit) end
-  if tint then t:SetVertexColor(tint[1], tint[2], tint[3]) end
-  return t
-end
--- латунная кромка: тёмная линия снаружи, латунь внутри, блик; на углах - латунные накладки
-function UI.BrassFrame(f, corner)
-  local P = UI.PAL
-  UI.Edge(f, P.ink[1], P.ink[2], P.ink[3], 1, "BORDER")
-  local inner = CreateFrame("Frame", nil, f); inner:SetPoint("TOPLEFT", 1, -1); inner:SetPoint("BOTTOMRIGHT", -1, 1)
-  if inner.SetFrameLevel then inner:SetFrameLevel(f:GetFrameLevel() or 1) end
-  UI.Edge(inner, P.brass[1], P.brass[2], P.brass[3], 1, "BORDER")
-  local hi = CreateFrame("Frame", nil, f); hi:SetPoint("TOPLEFT", 2, -2); hi:SetPoint("BOTTOMRIGHT", -2, 2)
-  UI.Edge(hi, P.brassDark[1], P.brassDark[2], P.brassDark[3], 0.9, "BORDER")
-  local cs = corner or 28
-  for i, pt in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
-    local c = f:CreateTexture(nil, "OVERLAY", nil, 6); c:SetSize(cs, cs); c:SetPoint(pt, 0, 0)
-    c:SetTexture(M .. "win\\brass-corner")
-    local L, R = (i == 2 or i == 4) and 1 or 0, (i == 2 or i == 4) and 0 or 1
-    local T, B = (i >= 3) and 1 or 0, (i >= 3) and 0 or 1
-    c:SetTexCoord(L, R, T, B)
-  end
-end
--- канат: горизонтальная (h) или вертикальная (v) линия, плиткой
-function UI.Rope(f, vertical, thick)
-  local t = f:CreateTexture(nil, "ARTWORK", nil, 2)
-  t:SetTexture(M .. "win\\" .. (vertical and "rope-v" or "rope-h"), "REPEAT", "REPEAT")
-  if t.SetHorizTile then t:SetHorizTile(not vertical); t:SetVertTile(vertical and true or false) end
-  if vertical then t:SetWidth(thick or 6) else t:SetHeight(thick or 6) end
-  return t
-end
--- ели у нижнего края: силуэты за содержимым, приглушённые
-function UI.Pines(f, list)
-  f.wmPines = f.wmPines or {}
-  for i, p in ipairs(list or { { "BOTTOMLEFT", 6, 2, 90, "pine" }, { "BOTTOMLEFT", 58, 2, 64, "pine2" }, { "BOTTOMRIGHT", -8, 2, 104, "pine" }, { "BOTTOMRIGHT", -78, 2, 70, "pine2" } }) do
-    local t = f:CreateTexture(nil, "BACKGROUND", nil, -5)
-    t:SetTexture(M .. "win\\" .. p[5]); t:SetSize(p[4], p[4] * 2); t:SetPoint(p[1], p[2], p[3])
-    t:SetVertexColor(0.85, 0.95, 0.85); t:SetAlpha(p[6] or 0.42)
-    f.wmPines[i] = t
-  end
-end
--- рамка окна (тема «win»): доски, латунная кромка с накладками, ели внизу
+-- рамка окна: уголки, кристаллы и лапа - без растяжения; s - масштаб частей
 function UI.FrameSkin(f, s)
-  f.wmTheme, f.wmScale = "win", 1
-  UI.WoodBG(f, "wood")
-  local shade = f:CreateTexture(nil, "BACKGROUND", nil, -7); shade:SetAllPoints(); shade:SetColorTexture(0, 0, 0, 0.18)
-  UI.Pines(f)
-  UI.BrassFrame(f)
+  s = s or 0.5
+  f.wmTheme, f.wmScale = "win", s
+  local W = ns.WIN
+  local function tex(name, layer, sub) local t = f:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t end
+  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
+  local c = tex("f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 44 * s, -58 * s); c:SetPoint("BOTTOMRIGHT", -46 * s, 34 * s)
+  UI.PawsBG(f)
+  local tlw, tlh = sz("f-tl"); local trw = sz("f-tr"); local lw = sz("f-l"); local blw, bh = sz("f-bl"); local brw = sz("f-br"); local emw = sz("f-em")
+  local t = tex("f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
+  local l = tex("f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
+  local r = tex("f-r"); r:SetWidth(lw); r:SetPoint("TOPRIGHT", 0, -tlh); r:SetPoint("BOTTOMRIGHT", 0, bh)
+  -- нижняя планка - только между уголками (иначе её концы торчат за рамку)
+  local bf = tex("f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT", blw * 0.6, 0); bf:SetPoint("BOTTOMRIGHT", -brw * 0.6, 0)
+  local q = tex("f-tl", "BORDER", 1); q:SetSize(tlw, tlh); q:SetPoint("TOPLEFT")
+  q = tex("f-tr", "BORDER", 1); q:SetSize(trw, tlh); q:SetPoint("TOPRIGHT")
+  q = tex("f-bl", "BORDER", 1); q:SetSize(blw, bh); q:SetPoint("BOTTOMLEFT")
+  q = tex("f-br", "BORDER", 1); q:SetSize(brw, bh); q:SetPoint("BOTTOMRIGHT")
+  -- щиток с лапой ниже рамки - выступает вниз, верх совпадает с нижней кромкой
+  local _, emh = sz("f-em"); q = tex("f-em", "BORDER", 2); q:SetSize(emw, emh); q:SetPoint("TOP", f, "BOTTOM", 0, bh)
   return f
 end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
 function UI.Box(f, alpha)
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.06, 0.035, 0.02, math.max(alpha or 0.42, 0.55))
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.02, 0.02, 0.03, alpha or 0.42)
   local function line(p1, p2, horiz)
-    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.55, 0.41, 0.17, 0.95)
+    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.42, 0.33, 0.17, 0.95)
     if horiz then t:SetHeight(1) else t:SetWidth(1) end
     t:SetPoint(p1); t:SetPoint(p2)
   end
@@ -257,13 +220,6 @@ function UI.Close(parent, onClick)
     b = CreateFrame("Button", nil, parent)
     b:SetSize(th.close[3] * s, th.close[4] * s); b:SetPoint("TOPRIGHT", th.close[1] * s, th.close[2] * s)
     local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.4, 0.18)
-    if th.glyph then
-      -- латунный крестик на тёмной плашке
-      local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.12, 0.07, 0.04, 0.95)
-      UI.Edge(b, UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 1, "BORDER")
-      local x = b:CreateFontString(nil, "OVERLAY"); setFont(x, UI.BOLD, 14, ""); x:SetPoint("CENTER", 0, 1); x:SetText("×")
-      x:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
-    end
   else
     b = CreateFrame("Button", nil, parent, "UIPanelCloseButton"); b:SetPoint("TOPRIGHT", -8, -8)
   end
@@ -272,11 +228,11 @@ function UI.Close(parent, onClick)
 end
 
 -- кнопка (2.43.33): своя плоская - заливка и тонкая кромка, без картинок; b:SetGold(on) - золотая (главная / выбрана) или тёмная
-local GOLD_TXT, DARK_TXT = { 0.16, 0.09, 0.03 }, { 0.95, 0.88, 0.74 }
+local GOLD_TXT, DARK_TXT = { 0.12, 0.08, 0.02 }, { 0.94, 0.88, 0.77 }
 local BTN = {
-  dark = { bg = { 0.20, 0.12, 0.065, 0.96 }, edge = { 0.60, 0.45, 0.19, 1 } },   -- тёмная доска с латунной кромкой
-  gold = { bg = { 0.80, 0.60, 0.24, 1 }, edge = { 0.97, 0.82, 0.47, 1 } },       -- начищенная латунь
-  off = { bg = { 0.12, 0.08, 0.05, 0.85 }, edge = { 0.32, 0.24, 0.12, 1 } },
+  dark = { bg = { 0.09, 0.075, 0.05, 0.92 }, edge = { 0.45, 0.35, 0.16, 1 } },
+  gold = { bg = { 0.85, 0.64, 0.25, 1 }, edge = { 0.98, 0.82, 0.45, 1 } },
+  off = { bg = { 0.07, 0.06, 0.05, 0.85 }, edge = { 0.28, 0.23, 0.15, 1 } },
 }
 UI.BTN_COLORS = BTN
 function UI.Button(parent, text, w, h, onClick, gold)
@@ -287,9 +243,6 @@ function UI.Button(parent, text, w, h, onClick, gold)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
   local edges = UI.Edge(b, 0, 0, 0, 1, "BORDER")
   local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetPoint("TOPLEFT", 1, -1); hl:SetPoint("BOTTOMRIGHT", -1, 1); hl:SetColorTexture(1, 0.85, 0.45, 0.14)
-  -- объём: светлая полоска сверху и тень снизу
-  local top = b:CreateTexture(nil, "ARTWORK"); top:SetPoint("TOPLEFT", 1, -1); top:SetPoint("TOPRIGHT", -1, -1); top:SetHeight(1); top:SetColorTexture(1, 0.9, 0.7, 0.16)
-  local bot = b:CreateTexture(nil, "ARTWORK"); bot:SetPoint("BOTTOMLEFT", 1, 1); bot:SetPoint("BOTTOMRIGHT", -1, 1); bot:SetHeight(2); bot:SetColorTexture(0, 0, 0, 0.28)
   local fs = b:CreateFontString(nil, "OVERLAY")
   local FONT = UI.BOLD
   local base = math.max(10, math.min(12, math.floor(h * 0.42)))
@@ -539,150 +492,241 @@ function UI.LineTex(l, r, g, b, a)
   else l:SetColorTexture(r, g, b, a or 1) end
 end
 -- линейный график: точки { {t, price, qty}, ... }
+-- график цены (2.44): крупный и подробный.
+-- Линия цены с заливкой под ней, столбики «продано» (на сколько уменьшилось выставленное количество между снимками),
+-- сетка, шкалы цены (слева) и штук (справа), линии минимума / среднего / максимума, период (24 ч / 3 д / 7 д / 30 д / всё),
+-- перекрестие с подсказкой под курсором. f.compact - маленький вид (без периода, сетки и перекрестия).
+local PERIODS = { { 24, "24 ч" }, { 72, "3 д" }, { 168, "7 д" }, { 720, "30 д" }, { 0, "Всё" } }
+local function moneyShort(v) return ns.money(v, true) end
 function UI.Chart(parent)
+  local P = UI.PAL
   local f = CreateFrame("Frame", nil, parent)
   local plot = CreateFrame("Frame", nil, f)
-  plot:SetPoint("TOPLEFT", 54, -16); plot:SetPoint("BOTTOMRIGHT", -40, 20)
-  local frameBg = plot:CreateTexture(nil, "BACKGROUND"); frameBg:SetAllPoints(); frameBg:SetColorTexture(0, 0, 0, 0.3)
-  f.lines, f.bars, f.labels, f.grid, f.slines, f.slabels = {}, {}, {}, {}, {}, {}
-  -- легенда: две линии - цена и продано (шт)
-  f.legend = UI.Font(f, 9, UI.DIM, "OVERLAY"); f.legend:SetPoint("BOTTOMRIGHT", plot, "TOPRIGHT", 0, 2)
-  f.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт (примерно)" .. "|r")
+  f.plot = plot
+  f.lines, f.bars, f.labels, f.grid, f.vgrid, f.slines, f.slabels, f.fill, f.refl, f.reflbl = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+  local bg = plot:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.32)
+  UI.Edge(plot, P.brassDark[1], P.brassDark[2], P.brassDark[3], 0.8, "BORDER")
+  -- легенда и строка цифр над графиком
+  f.legend = UI.Font(f, 10, UI.DIM, "OVERLAY")
+  f.legend:SetText("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r")
+  f.stats = UI.Font(f, 11, UI.TEXT, "OVERLAY"); f.stats:SetJustifyH("LEFT")
   local msg = UI.Font(f, 12, UI.DIM); msg:SetPoint("CENTER", plot); msg:SetJustifyH("CENTER")
-  local function line(i)
-    local l = f.lines[i]
+  -- кнопки периода
+  f.periodBtns = {}
+  for i, pd in ipairs(PERIODS) do
+    local b = UI.Button(f, L(pd[2]), 46, 16, function() ns.DB.settings.chartRange = pd[1]; f:SetPoints(f.allPts) end)
+    f.periodBtns[i] = b; b.hours = pd[1]
+  end
+  local function layout()
+    local compact = f.compact
+    local small = compact or f.mid -- без строки цифр и кнопок периода
+    local top = small and 6 or 46
+    plot:ClearAllPoints()
+    plot:SetPoint("TOPLEFT", compact and 46 or 58, -top); plot:SetPoint("BOTTOMRIGHT", compact and -30 or -40, compact and 16 or 20)
+    f.stats:ClearAllPoints(); f.stats:SetPoint("TOPLEFT", 4, -2); f.stats:SetPoint("RIGHT", -250, 0)
+    f.legend:ClearAllPoints(); f.legend:SetPoint("BOTTOMLEFT", plot, "TOPLEFT", 0, 5)
+    local x = 0
+    for k = #f.periodBtns, 1, -1 do
+      local b = f.periodBtns[k]
+      b:ClearAllPoints(); b:SetPoint("BOTTOMRIGHT", plot, "TOPRIGHT", -x, 4); x = x + 50
+      b:SetShown(not small)
+    end
+    f.stats:SetShown(not small)
+    f.legend:SetShown(not small and not f.noLegend)
+  end
+  f.Layout = layout
+  local function tex(pool, i, layer, sub)
+    local t = pool[i]; if not t then t = plot:CreateTexture(nil, layer or "ARTWORK", nil, sub or 0); pool[i] = t end
+    t:Show(); return t
+  end
+  local function seg(pool, i, r, g, b, a, thick)
+    local l = pool[i]
     if not l then
-      if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(3.5)
-      else l = plot:CreateTexture(nil, "ARTWORK"); l:SetSize(2, 2) end
-      UI.LineTex(l, 0.95, 0.78, 0.38, 1)
-      f.lines[i] = l
+      if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK", nil, 3); l:SetThickness(thick or 2.5) else l = plot:CreateTexture(nil, "ARTWORK", nil, 3); l:SetSize(2, 2) end
+      UI.LineTex(l, r, g, b, a); pool[i] = l
     end
     l:Show(); return l
   end
-  local function lbl(i)
-    local s = f.labels[i] or UI.Font(f, 9, UI.DIM); f.labels[i] = s; s:Show(); return s
+  local function setSeg(l, x1, y1, x2, y2)
+    if l.SetStartPoint then l:SetStartPoint("BOTTOMLEFT", plot, x1, y1); l:SetEndPoint("BOTTOMLEFT", plot, x2, y2)
+    else l:ClearAllPoints(); l:SetPoint("CENTER", plot, "BOTTOMLEFT", x2, y2) end
   end
-  -- клик по графику (если задан f.onClick) - например, открыть большой график
+  local function lbl(pool, i, size, col)
+    local s = pool[i]; if not s then s = UI.Font(f, size or 9, col or UI.DIM, "OVERLAY"); pool[i] = s end
+    s:Show(); return s
+  end
+  -- перекрестие и подсказка под курсором
+  local vline = plot:CreateTexture(nil, "OVERLAY"); vline:SetWidth(1); vline:SetColorTexture(1, 0.9, 0.6, 0.45); vline:Hide()
+  local hline = plot:CreateTexture(nil, "OVERLAY"); hline:SetHeight(1); hline:SetColorTexture(1, 0.9, 0.6, 0.25); hline:Hide()
+  local dot = plot:CreateTexture(nil, "OVERLAY", nil, 2); dot:SetSize(7, 7); dot:SetColorTexture(P.brassLight[1], P.brassLight[2], P.brassLight[3], 1); dot:Hide()
+  f.hover = { vline = vline, hline = hline, dot = dot }
+  local function hideHover() vline:Hide(); hline:Hide(); dot:Hide(); if GameTooltip and GameTooltip:IsOwned(f) then GameTooltip:Hide() end end
+  plot:EnableMouse(true)
+  plot:SetScript("OnLeave", hideHover)
+  plot:SetScript("OnMouseUp", function() if f.onClick then f.onClick() end end)
+  plot:SetScript("OnUpdate", function()
+    if f.compact or not f.view or not plot:IsMouseOver() then return end
+    local cx = GetCursorPosition and (select(1, GetCursorPosition()) / (plot:GetEffectiveScale() or 1)) or nil
+    local left = plot:GetLeft()
+    if not cx or not left then return end
+    local x = cx - left
+    local best, bd
+    for i, p in ipairs(f.view) do local d = math.abs(f.X(p[1]) - x); if not bd or d < bd then best, bd = i, d end end
+    if not best then return end
+    local p = f.view[best]
+    local px, py = f.X(p[1]), f.Y(p[2])
+    vline:ClearAllPoints(); vline:SetPoint("TOP", plot, "TOPLEFT", px, 0); vline:SetPoint("BOTTOM", plot, "BOTTOMLEFT", px, 0); vline:Show()
+    hline:ClearAllPoints(); hline:SetPoint("LEFT", plot, "BOTTOMLEFT", 0, py); hline:SetPoint("RIGHT", plot, "BOTTOMRIGHT", 0, py); hline:Show()
+    dot:ClearAllPoints(); dot:SetPoint("CENTER", plot, "BOTTOMLEFT", px, py); dot:Show()
+    if f.hoverIdx ~= best then
+      f.hoverIdx = best
+      GameTooltip:SetOwner(f, "ANCHOR_CURSOR")
+      GameTooltip:AddLine(date("%d.%m.%Y  %H:%M", p[1]), 1, 0.85, 0.5)
+      GameTooltip:AddDoubleLine(L"цена", ns.money(p[2]), 0.85, 0.8, 0.7, 1, 1, 1)
+      if f.sold and f.sold[best] and f.sold[best] > 0 then GameTooltip:AddDoubleLine(L"продано с прошлого снимка", f.sold[best] .. " " .. L"шт", 0.85, 0.8, 0.7, 0.3, 0.75, 0.7) end
+      if p[3] then GameTooltip:AddDoubleLine(L"выставлено", p[3] .. " " .. L"шт", 0.85, 0.8, 0.7, 0.8, 0.8, 0.8) end
+      GameTooltip:Show()
+    end
+  end)
   f:EnableMouse(true)
   f:SetScript("OnMouseUp", function(self) if self.onClick then self.onClick() end end)
-  function f:SetPoints(pts)
-    for _, l in ipairs(self.lines) do l:Hide() end
-    for _, l in ipairs(self.slines) do l:Hide() end
-    for _, s in ipairs(self.slabels) do s:Hide() end
-    for _, b in ipairs(self.bars) do b:Hide() end
-    for _, s in ipairs(self.labels) do s:Hide() end
-    for _, g in ipairs(self.grid) do g:Hide() end
-    for _, s in ipairs(self.peakLbl or {}) do s:Hide() end
-    for _, d in ipairs(self.dots or {}) do d:Hide() end
-    self.legend:SetShown(not self.compact and not self.noLegend)
-    if not pts or #pts < 2 then msg:SetText(L"Мало данных для графика.\nКаждый снимок аукциона добавляет точку."); msg:Show() return end
+
+  function f:SetPoints(all)
+    self.allPts = all
+    layout()
+    for _, pool in ipairs({ self.lines, self.slines, self.slabels, self.bars, self.labels, self.grid, self.vgrid, self.fill, self.refl, self.reflbl, self.peakLbl or {}, self.dots or {} }) do
+      for _, t in pairs(pool) do t:Hide() end -- pairs: в пуле столбиков бывают пропуски
+    end
+    hideHover(); self.hoverIdx = nil
+    -- период: точки за последние N часов (в компактном виде - всё)
+    local hours = (not self.compact and not self.mid) and (ns.DB and ns.DB.settings.chartRange) or 0
+    if hours == nil then hours = 168 end
+    for _, b in ipairs(self.periodBtns) do b:SetGold(b.hours == hours) end
+    local pts = all or {}
+    if hours and hours > 0 and #pts > 0 then
+      local from = time() - hours * 3600
+      local cut = {}
+      for _, p in ipairs(pts) do if p[1] >= from then cut[#cut + 1] = p end end
+      -- точка перед началом периода - чтобы линия начиналась от края
+      if #cut < #pts and #cut > 0 then
+        local prev; for _, p in ipairs(pts) do if p[1] < from then prev = p end end
+        if prev then table.insert(cut, 1, { from, prev[2], prev[3] }) end
+      end
+      pts = cut
+    end
+    self.view = pts
+    if #pts < 2 then
+      msg:SetText(#(all or {}) >= 2 and L"За этот период точек нет - выберите период длиннее." or L"Мало данных для графика.\nКаждый снимок аукциона добавляет точку.")
+      msg:Show(); self.stats:SetText("") return
+    end
     msg:Hide()
     local W, H = plot:GetWidth(), plot:GetHeight()
     if W < 10 or H < 10 then return end
-    local t0, t1, lo, hi, qmax = pts[1][1], pts[#pts][1], math.huge, 0, 1
-    for _, p in ipairs(pts) do lo = math.min(lo, p[2]); hi = math.max(hi, p[2]); qmax = math.max(qmax, p[3] or 0) end
+    local t0, t1, lo, hi, sum = pts[1][1], pts[#pts][1], math.huge, 0, 0
+    for _, p in ipairs(pts) do lo = math.min(lo, p[2]); hi = math.max(hi, p[2]); sum = sum + p[2] end
+    local minV, maxV, avgV = lo, hi, sum / #pts
     if hi == lo then hi = hi * 1.1 + 1; lo = lo * 0.9 end
-    local pad = (hi - lo) * 0.1; hi = hi + pad; lo = math.max(0, lo - pad)
+    local pad = (hi - lo) * 0.12; hi = hi + pad; lo = math.max(0, lo - pad)
+    -- цена занимает верхние 72%, внизу - полоса столбиков «продано»
+    local VB = self.compact and 0.18 or 0.26
     local X = function(t) return (t - t0) / math.max(1, t1 - t0) * W end
-    local Y = function(v) return (v - lo) / (hi - lo) * H end
-    -- сетка и подписи цен (в компактном виде - только низ и верх)
-    local steps = self.compact and 1 or 3
+    local Y = function(v) return H * VB + (v - lo) / (hi - lo) * H * (1 - VB) end
+    self.X, self.Y = X, Y
+    -- сетка цены и подписи слева
+    local steps = self.compact and 2 or self.mid and 3 or 5
     for i = 0, steps do
       local v = lo + (hi - lo) * i / steps
-      local g = self.grid[i + 1] or plot:CreateTexture(nil, "BORDER"); self.grid[i + 1] = g
-      g:SetColorTexture(1, 1, 1, 0.07); g:SetHeight(1); g:ClearAllPoints(); g:SetPoint("BOTTOMLEFT", plot, "BOTTOMLEFT", 0, Y(v)); g:SetPoint("RIGHT", plot); g:Show()
-      local s = lbl(i + 1); s:ClearAllPoints(); s:SetPoint("RIGHT", plot, "BOTTOMLEFT", -4, Y(v)); s:SetText(ns.money(v, true))
+      local g = tex(self.grid, i + 1, "BORDER")
+      g:SetColorTexture(1, 0.9, 0.7, i == 0 and 0.14 or 0.06); g:SetHeight(1); g:ClearAllPoints(); g:SetPoint("BOTTOMLEFT", plot, "BOTTOMLEFT", 0, Y(v)); g:SetPoint("RIGHT", plot); g:Show()
+      local s = lbl(self.labels, i + 1, self.compact and 9 or 10); s:ClearAllPoints(); s:SetPoint("RIGHT", plot, "BOTTOMLEFT", -5, Y(v)); s:SetText(moneyShort(v))
     end
-    -- вторая линия: сколько продано между снимками (на сколько уменьшилось выставленное количество)
-    local sold, smax = {}, 0
+    -- вертикальная сетка и подписи времени: 2-6 меток без наложения
+    local nT = self.compact and 2 or math.max(2, math.min(6, math.floor(W / 150)))
+    for k = 0, nT do
+      local t = t0 + (t1 - t0) * k / nT
+      local x = X(t)
+      if not self.compact then
+        local g = tex(self.vgrid, k + 1, "BORDER"); g:SetColorTexture(1, 0.9, 0.7, 0.05); g:SetWidth(1); g:ClearAllPoints()
+        g:SetPoint("TOP", plot, "TOPLEFT", x, 0); g:SetPoint("BOTTOM", plot, "BOTTOMLEFT", x, 0)
+      end
+      local s = lbl(self.labels, steps + 2 + k, 9); s:ClearAllPoints()
+      s:SetPoint(k == 0 and "TOPLEFT" or k == nT and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", x, -4)
+      s:SetText(date((t1 - t0) > 2 * 86400 and "%d.%m" or "%d.%m %H:%M", t))
+    end
+    -- продано между снимками: столбики внизу (морская волна)
+    local sold, smax = { 0 }, 0
     for i = 2, #pts do
       local a, b = pts[i - 1][3], pts[i][3]
       local v = (a and b and a > b) and (a - b) or 0
       sold[i] = v; if v > smax then smax = v end
     end
-    sold[1] = 0
+    self.sold = sold
     if smax > 0 then
-      local SY = function(v) return v / smax * H * 0.85 end
+      local band = H * VB - 2
+      local bw = math.max(2, math.min(14, W / #pts * 0.6))
       for i = 2, #pts do
-        local l = self.slines[i - 1]
-        if not l then
-          if plot.CreateLine then l = plot:CreateLine(nil, "ARTWORK"); l:SetThickness(3) else l = plot:CreateTexture(nil, "ARTWORK"); l:SetSize(2, 2) end
-          UI.LineTex(l, 0.4, 0.85, 0.8, 0.9); self.slines[i - 1] = l
+        if sold[i] > 0 then
+          local bar = tex(self.bars, i - 1, "ARTWORK", 1)
+          bar:SetColorTexture(P.sea[1], P.sea[2], P.sea[3], 0.75)
+          bar:ClearAllPoints(); bar:SetSize(bw, math.max(1, sold[i] / smax * band)); bar:SetPoint("BOTTOM", plot, "BOTTOMLEFT", X(pts[i][1]), 1)
         end
-        local x1, y1, x2, y2 = X(pts[i - 1][1]), SY(sold[i - 1]), X(pts[i][1]), SY(sold[i])
-        if l.SetStartPoint then l:SetStartPoint("BOTTOMLEFT", plot, x1, y1); l:SetEndPoint("BOTTOMLEFT", plot, x2, y2)
-        else l:ClearAllPoints(); l:SetPoint("CENTER", plot, "BOTTOMLEFT", x2, y2) end
-        l:Show()
       end
-      -- шкала справа: штуки
-      for k, v in ipairs(self.compact and { smax } or { 0, math.floor(smax / 2 + 0.5), smax }) do
-        local s = self.slabels[k] or UI.Font(f, 9, UI.DIM); self.slabels[k] = s
-        s:ClearAllPoints(); s:SetPoint("LEFT", plot, "BOTTOMRIGHT", 4, SY(v)); s:SetText("|cff66d9cc" .. v .. "|r"); s:Show()
+      -- шкала штук справа
+      for k, v in ipairs(self.compact and { smax } or { math.floor(smax / 2 + 0.5), smax }) do
+        local s = lbl(self.slabels, k, 9); s:ClearAllPoints(); s:SetPoint("LEFT", plot, "BOTTOMRIGHT", 5, v / smax * band)
+        s:SetText("|cff66d9cc" .. v .. "|r")
       end
     end
-    -- линия цены
+    -- заливка под линией цены: тонкие столбцы с прозрачностью (только в большом виде)
+    if not self.compact then
+      local colW = 3
+      local n = math.floor(W / colW)
+      local j = 1
+      for c = 0, n - 1 do
+        local x = c * colW + colW / 2
+        local t = t0 + (t1 - t0) * x / W
+        while j < #pts - 1 and pts[j + 1][1] < t do j = j + 1 end
+        local a, b = pts[j], pts[math.min(j + 1, #pts)]
+        local k = (b[1] > a[1]) and (t - a[1]) / (b[1] - a[1]) or 0
+        local v = a[2] + (b[2] - a[2]) * math.max(0, math.min(1, k))
+        local col = tex(self.fill, c + 1, "ARTWORK", -1)
+        local hgt = Y(v) - H * VB
+        col:SetColorTexture(P.brass[1], P.brass[2], P.brass[3], 0.16)
+        col:ClearAllPoints(); col:SetSize(colW, math.max(1, hgt)); col:SetPoint("BOTTOMLEFT", plot, "BOTTOMLEFT", c * colW, H * VB)
+      end
+    end
+    -- линии минимума, среднего и максимума
+    if not self.compact and not self.mid then
+      local refs = { { minV, P.up, L"мин" }, { avgV, { 0.75, 0.68, 0.55 }, L"сред" }, { maxV, P.down, L"макс" } }
+      for k, r in ipairs(refs) do
+        local l = tex(self.refl, k, "ARTWORK", 0); l:SetColorTexture(r[2][1], r[2][2], r[2][3], 0.45); l:SetHeight(1)
+        l:ClearAllPoints(); l:SetPoint("LEFT", plot, "BOTTOMLEFT", 0, Y(r[1])); l:SetPoint("RIGHT", plot, "BOTTOMRIGHT", 0, Y(r[1]))
+        local s = lbl(self.reflbl, k, 9); s:ClearAllPoints(); s:SetPoint("BOTTOMRIGHT", plot, "BOTTOMRIGHT", -4, Y(r[1]) + 1)
+        s:SetText(string.format("|cff%02x%02x%02x%s %s|r", math.floor(r[2][1] * 255), math.floor(r[2][2] * 255), math.floor(r[2][3] * 255), r[3], moneyShort(r[1])))
+      end
+    end
+    -- линия цены поверх всего
     for i = 2, #pts do
-      local l = line(i - 1)
-      local x1, y1, x2, y2 = X(pts[i - 1][1]), Y(pts[i - 1][2]), X(pts[i][1]), Y(pts[i][2])
-      if l.SetStartPoint then l:SetStartPoint("BOTTOMLEFT", plot, x1, y1); l:SetEndPoint("BOTTOMLEFT", plot, x2, y2)
-      else l:ClearAllPoints(); l:SetPoint("CENTER", plot, "BOTTOMLEFT", x2, y2) end
+      local l = seg(self.lines, i - 1, P.brassLight[1], P.brassLight[2], P.brassLight[3], 1, self.compact and 2 or 2.6)
+      setSeg(l, X(pts[i - 1][1]), Y(pts[i - 1][2]), X(pts[i][1]), Y(pts[i][2]))
     end
-    -- подписи цен на пиках: максимум, минимум и до 3 самых высоких локальных пиков
-    if self.compact then
-      -- компактно: только точка и цена последнего снимка
-      self.dots = self.dots or {}; self.peakLbl = self.peakLbl or {}
-      local p = pts[#pts]
-      local d = self.dots[1] or plot:CreateTexture(nil, "OVERLAY"); self.dots[1] = d
-      d:SetColorTexture(1, 0.85, 0.4, 1); d:SetSize(6, 6); d:ClearAllPoints(); d:SetPoint("CENTER", plot, "BOTTOMLEFT", X(p[1]), Y(p[2])); d:Show()
-    elseif self.showPeaks then
-      self.peakLbl = self.peakLbl or {}; self.dots = self.dots or {}
-      for _, s in ipairs(self.peakLbl) do s:Hide() end
-      for _, d in ipairs(self.dots) do d:Hide() end
-      -- все пики и провалы (локальные максимумы и минимумы), начиная с самых заметных; подписи не налезают друг на друга
-      local cand, maxI, minI, sum = {}, 1, 1, 0
-      for i, p in ipairs(pts) do
-        sum = sum + p[2]
-        if p[2] > pts[maxI][2] then maxI = i end
-        if p[2] < pts[minI][2] then minI = i end
-        local a, b = pts[i - 1], pts[i + 1]
-        if a and b then
-          if p[2] > a[2] and p[2] >= b[2] then cand[#cand + 1] = { i, true }
-          elseif p[2] < a[2] and p[2] <= b[2] then cand[#cand + 1] = { i, false } end
-        end
-      end
-      local mean = sum / #pts
-      table.sort(cand, function(a, b) return math.abs(pts[a[1]][2] - mean) > math.abs(pts[b[1]][2] - mean) end)
-      local pick, used = { { maxI, true }, { minI, false } }, { [maxI] = true, [minI] = true }
-      for _, c in ipairs(cand) do
-        if #pick >= 10 then break end
-        local i, far = c[1], true
-        for _, q in ipairs(pick) do
-          if q[2] == c[2] and math.abs(X(pts[q[1]][1]) - X(pts[i][1])) < 40 then far = false end
-        end
-        if far and not used[i] then pick[#pick + 1] = c; used[i] = true end
-      end
-      for k, q in ipairs(pick) do
-        local p, up = pts[q[1]], q[2]
-        local d = self.dots[k] or plot:CreateTexture(nil, "OVERLAY"); self.dots[k] = d
-        d:SetColorTexture(up and 1 or 0.6, up and 0.85 or 0.77, up and 0.4 or 0.92, 1); d:SetSize(5, 5)
-        d:ClearAllPoints(); d:SetPoint("CENTER", plot, "BOTTOMLEFT", X(p[1]), Y(p[2])); d:Show()
-        local s = self.peakLbl[k] or UI.Font(plot, 10, UI.GOLD, "OVERLAY", "OUTLINE"); self.peakLbl[k] = s
-        s:ClearAllPoints(); s:SetPoint(up and "BOTTOM" or "TOP", plot, "BOTTOMLEFT", math.max(24, math.min(W - 24, X(p[1]))), Y(p[2]) + (up and 5 or -5))
-        s:SetText(ns.money(p[2], true)); s:Show()
-      end
-    end
-    -- подписи времени (без наложения: близкие друг к другу пропускаются)
-    local mid = math.floor((#pts + 1) / 2)
-    local xs = { X(pts[1][1]), X(pts[mid][1]), X(pts[#pts][1]) }
-    local show = { xs[3] - xs[1] >= 150, not self.compact and (xs[2] - xs[1] >= 80) and (xs[3] - xs[2] >= 80), true }
-    for k, idx in ipairs({ 1, mid, #pts }) do
-      local s = lbl(4 + k); s:ClearAllPoints()
-      if show[k] then
-        s:SetPoint(k == 1 and "TOPLEFT" or k == 3 and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", xs[k], -3)
-        s:SetText(date("%d.%m %H:%M", pts[idx][1]))
-      else s:Hide() end
+    -- последняя точка
+    self.dots = self.dots or {}
+    local last = pts[#pts]
+    local d = self.dots[1] or plot:CreateTexture(nil, "OVERLAY"); self.dots[1] = d
+    d:SetColorTexture(P.brassLight[1], P.brassLight[2], P.brassLight[3], 1); d:SetSize(self.compact and 5 or 7, self.compact and 5 or 7)
+    d:ClearAllPoints(); d:SetPoint("CENTER", plot, "BOTTOMLEFT", X(last[1]), Y(last[2])); d:Show()
+    -- цифры над графиком: сейчас, мин, макс, сред, изменение за период, продано за период
+    if not self.compact and not self.mid then
+      local first = pts[1][2]
+      local chg = first > 0 and (last[2] - first) / first * 100 or 0
+      local soldSum = 0; for _, v in ipairs(sold) do soldSum = soldSum + v end
+      self.stats:SetText(L"сейчас" .. " |cffffffff" .. ns.money(last[2], true) .. "|r   " .. L"мин" .. " |cff78d98a" .. moneyShort(minV) .. "|r   "
+        .. L"макс" .. " |cffff7a66" .. moneyShort(maxV) .. "|r   " .. L"сред" .. " " .. moneyShort(avgV) .. "   "
+        .. (chg >= 0 and "|cff78d98a+" or "|cffff7a66") .. string.format("%.1f%%", chg) .. "|r   " .. L"продано" .. " |cff66d9cc" .. soldSum .. "|r")
     end
   end
+  layout()
   return f
 end
 
@@ -817,9 +861,9 @@ function UI.ItemDetail(det, opts)
   end
   det.btn = UI.Button(left, "", lw - 20, 18); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
   det.compactLegend = opts.compact
-  det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact
+  det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact; det.chart.mid = not opts.compact
   det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
-  det.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
+  det.legend:SetText("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r")
   function det:Set(id)
     self.id = id
     local unit, rec, _, ck, prof = ns.CraftCost(id)
@@ -841,7 +885,7 @@ function UI.ItemDetail(det, opts)
     -- над графиком: продано за 24 ч и сколько сейчас лотов
     local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
     -- в узкой панели - без подписей линий (цвета линий и так видны), только числа
-    self.legend:SetText((self.compactLegend and "" or ("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r     ")) .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
+    self.legend:SetText((self.compactLegend and "" or ("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r     ")) .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
     local h = ns.History(id)
     ns.After(0, function() if self.id == id then self.chart:SetPoints(h) end end)
   end
@@ -851,11 +895,11 @@ end
 -- ---------- компактное главное окно: узкая полоса значков слева, тонкая шапка, плоская рамка ----------
 -- область содержимого - того же размера, что в большом окне (разделы не перестраиваются)
 local CONTENT_W, CONTENT_H = 961, 546
-local RAIL, PAD, HEAD = 82, 16, 46
+local RAIL, PAD, HEAD = 62, 16, 42
 UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
 -- свои простые значки разделов (белые линии, красятся цветом): media\\win\\nav-*.tga, исходник - tools\\icons
 local NAV_ICONS = { "nav-home", "nav-prof", "nav-auc", "nav-set" }
-local IC_DIM, IC_HOVER, IC_ON = { 0.66, 0.57, 0.43 }, { 0.93, 0.85, 0.68 }, { 0.97, 0.80, 0.42 }
+local IC_DIM, IC_HOVER, IC_ON = { 0.62, 0.56, 0.44 }, { 0.92, 0.84, 0.66 }, { 0.95, 0.78, 0.38 }
 local function edge(f, r, g, b, a, layer)
   local L = {}
   for i = 1, 4 do L[i] = f:CreateTexture(nil, layer or "BORDER"); L[i]:SetColorTexture(r, g, b, a) end
@@ -869,56 +913,54 @@ UI.Edge = edge
 function UI.MainChromeCompact(win, onNav, navTips)
   local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
   win:SetSize(W, H)
-  -- основная часть: доски, лёгкая тень, ели внизу, латунная рамка с накладками
-  local main = CreateFrame("Frame", nil, win); main:SetAllPoints()
-  UI.WoodBG(main, "wood")
-  local shade = main:CreateTexture(nil, "BACKGROUND", nil, -7); shade:SetAllPoints(); shade:SetColorTexture(0, 0, 0, 0.16)
-  UI.Pines(main, { { "BOTTOMRIGHT", -10, 3, 118, "pine", 0.46 }, { "BOTTOMRIGHT", -92, 3, 80, "pine2", 0.40 }, { "BOTTOMRIGHT", -150, 3, 58, "pine", 0.32 },
-    { "BOTTOMLEFT", RAIL + 8, 3, 70, "pine2", 0.34 }, { "BOTTOMLEFT", RAIL + 56, 3, 50, "pine", 0.26 } })
-  UI.BrassFrame(main, 30)
+  local GOLD_EDGE = { 0.43, 0.33, 0.16, 1 }
+  -- полоса значков
+  local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
+  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); UI.WinTex(rb, "f-c"); rb:SetVertexColor(0.62, 0.58, 0.52)
+  edge(rail, unpack(GOLD_EDGE))
+  -- основная часть
+  local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
+  -- фон - прежняя ткань с едва заметными лапками
+  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); UI.WinTex(mb, "f-c")
+  UI.PawsBG(main)
+  edge(main, unpack(GOLD_EDGE))
   win.frameBox = main
-  -- полоса разделов слева: тёмные доски, канат по правому краю
-  local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT", 3, -3); rail:SetPoint("BOTTOMLEFT", 3, 3); rail:SetWidth(RAIL - 3)
-  rail:SetFrameLevel((main:GetFrameLevel() or 1) + 1)
-  UI.WoodBG(rail, "wood-dark", "BACKGROUND", -6)
-  local rs = rail:CreateTexture(nil, "BACKGROUND", nil, -5); rs:SetAllPoints(); rs:SetColorTexture(0, 0, 0, 0.25)
-  local rope = UI.Rope(rail, true, 6); rope:SetPoint("TOPRIGHT", 3, 0); rope:SetPoint("BOTTOMRIGHT", 3, 0)
-  -- шапка: название раздела крупно, «WolfichMarket vX» мелко; канат под шапкой
+  -- шапка: название раздела крупно, рядом «WolfichMarket vX» мелко; линия под шапкой
   local top = CreateFrame("Frame", nil, win); top:SetPoint("TOPLEFT", RAIL, 0); top:SetPoint("TOPRIGHT"); top:SetHeight(HEAD)
   top:SetFrameLevel((main:GetFrameLevel() or 1) + 2)
-  local hr = UI.Rope(top, false, 6); hr:SetPoint("BOTTOMLEFT", 2, -3); hr:SetPoint("BOTTOMRIGHT", -6, -3)
-  local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 22, "")
-  sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD + 4, 0)
-  local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 12, -1); title:SetText("·  WolfichMarket")
+  local hl = top:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
+  local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 20, "")
+  sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD, 0)
+  local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 10, -1); title:SetText("·  WolfichMarket")
   win.chromeTitle, win.chromeSub = title, sub
   win.chromeVer = UI.Font(top, 11, UI.DIM); win.chromeVer:SetPoint("LEFT", title, "RIGHT", 6, 0)
-  -- крестик: латунная плашка
-  local close = CreateFrame("Button", nil, top); close:SetSize(26, 26); close:SetPoint("RIGHT", -12, 0)
-  local cbg = close:CreateTexture(nil, "BACKGROUND"); cbg:SetAllPoints(); cbg:SetColorTexture(0.12, 0.07, 0.04, 0.95)
-  edge(close, UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 1)
-  local cx = close:CreateFontString(nil, "OVERLAY"); setFont(cx, UI.BOLD, 14, ""); cx:SetPoint("CENTER", 0, 1); cx:SetText("×"); cx:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
-  local chl = close:CreateTexture(nil, "HIGHLIGHT"); chl:SetAllPoints(); chl:SetColorTexture(1, 0.85, 0.4, 0.2)
+  local close = CreateFrame("Button", nil, top); close:SetSize(26, 26); close:SetPoint("RIGHT", -8, 0)
+  local cx = UI.Font(close, 16, UI.DIM); cx:SetPoint("CENTER"); cx:SetText("×")
+  close:SetScript("OnEnter", function() cx:SetTextColor(1, 0.85, 0.4) end)
+  close:SetScript("OnLeave", function() cx:SetTextColor(UI.DIM[1], UI.DIM[2], UI.DIM[3]) end)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
-  -- сверху полосы - латунная лапа
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(30, 30); logo:SetPoint("TOP", -2, -10); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
-  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 0.55); sep:SetSize(44, 1); sep:SetPoint("TOP", -2, -48)
-  -- кнопки разделов: значок и подпись под ним; выбранный - латунная подложка и черта у левого края
+  -- значок-волк сверху полосы
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(30, 30); logo:SetPoint("TOP", 0, -14); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
+  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.43, 0.33, 0.16, 0.6); sep:SetSize(34, 1); sep:SetPoint("TOP", 0, -54)
+  -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
-    local b = CreateFrame("Button", nil, rail); b:SetSize(RAIL - 14, 58); b:SetPoint("TOP", -2, -58 - (i - 1) * 64)
+    local b = CreateFrame("Button", nil, rail); b:SetSize(44, 44); b:SetPoint("TOP", 0, -60 - (i - 1) * 50)
     b:SetFrameLevel((rail:GetFrameLevel() or 1) + 2)
-    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 0.16); b.bg:Hide()
-    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(UI.PAL.brassLight[1], UI.PAL.brassLight[2], UI.PAL.brassLight[3], 1); b.bar:SetSize(3, 40); b.bar:SetPoint("LEFT", -3, 0); b.bar:Hide()
-    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(28, 28); b.icon:SetPoint("TOP", 0, -6); UI.WinTex(b.icon, c)
-    b.lbl = b:CreateFontString(nil, "OVERLAY"); setFont(b.lbl, UI.BOLD, 9, ""); b.lbl:SetPoint("BOTTOM", 0, 6); b.lbl:SetText(navTips and navTips[i] or "")
-    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]); b.lbl:SetTextColor(t[1], t[2], t[3]) end
+    -- подложка выбранного раздела и золотая черта у левого края полосы
+    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.95, 0.78, 0.38, 0.12); b.bg:Hide()
+    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.95, 0.78, 0.38, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(30, 30); b.icon:SetPoint("CENTER"); UI.WinTex(b.icon, c)
+    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
     tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
-    local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.5, 0.08)
-    b:SetScript("OnEnter", function(self) if not self.on then tint(IC_HOVER) end end)
-    b:SetScript("OnLeave", function(self) if not self.on then tint(IC_DIM) end end)
+    b:SetScript("OnEnter", function(self)
+      if not self.on then tint(IC_HOVER) end
+      if navTips and navTips[i] then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(navTips[i], 1, 0.82, 0); GameTooltip:Show() end
+    end)
+    b:SetScript("OnLeave", function(self) if not self.on then tint(IC_DIM) end; GameTooltip:Hide() end)
     b:SetScript("OnClick", function() onNav(i) end)
     function b:SetOn(on)
       self.on = on; tint(on and IC_ON or IC_DIM); self.bg:SetShown(on and true or false); self.bar:SetShown(on and true or false)

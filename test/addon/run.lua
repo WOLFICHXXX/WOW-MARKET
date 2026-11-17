@@ -551,10 +551,23 @@ do
     do
       local ch = ns.UI.Chart(UIParent)
       if ch then
+        ch.mid = true
         ch:SetPoints({ { 1000, 500, 100 }, { 2000, 480, 70 }, { 3000, 470, 90 }, { 4000, 460, 40 } })
-        local shown = 0; for _, l in ipairs(ch.slines) do if l.shown ~= false then shown = shown + 1 end end
-        check(#ch.slines == 3 and #ch.bars == 0, "график: вместо столбиков - вторая линия «продано»")
-        check(ch.slabels[3] and (ch.slabels[3].text or ""):find("50", 1, true), "график: шкала проданных справа (макс 50 шт)")
+        local bars = 0; for _, b in pairs(ch.bars) do if b.shown then bars = bars + 1 end end
+        check(bars == 2 and #ch.lines == 3, "график: линия цены и столбики «продано» (2 снимка с продажами)")
+        check(ch.slabels[2] and (ch.slabels[2].text or ""):find("50", 1, true), "график: шкала проданных справа (макс 50 шт)")
+        -- большой график: цифры над ним, период, заливка под линией
+        local big = ns.UI.Chart(UIParent)
+        local now = time()
+        local pts = {}; for k = 1, 30 do pts[k] = { now - (31 - k) * 3600 * 6, 400 + (k % 5) * 20, 100 - k } end
+        ns.DB.settings.chartRange = 168
+        big:SetPoints(pts)
+        check((big.stats.text or ""):find("мин", 1, true) or (big.stats.text or ""):find("min", 1, true), "большой график: строка «сейчас / мин / макс / сред»")
+        check(#big.fill > 20 and #big.refl == 3, "большой график: заливка под линией и линии мин / сред / макс")
+        local n7 = #big.view
+        big.periodBtns[1].scripts.OnClick(big.periodBtns[1])
+        check(ns.DB.settings.chartRange == 24 and #big.view < n7, "период «24 ч» оставляет только последние сутки")
+        ns.DB.settings.chartRange = nil
       end
     end
     local oldC = C_Item

@@ -1036,7 +1036,7 @@ function ns.BuildAHPanel()
   panel:EnableMouse(true)
   UI.Skin(panel, { theme = "ah" })
   -- медальон и название, как в главном окне
-  local medal = panel:CreateTexture(nil, "OVERLAY"); medal:SetSize(26, 26); medal:SetPoint("TOPLEFT", 26, -22); UI.WinTex(medal, "nav-paw"); medal:SetVertexColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
+  local medal = panel:CreateTexture(nil, "OVERLAY"); medal:SetSize(36, 36); medal:SetPoint("TOPLEFT", 24, -20); UI.WinTex(medal, "howl")
   local tfs = UI.Title(panel, "WolfichMarket")
   if tfs and tfs.SetPoint then tfs:ClearAllPoints(); tfs:SetPoint("LEFT", medal, "RIGHT", 8, 0) end
   UI.Close(panel, function() panel:Hide() end)

@@ -506,14 +506,13 @@ local function buildMarketTable(form)
   mt:SetHeight(160)
   if mt.SetClipsChildren then mt:SetClipsChildren(true) end
   -- минималистичное оформление: ткань с лапками, тонкая золотая кромка, лапа и заголовок шрифтом заголовков
-  UI.WoodBG(mt, "wood")
-  local sh = mt:CreateTexture(nil, "BACKGROUND", nil, -7); sh:SetAllPoints(); sh:SetColorTexture(0, 0, 0, 0.22)
-  UI.Pines(mt, { { "BOTTOMRIGHT", -6, 26, 40, "pine2", 0.28 } })
-  UI.BrassFrame(mt, 16)
+  local bg = mt:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
+  UI.PawsBG(mt)
+  UI.Edge(mt, 0.43, 0.33, 0.16, 1)
   mt.paw = mt:CreateTexture(nil, "ARTWORK"); mt.paw:SetSize(13, 13); mt.paw:SetPoint("TOPLEFT", 8, -7); UI.WinTex(mt.paw, "nav-paw"); mt.paw:SetVertexColor(0.95, 0.78, 0.38)
   mt.title = mt:CreateFontString(nil, "OVERLAY"); UI.SetFont(mt.title, UI.TITLE_FONT, 14, ""); mt.title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
   mt.title:SetPoint("LEFT", mt.paw, "RIGHT", 6, 0); mt.title:SetText(L"Где купить и где продать")
-  local lb = mt:CreateTexture(nil, "ARTWORK"); lb:SetHeight(1); lb:SetPoint("BOTTOMLEFT", 1, 25); lb:SetPoint("BOTTOMRIGHT", -1, 25); lb:SetColorTexture(UI.PAL.brassDark[1], UI.PAL.brassDark[2], UI.PAL.brassDark[3], 0.9)
+  local lb = mt:CreateTexture(nil, "ARTWORK"); lb:SetHeight(1); lb:SetPoint("BOTTOMLEFT", 1, 25); lb:SetPoint("BOTTOMRIGHT", -1, 25); lb:SetColorTexture(0.18, 0.15, 0.09, 1)
   -- столбики: Ф, Общ, затем звезда и колокольчик (по 18)
   local XN, XF = -46, -100
   mt.colX = { main = XF, neutral = XN }
@@ -522,7 +521,7 @@ local function buildMarketTable(form)
     local h = UI.Font(mt, 10, UI.GOLD); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", mt.colX[k], -30); h:SetWidth(54); h:SetJustifyH("RIGHT")
     h:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
   end
-  local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(UI.PAL.brassDark[1], UI.PAL.brassDark[2], UI.PAL.brassDark[3], 0.9)
+  local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(0.18, 0.15, 0.09, 1)
   -- строки, график и итог - на прокручиваемом листе: блок не выходит за низ окна профессии
   local sf = CreateFrame("ScrollFrame", nil, mt); sf:SetPoint("TOPLEFT", 0, -44); sf:SetPoint("BOTTOMRIGHT", 0, 26)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
