@@ -435,7 +435,6 @@ local function sendWants()
   if S().netRecv == false or not ns.realmKey then return end
   local ids = {}
   for id in pairs(ns.DB.marked) do ids[#ids + 1] = enc(id) end
-  for _, d in ipairs(ns.PlanNeeds and (ns.PlanNeeds()) or {}) do if d.buy and d.buy > 0 then ids[#ids + 1] = enc(d.id) end end
   if #ids == 0 then return end
   local head = "W^" .. RK() .. "^"
   local cur = head

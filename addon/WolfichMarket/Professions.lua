@@ -179,6 +179,11 @@ function ns.OpenRecipeInGame(rec, profName)
   end
 end
 function ns.IsLearned(rec) return rec.learned ~= false end
+-- данные рецепта (RecipeData.lua): номер рецепта = номер заклинания; запасной путь - по названию
+function ns.RecipeSourceData(rec)
+  if not ns.RS or not rec then return nil end
+  return ns.RS.r[rec.id] or (rec.name and ns.RS.names[rec.name] and ns.RS.r[ns.RS.names[rec.name]])
+end
 -- требуемый навык рецепта (из данных Wowhead) и группа: 1 Ученик, 2 Подмастерье, 3 Умелец, 4 Искусник, 5 - 300+, 9 - неизвестно
 function ns.RecipeLevel(rec)
   local d = ns.RecipeSourceData and ns.RecipeSourceData(rec)
@@ -501,29 +506,14 @@ local function buildMarketTable(form)
   mt:SetHeight(160)
   if mt.SetClipsChildren then mt:SetClipsChildren(true) end
   -- минималистичное оформление: ткань с лапками, тонкая золотая кромка, лапа и заголовок шрифтом заголовков
-  local bg = mt:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
-  UI.PawsBG(mt)
-  UI.Edge(mt, 0.43, 0.33, 0.16, 1)
+  UI.WoodBG(mt, "wood")
+  local sh = mt:CreateTexture(nil, "BACKGROUND", nil, -7); sh:SetAllPoints(); sh:SetColorTexture(0, 0, 0, 0.22)
+  UI.Pines(mt, { { "BOTTOMRIGHT", -6, 26, 40, "pine2", 0.28 } })
+  UI.BrassFrame(mt, 16)
   mt.paw = mt:CreateTexture(nil, "ARTWORK"); mt.paw:SetSize(13, 13); mt.paw:SetPoint("TOPLEFT", 8, -7); UI.WinTex(mt.paw, "nav-paw"); mt.paw:SetVertexColor(0.95, 0.78, 0.38)
   mt.title = mt:CreateFontString(nil, "OVERLAY"); UI.SetFont(mt.title, UI.TITLE_FONT, 14, ""); mt.title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
   mt.title:SetPoint("LEFT", mt.paw, "RIGHT", 6, 0); mt.title:SetText(L"Где купить и где продать")
-  local lb = mt:CreateTexture(nil, "ARTWORK"); lb:SetHeight(1); lb:SetPoint("BOTTOMLEFT", 1, 25); lb:SetPoint("BOTTOMRIGHT", -1, 25); lb:SetColorTexture(0.18, 0.15, 0.09, 1)
-  -- «В план»: +1 порция рецепта в план закупки
-  mt.plan = UI.Button(mt, L"В план", 78, 16, function()
-    local rec = mt.rec
-    if not rec then return end
-    local cur = 0
-    for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then cur = p.n end end
-    ns.AddPlan(rec, ns.charKey, ns.curProf, cur + 1)
-  end)
-  mt.plan:SetPoint("TOPRIGHT", -6, -3)
-  mt.plan:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine(L"Добавить в план закупки", 1, 0.82, 0)
-    GameTooltip:AddLine(L"Каждый клик - ещё одна порция. Список покупок - во вкладке «План» у аукциониста.", 1, 1, 1, true)
-    GameTooltip:Show()
-  end)
-  mt.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  local lb = mt:CreateTexture(nil, "ARTWORK"); lb:SetHeight(1); lb:SetPoint("BOTTOMLEFT", 1, 25); lb:SetPoint("BOTTOMRIGHT", -1, 25); lb:SetColorTexture(UI.PAL.brassDark[1], UI.PAL.brassDark[2], UI.PAL.brassDark[3], 0.9)
   -- столбики: Ф, Общ, затем звезда и колокольчик (по 18)
   local XN, XF = -46, -100
   mt.colX = { main = XF, neutral = XN }
@@ -532,7 +522,7 @@ local function buildMarketTable(form)
     local h = UI.Font(mt, 10, UI.GOLD); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", mt.colX[k], -30); h:SetWidth(54); h:SetJustifyH("RIGHT")
     h:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
   end
-  local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(0.18, 0.15, 0.09, 1)
+  local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(UI.PAL.brassDark[1], UI.PAL.brassDark[2], UI.PAL.brassDark[3], 0.9)
   -- строки, график и итог - на прокручиваемом листе: блок не выходит за низ окна профессии
   local sf = CreateFrame("ScrollFrame", nil, mt); sf:SetPoint("TOPLEFT", 0, -44); sf:SetPoint("BOTTOMRIGHT", 0, 26)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
@@ -599,9 +589,6 @@ local function fillMarketTable(rec)
   if not rec or ns.DB.settings.profUI == false then mt:Hide() return end
   if mt.rec ~= rec then mt.open = nil; mt.scroll = 0 end
   mt.rec = rec
-  local inPlan = 0
-  for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then inPlan = p.n end end
-  mt.plan:SetLabel(inPlan > 0 and (L"В плане" .. " ×" .. inPlan) or L"В план"); mt.plan:SetGold(inPlan > 0)
   local M = ns.RecipeMarket(rec)
   local y, i = -2, 0
   local body = mt.body
@@ -699,7 +686,6 @@ local function hookForm()
   pcall(hooksecurefunc, form, "Init", function(self, recipeInfo) fillMarketTable(recFromInfo(recipeInfo)) end)
   if form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) end
 end
-ns.Listen("PLAN", function() if mt and mt:IsVisible() and mt.rec then fillMarketTable(mt.rec) end end)
 ns.Listen("PRICES", function()
   local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
   local form = page and page.SchematicForm

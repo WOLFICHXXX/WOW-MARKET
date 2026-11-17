@@ -5,9 +5,16 @@ local M = ns.MEDIA
 local UI = {}
 ns.UI = UI
 
-UI.GOLD = { 0.95, 0.80, 0.42 }
-UI.TEXT = { 0.93, 0.89, 0.80 }
-UI.DIM = { 0.66, 0.62, 0.53 }
+-- палитра «Тортуга» (2.44): корабельное дерево, латунь, пергамент, морская волна, хвоя
+UI.GOLD = { 0.94, 0.78, 0.45 }   -- латунь (заголовки, выбранное)
+UI.TEXT = { 0.93, 0.87, 0.74 }   -- пергамент (основной текст)
+UI.DIM = { 0.68, 0.60, 0.47 }    -- выцветший пергамент (подписи)
+UI.PAL = {
+  brass = { 0.79, 0.60, 0.24 }, brassLight = { 0.95, 0.80, 0.45 }, brassDark = { 0.43, 0.31, 0.12 },
+  wood = { 0.24, 0.15, 0.09 }, woodDark = { 0.13, 0.08, 0.05 }, ink = { 0.08, 0.05, 0.03 },
+  sea = { 0.29, 0.70, 0.65 }, pine = { 0.20, 0.40, 0.28 },
+  up = { 0.56, 0.82, 0.42 }, down = { 0.89, 0.38, 0.29 },
+}
 
 -- шрифты нового макета (2.43): Inter - текст и кнопки, Forum - заголовки (оба с кириллицей, лицензия OFL - media\fonts).
 -- Без толстой обводки игры (она даёт «лесенку») - мягкая тень.
@@ -31,7 +38,8 @@ UI.SetFont = setFont
 -- scale - во сколько раз уменьшать части макета; title/close - места в пикселях макета
 UI.THEMES = {
   -- новый макет: места заголовка и крестика - в пикселях рамки (умножаются на масштаб)
-  win = { title = { 64, -74 }, close = { -20, -13, 48, 48 }, btn = "mbtn" },
+  -- деревянная рамка «Тортуга»: заголовок и крестик в пикселях (масштаб 1)
+  win = { title = { 22, -24 }, close = { -8, -8, 26, 26 }, btn = "mbtn", glyph = true },
   main = { scale = 0.85, title = { 84, -40 }, close = { -2, -6, 60, 62 }, btn = "mbtn" },
   ah = { scale = 0.5, title = { 186, -60 }, close = { -56, -38, 56, 48 }, btn = "abtn" },
   mcard = { scale = 0.5, btn = "mbtn" },
@@ -110,34 +118,68 @@ function UI.PawsBG(f)
     if f.HookScript then f:HookScript("OnSizeChanged", place) end
   end
 end
--- рамка окна: уголки, кристаллы и лапа - без растяжения; s - масштаб частей
+-- ---------- оформление «Тортуга»: доски, латунь, канат, ели ----------
+-- доски во весь фрейм, плиткой (512 px), без растяжения
+function UI.WoodBG(f, name, layer, sub, tint)
+  local t = f:CreateTexture(nil, layer or "BACKGROUND", nil, sub or -8)
+  t:SetTexture(M .. "win\\" .. (name or "wood"), "REPEAT", "REPEAT")
+  if t.SetHorizTile then t:SetHorizTile(true); t:SetVertTile(true) end
+  t:SetAllPoints()
+  local function fit() local w, h = f:GetWidth() or 0, f:GetHeight() or 0; if w > 0 and h > 0 then t:SetTexCoord(0, w / 512, 0, h / 512) end end
+  fit(); if f.HookScript then f:HookScript("OnSizeChanged", fit) end
+  if tint then t:SetVertexColor(tint[1], tint[2], tint[3]) end
+  return t
+end
+-- латунная кромка: тёмная линия снаружи, латунь внутри, блик; на углах - латунные накладки
+function UI.BrassFrame(f, corner)
+  local P = UI.PAL
+  UI.Edge(f, P.ink[1], P.ink[2], P.ink[3], 1, "BORDER")
+  local inner = CreateFrame("Frame", nil, f); inner:SetPoint("TOPLEFT", 1, -1); inner:SetPoint("BOTTOMRIGHT", -1, 1)
+  if inner.SetFrameLevel then inner:SetFrameLevel(f:GetFrameLevel() or 1) end
+  UI.Edge(inner, P.brass[1], P.brass[2], P.brass[3], 1, "BORDER")
+  local hi = CreateFrame("Frame", nil, f); hi:SetPoint("TOPLEFT", 2, -2); hi:SetPoint("BOTTOMRIGHT", -2, 2)
+  UI.Edge(hi, P.brassDark[1], P.brassDark[2], P.brassDark[3], 0.9, "BORDER")
+  local cs = corner or 28
+  for i, pt in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
+    local c = f:CreateTexture(nil, "OVERLAY", nil, 6); c:SetSize(cs, cs); c:SetPoint(pt, 0, 0)
+    c:SetTexture(M .. "win\\brass-corner")
+    local L, R = (i == 2 or i == 4) and 1 or 0, (i == 2 or i == 4) and 0 or 1
+    local T, B = (i >= 3) and 1 or 0, (i >= 3) and 0 or 1
+    c:SetTexCoord(L, R, T, B)
+  end
+end
+-- канат: горизонтальная (h) или вертикальная (v) линия, плиткой
+function UI.Rope(f, vertical, thick)
+  local t = f:CreateTexture(nil, "ARTWORK", nil, 2)
+  t:SetTexture(M .. "win\\" .. (vertical and "rope-v" or "rope-h"), "REPEAT", "REPEAT")
+  if t.SetHorizTile then t:SetHorizTile(not vertical); t:SetVertTile(vertical and true or false) end
+  if vertical then t:SetWidth(thick or 6) else t:SetHeight(thick or 6) end
+  return t
+end
+-- ели у нижнего края: силуэты за содержимым, приглушённые
+function UI.Pines(f, list)
+  f.wmPines = f.wmPines or {}
+  for i, p in ipairs(list or { { "BOTTOMLEFT", 6, 2, 90, "pine" }, { "BOTTOMLEFT", 58, 2, 64, "pine2" }, { "BOTTOMRIGHT", -8, 2, 104, "pine" }, { "BOTTOMRIGHT", -78, 2, 70, "pine2" } }) do
+    local t = f:CreateTexture(nil, "BACKGROUND", nil, -5)
+    t:SetTexture(M .. "win\\" .. p[5]); t:SetSize(p[4], p[4] * 2); t:SetPoint(p[1], p[2], p[3])
+    t:SetVertexColor(0.85, 0.95, 0.85); t:SetAlpha(p[6] or 0.42)
+    f.wmPines[i] = t
+  end
+end
+-- рамка окна (тема «win»): доски, латунная кромка с накладками, ели внизу
 function UI.FrameSkin(f, s)
-  s = s or 0.5
-  f.wmTheme, f.wmScale = "win", s
-  local W = ns.WIN
-  local function tex(name, layer, sub) local t = f:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t end
-  local function sz(k) local v = W[k] or { 100, 100 }; return v[1] * s, v[2] * s end
-  local c = tex("f-c", "BACKGROUND", -8); c:SetPoint("TOPLEFT", 44 * s, -58 * s); c:SetPoint("BOTTOMRIGHT", -46 * s, 34 * s)
-  UI.PawsBG(f)
-  local tlw, tlh = sz("f-tl"); local trw = sz("f-tr"); local lw = sz("f-l"); local blw, bh = sz("f-bl"); local brw = sz("f-br"); local emw = sz("f-em")
-  local t = tex("f-t"); t:SetHeight(tlh); t:SetPoint("TOPLEFT", tlw, 0); t:SetPoint("TOPRIGHT", -trw, 0)
-  local l = tex("f-l"); l:SetWidth(lw); l:SetPoint("TOPLEFT", 0, -tlh); l:SetPoint("BOTTOMLEFT", 0, bh)
-  local r = tex("f-r"); r:SetWidth(lw); r:SetPoint("TOPRIGHT", 0, -tlh); r:SetPoint("BOTTOMRIGHT", 0, bh)
-  -- нижняя планка - только между уголками (иначе её концы торчат за рамку)
-  local bf = tex("f-bf"); bf:SetHeight(bh); bf:SetPoint("BOTTOMLEFT", blw * 0.6, 0); bf:SetPoint("BOTTOMRIGHT", -brw * 0.6, 0)
-  local q = tex("f-tl", "BORDER", 1); q:SetSize(tlw, tlh); q:SetPoint("TOPLEFT")
-  q = tex("f-tr", "BORDER", 1); q:SetSize(trw, tlh); q:SetPoint("TOPRIGHT")
-  q = tex("f-bl", "BORDER", 1); q:SetSize(blw, bh); q:SetPoint("BOTTOMLEFT")
-  q = tex("f-br", "BORDER", 1); q:SetSize(brw, bh); q:SetPoint("BOTTOMRIGHT")
-  -- щиток с лапой ниже рамки - выступает вниз, верх совпадает с нижней кромкой
-  local _, emh = sz("f-em"); q = tex("f-em", "BORDER", 2); q:SetSize(emw, emh); q:SetPoint("TOP", f, "BOTTOM", 0, bh)
+  f.wmTheme, f.wmScale = "win", 1
+  UI.WoodBG(f, "wood")
+  local shade = f:CreateTexture(nil, "BACKGROUND", nil, -7); shade:SetAllPoints(); shade:SetColorTexture(0, 0, 0, 0.18)
+  UI.Pines(f)
+  UI.BrassFrame(f)
   return f
 end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
 function UI.Box(f, alpha)
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.02, 0.02, 0.03, alpha or 0.42)
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.06, 0.035, 0.02, math.max(alpha or 0.42, 0.55))
   local function line(p1, p2, horiz)
-    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.42, 0.33, 0.17, 0.95)
+    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.55, 0.41, 0.17, 0.95)
     if horiz then t:SetHeight(1) else t:SetWidth(1) end
     t:SetPoint(p1); t:SetPoint(p2)
   end
@@ -215,6 +257,13 @@ function UI.Close(parent, onClick)
     b = CreateFrame("Button", nil, parent)
     b:SetSize(th.close[3] * s, th.close[4] * s); b:SetPoint("TOPRIGHT", th.close[1] * s, th.close[2] * s)
     local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.4, 0.18)
+    if th.glyph then
+      -- латунный крестик на тёмной плашке
+      local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.12, 0.07, 0.04, 0.95)
+      UI.Edge(b, UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 1, "BORDER")
+      local x = b:CreateFontString(nil, "OVERLAY"); setFont(x, UI.BOLD, 14, ""); x:SetPoint("CENTER", 0, 1); x:SetText("×")
+      x:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
+    end
   else
     b = CreateFrame("Button", nil, parent, "UIPanelCloseButton"); b:SetPoint("TOPRIGHT", -8, -8)
   end
@@ -223,11 +272,11 @@ function UI.Close(parent, onClick)
 end
 
 -- кнопка (2.43.33): своя плоская - заливка и тонкая кромка, без картинок; b:SetGold(on) - золотая (главная / выбрана) или тёмная
-local GOLD_TXT, DARK_TXT = { 0.12, 0.08, 0.02 }, { 0.94, 0.88, 0.77 }
+local GOLD_TXT, DARK_TXT = { 0.16, 0.09, 0.03 }, { 0.95, 0.88, 0.74 }
 local BTN = {
-  dark = { bg = { 0.09, 0.075, 0.05, 0.92 }, edge = { 0.45, 0.35, 0.16, 1 } },
-  gold = { bg = { 0.85, 0.64, 0.25, 1 }, edge = { 0.98, 0.82, 0.45, 1 } },
-  off = { bg = { 0.07, 0.06, 0.05, 0.85 }, edge = { 0.28, 0.23, 0.15, 1 } },
+  dark = { bg = { 0.20, 0.12, 0.065, 0.96 }, edge = { 0.60, 0.45, 0.19, 1 } },   -- тёмная доска с латунной кромкой
+  gold = { bg = { 0.80, 0.60, 0.24, 1 }, edge = { 0.97, 0.82, 0.47, 1 } },       -- начищенная латунь
+  off = { bg = { 0.12, 0.08, 0.05, 0.85 }, edge = { 0.32, 0.24, 0.12, 1 } },
 }
 UI.BTN_COLORS = BTN
 function UI.Button(parent, text, w, h, onClick, gold)
@@ -238,6 +287,9 @@ function UI.Button(parent, text, w, h, onClick, gold)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
   local edges = UI.Edge(b, 0, 0, 0, 1, "BORDER")
   local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetPoint("TOPLEFT", 1, -1); hl:SetPoint("BOTTOMRIGHT", -1, 1); hl:SetColorTexture(1, 0.85, 0.45, 0.14)
+  -- объём: светлая полоска сверху и тень снизу
+  local top = b:CreateTexture(nil, "ARTWORK"); top:SetPoint("TOPLEFT", 1, -1); top:SetPoint("TOPRIGHT", -1, -1); top:SetHeight(1); top:SetColorTexture(1, 0.9, 0.7, 0.16)
+  local bot = b:CreateTexture(nil, "ARTWORK"); bot:SetPoint("BOTTOMLEFT", 1, 1); bot:SetPoint("BOTTOMRIGHT", -1, 1); bot:SetHeight(2); bot:SetColorTexture(0, 0, 0, 0.28)
   local fs = b:CreateFontString(nil, "OVERLAY")
   local FONT = UI.BOLD
   local base = math.max(10, math.min(12, math.floor(h * 0.42)))
@@ -776,8 +828,8 @@ function UI.ItemDetail(det, opts)
       self.lbl[1]:SetText(L"Себестоимость крафта"); self.val[1]:SetText(ns.money(unit, true))
       self.lbl[2]:SetText(L"Прибыль на Ф"); self.val[2]:SetText(pf(ns.ProfitIn(rec, "main")))
       self.lbl[3]:SetText(L"Прибыль на Общ"); self.val[3]:SetText(pf(ns.ProfitIn(rec, "neutral")))
-      self.btn:SetLabel(L"В план"); self.btn:Show()
-      self.btn:SetScript("OnClick", function() ns.AddPlan(rec, ck or ns.charKey, prof, 1) end)
+      self.btn:SetLabel(L"Найти на аукционе"); self.btn:Show()
+      self.btn:SetScript("OnClick", function() ns.SearchAH(id) end)
     else
       self.lbl[1]:SetText(L"Себестоимость крафта"); self.val[1]:SetText(L"|cff888888не крафтится|r")
       local v = ns.DB.vendor[id]
@@ -799,11 +851,11 @@ end
 -- ---------- компактное главное окно: узкая полоса значков слева, тонкая шапка, плоская рамка ----------
 -- область содержимого - того же размера, что в большом окне (разделы не перестраиваются)
 local CONTENT_W, CONTENT_H = 961, 546
-local RAIL, PAD, HEAD = 62, 16, 42
+local RAIL, PAD, HEAD = 82, 16, 46
 UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
 -- свои простые значки разделов (белые линии, красятся цветом): media\\win\\nav-*.tga, исходник - tools\\icons
-local NAV_ICONS = { "nav-home", "nav-alts", "nav-prof", "nav-auc", "nav-cd", "nav-set" }
-local IC_DIM, IC_HOVER, IC_ON = { 0.62, 0.56, 0.44 }, { 0.92, 0.84, 0.66 }, { 0.95, 0.78, 0.38 }
+local NAV_ICONS = { "nav-home", "nav-prof", "nav-auc", "nav-set" }
+local IC_DIM, IC_HOVER, IC_ON = { 0.66, 0.57, 0.43 }, { 0.93, 0.85, 0.68 }, { 0.97, 0.80, 0.42 }
 local function edge(f, r, g, b, a, layer)
   local L = {}
   for i = 1, 4 do L[i] = f:CreateTexture(nil, layer or "BORDER"); L[i]:SetColorTexture(r, g, b, a) end
@@ -817,54 +869,56 @@ UI.Edge = edge
 function UI.MainChromeCompact(win, onNav, navTips)
   local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
   win:SetSize(W, H)
-  local GOLD_EDGE = { 0.43, 0.33, 0.16, 1 }
-  -- полоса значков
-  local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
-  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); UI.WinTex(rb, "f-c"); rb:SetVertexColor(0.62, 0.58, 0.52)
-  edge(rail, unpack(GOLD_EDGE))
-  -- основная часть
-  local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
-  -- фон - прежняя ткань с едва заметными лапками
-  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); UI.WinTex(mb, "f-c")
-  UI.PawsBG(main)
-  edge(main, unpack(GOLD_EDGE))
+  -- основная часть: доски, лёгкая тень, ели внизу, латунная рамка с накладками
+  local main = CreateFrame("Frame", nil, win); main:SetAllPoints()
+  UI.WoodBG(main, "wood")
+  local shade = main:CreateTexture(nil, "BACKGROUND", nil, -7); shade:SetAllPoints(); shade:SetColorTexture(0, 0, 0, 0.16)
+  UI.Pines(main, { { "BOTTOMRIGHT", -10, 3, 118, "pine", 0.46 }, { "BOTTOMRIGHT", -92, 3, 80, "pine2", 0.40 }, { "BOTTOMRIGHT", -150, 3, 58, "pine", 0.32 },
+    { "BOTTOMLEFT", RAIL + 8, 3, 70, "pine2", 0.34 }, { "BOTTOMLEFT", RAIL + 56, 3, 50, "pine", 0.26 } })
+  UI.BrassFrame(main, 30)
   win.frameBox = main
-  -- шапка: название раздела крупно, рядом «WolfichMarket vX» мелко; линия под шапкой
+  -- полоса разделов слева: тёмные доски, канат по правому краю
+  local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT", 3, -3); rail:SetPoint("BOTTOMLEFT", 3, 3); rail:SetWidth(RAIL - 3)
+  rail:SetFrameLevel((main:GetFrameLevel() or 1) + 1)
+  UI.WoodBG(rail, "wood-dark", "BACKGROUND", -6)
+  local rs = rail:CreateTexture(nil, "BACKGROUND", nil, -5); rs:SetAllPoints(); rs:SetColorTexture(0, 0, 0, 0.25)
+  local rope = UI.Rope(rail, true, 6); rope:SetPoint("TOPRIGHT", 3, 0); rope:SetPoint("BOTTOMRIGHT", 3, 0)
+  -- шапка: название раздела крупно, «WolfichMarket vX» мелко; канат под шапкой
   local top = CreateFrame("Frame", nil, win); top:SetPoint("TOPLEFT", RAIL, 0); top:SetPoint("TOPRIGHT"); top:SetHeight(HEAD)
   top:SetFrameLevel((main:GetFrameLevel() or 1) + 2)
-  local hl = top:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
-  local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 20, "")
-  sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD, 0)
-  local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 10, -1); title:SetText("·  WolfichMarket")
+  local hr = UI.Rope(top, false, 6); hr:SetPoint("BOTTOMLEFT", 2, -3); hr:SetPoint("BOTTOMRIGHT", -6, -3)
+  local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 22, "")
+  sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD + 4, 0)
+  local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 12, -1); title:SetText("·  WolfichMarket")
   win.chromeTitle, win.chromeSub = title, sub
   win.chromeVer = UI.Font(top, 11, UI.DIM); win.chromeVer:SetPoint("LEFT", title, "RIGHT", 6, 0)
-  local close = CreateFrame("Button", nil, top); close:SetSize(26, 26); close:SetPoint("RIGHT", -8, 0)
-  local cx = UI.Font(close, 16, UI.DIM); cx:SetPoint("CENTER"); cx:SetText("×")
-  close:SetScript("OnEnter", function() cx:SetTextColor(1, 0.85, 0.4) end)
-  close:SetScript("OnLeave", function() cx:SetTextColor(UI.DIM[1], UI.DIM[2], UI.DIM[3]) end)
+  -- крестик: латунная плашка
+  local close = CreateFrame("Button", nil, top); close:SetSize(26, 26); close:SetPoint("RIGHT", -12, 0)
+  local cbg = close:CreateTexture(nil, "BACKGROUND"); cbg:SetAllPoints(); cbg:SetColorTexture(0.12, 0.07, 0.04, 0.95)
+  edge(close, UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 1)
+  local cx = close:CreateFontString(nil, "OVERLAY"); setFont(cx, UI.BOLD, 14, ""); cx:SetPoint("CENTER", 0, 1); cx:SetText("×"); cx:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
+  local chl = close:CreateTexture(nil, "HIGHLIGHT"); chl:SetAllPoints(); chl:SetColorTexture(1, 0.85, 0.4, 0.2)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
-  -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(30, 30); logo:SetPoint("TOP", 0, -14); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
-  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.43, 0.33, 0.16, 0.6); sep:SetSize(34, 1); sep:SetPoint("TOP", 0, -54)
-  -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
+  -- сверху полосы - латунная лапа
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(30, 30); logo:SetPoint("TOP", -2, -10); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
+  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 0.55); sep:SetSize(44, 1); sep:SetPoint("TOP", -2, -48)
+  -- кнопки разделов: значок и подпись под ним; выбранный - латунная подложка и черта у левого края
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
-    local b = CreateFrame("Button", nil, rail); b:SetSize(44, 44); b:SetPoint("TOP", 0, -60 - (i - 1) * 50)
+    local b = CreateFrame("Button", nil, rail); b:SetSize(RAIL - 14, 58); b:SetPoint("TOP", -2, -58 - (i - 1) * 64)
     b:SetFrameLevel((rail:GetFrameLevel() or 1) + 2)
-    -- подложка выбранного раздела и золотая черта у левого края полосы
-    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.95, 0.78, 0.38, 0.12); b.bg:Hide()
-    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.95, 0.78, 0.38, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
-    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(30, 30); b.icon:SetPoint("CENTER"); UI.WinTex(b.icon, c)
-    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
+    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(UI.PAL.brass[1], UI.PAL.brass[2], UI.PAL.brass[3], 0.16); b.bg:Hide()
+    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(UI.PAL.brassLight[1], UI.PAL.brassLight[2], UI.PAL.brassLight[3], 1); b.bar:SetSize(3, 40); b.bar:SetPoint("LEFT", -3, 0); b.bar:Hide()
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(28, 28); b.icon:SetPoint("TOP", 0, -6); UI.WinTex(b.icon, c)
+    b.lbl = b:CreateFontString(nil, "OVERLAY"); setFont(b.lbl, UI.BOLD, 9, ""); b.lbl:SetPoint("BOTTOM", 0, 6); b.lbl:SetText(navTips and navTips[i] or "")
+    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]); b.lbl:SetTextColor(t[1], t[2], t[3]) end
     tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
-    b:SetScript("OnEnter", function(self)
-      if not self.on then tint(IC_HOVER) end
-      if navTips and navTips[i] then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(navTips[i], 1, 0.82, 0); GameTooltip:Show() end
-    end)
-    b:SetScript("OnLeave", function(self) if not self.on then tint(IC_DIM) end; GameTooltip:Hide() end)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.5, 0.08)
+    b:SetScript("OnEnter", function(self) if not self.on then tint(IC_HOVER) end end)
+    b:SetScript("OnLeave", function(self) if not self.on then tint(IC_DIM) end end)
     b:SetScript("OnClick", function() onNav(i) end)
     function b:SetOn(on)
       self.on = on; tint(on and IC_ON or IC_DIM); self.bg:SetShown(on and true or false); self.bar:SetShown(on and true or false)
@@ -887,76 +941,3 @@ function UI.MainChromeCompact(win, onNav, navTips)
   return content
 end
 
--- рамка нового главного окна: колонка разделов, шапка, рамка с тканью; возвращает область содержимого
--- окно как на макете: 1260 x 780; K - масштаб колонки и шапки относительно первой сборки (1080 x 700)
-local K = 780 / 700
-local WIN_W, WIN_H = 1260, 780
-UI.WIN_SIZE = { WIN_W, WIN_H }
-local NAV = { { 146, 66 }, { 212, 69 }, { 281, 71 }, { 352, 69 }, { 421, 71 }, { 492, 72 } }
-function UI.MainChrome(win, onNav, navTips)
-  win:SetSize(WIN_W, WIN_H)
-  local s = 0.74 * K
-  local function k(v) return math.floor(v * K + 0.5) end
-  -- мягкая чёрная тень только в щелях: между шапкой и рамкой и между колонкой и рамкой (края спрятаны под картинками)
-  local gapTop = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(gapTop, "shade")
-  gapTop:SetPoint("TOPLEFT", k(120), -k(28)); gapTop:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", WIN_W - k(70), -k(128))
-  local gapLeft = win:CreateTexture(nil, "BACKGROUND", nil, -8); UI.WinTex(gapLeft, "shade")
-  gapLeft:SetPoint("TOPLEFT", k(132), -k(60)); gapLeft:SetPoint("BOTTOMRIGHT", win, "TOPLEFT", k(214), -k(640))
-  local fr = CreateFrame("Frame", nil, win); fr:SetPoint("TOPLEFT", k(168), -k(90)); fr:SetPoint("BOTTOMRIGHT", 0, 2)
-  win.frameBox = fr
-  UI.FrameSkin(fr, s)
-  local function tex(parent, name, layer, sub)
-    local t = parent:CreateTexture(nil, layer or "BORDER", nil, sub or 0); UI.WinTex(t, name); return t
-  end
-  -- шапка и колонка - поверх рамки; правый конец шапки - до украшения рамки
-  local top = CreateFrame("Frame", nil, win); top:SetAllPoints(); top:SetFrameLevel((fr:GetFrameLevel() or 1) + 5)
-  local bar = tex(top, "bar", "ARTWORK"); bar:SetPoint("TOPLEFT", k(150), -2); bar:SetSize(WIN_W - k(150) - k(113), k(102))
-  local side = tex(top, "side", "ARTWORK", 2); side:SetPoint("TOPLEFT", 0, 0); side:SetSize(k(175), k(692))
-  -- название - жирным, по центру тёмной полосы шапки, с отступом от кристалла
-  local title = top:CreateFontString(nil, "OVERLAY"); setFont(title, UI.BOLD, 21, "")
-  title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); title:SetPoint("LEFT", top, "TOPLEFT", k(412), -k(58)); title:SetText("WolfichMarket")
-  if title.SetShadowOffset then title:SetShadowOffset(1, -2); title:SetShadowColor(0, 0, 0, 1) end
-  local sub = UI.Font(top, 13, UI.DIM); sub:SetPoint("LEFT", title, "RIGHT", 16, 0)
-  -- флажок с лапой - заглушка на правом конце шапки (слегка заходит на рамку, крестик не закрывает)
-  if ns.WIN and ns.WIN.banner then
-    local bw = k(64); local bh = math.floor(bw * ns.WIN.banner[2] / ns.WIN.banner[1] + 0.5)
-    local fl = tex(top, "banner", "OVERLAY", 3); fl:SetSize(bw, bh)
-    fl:SetPoint("TOP", win, "TOPLEFT", WIN_W - k(113) - k(6), -k(16))
-    win.banner = fl
-  end
-  win.chromeTitle, win.chromeSub = title, sub
-  -- крестик нарисован в правом верхнем углу рамки
-  local close = CreateFrame("Button", nil, top); close:SetSize(k(38), k(38)); close:SetPoint("TOPRIGHT", win, "TOPRIGHT", -k(13), -k(98))
-  local chl = close:CreateTexture(nil, "HIGHLIGHT"); chl:SetAllPoints(); chl:SetColorTexture(1, 0.85, 0.4, 0.2)
-  close:SetScript("OnClick", function() win:Hide() end)
-  win.closeBtn = close
-  -- кнопки разделов: свечение строго внутри клетки
-  local nav = {}
-  for i, p in ipairs(NAV) do
-    local b = CreateFrame("Button", nil, top); b:SetPoint("TOPLEFT", k(36), -k(p[1])); b:SetSize(k(92), k(p[2]))
-    b.glow = b:CreateTexture(nil, "OVERLAY"); b.glow:SetAllPoints(); UI.WinTex(b.glow, "slot-glow"); b.glow:SetBlendMode("ADD"); b.glow:SetVertexColor(1, 0.8, 0.35); b.glow:SetAlpha(0)
-    b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 1); b.pulse:SetAllPoints(); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
-    b:SetScript("OnEnter", function(self)
-      if not self.on then self.glow:SetAlpha(0.45) end
-      if navTips and navTips[i] then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(navTips[i], 1, 0.82, 0); GameTooltip:Show() end
-    end)
-    b:SetScript("OnLeave", function(self) if not self.on then self.glow:SetAlpha(0) end; GameTooltip:Hide() end)
-    b:SetScript("OnClick", function() onNav(i) end)
-    function b:SetOn(on) self.on = on; self.glow:SetAlpha(on and 0.95 or 0) end
-    -- пульсирующее голубое свечение (готов кулдаун)
-    function b:SetPulse(on)
-      self.pulse:SetShown(on)
-      self:SetScript("OnUpdate", on and function(me) me.pulse:SetAlpha(0.35 + 0.45 * (0.5 + 0.5 * math.sin(GetTime() * 3.5))) end or nil)
-    end
-    nav[i] = b
-  end
-  win.nav = nav
-  -- перетаскивание за шапку и колонку
-  top:EnableMouse(true); top:RegisterForDrag("LeftButton")
-  top:SetScript("OnDragStart", function() win:StartMoving() end)
-  top:SetScript("OnDragStop", function() win:StopMovingOrSizing() end)
-  top:SetHitRectInsets(0, 0, 0, 0)
-  local content = CreateFrame("Frame", nil, win); content:SetPoint("TOPLEFT", k(218), -k(146)); content:SetPoint("BOTTOMRIGHT", -k(50), k(64))
-  content:SetFrameLevel((top:GetFrameLevel() or 1) + 1)
-  return content
-end

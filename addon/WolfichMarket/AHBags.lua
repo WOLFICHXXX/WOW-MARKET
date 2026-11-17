@@ -32,16 +32,17 @@ local function build()
   bagf = CreateFrame("Frame", "WolfichMarketAHBags", h)
   bagf:SetFrameStrata("HIGH")
   -- минималистичное оформление: ткань с лапками, тонкая золотая кромка, тонкая шапка; ячейки - прежние
-  local bg = bagf:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
-  UI.PawsBG(bagf)
-  UI.Edge(bagf, 0.43, 0.33, 0.16, 1)
-  local hl = bagf:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1); hl:SetPoint("TOPLEFT", 1, -HEAD); hl:SetPoint("TOPRIGHT", -1, -HEAD)
+  UI.WoodBG(bagf, "wood")
+  local sh = bagf:CreateTexture(nil, "BACKGROUND", nil, -7); sh:SetAllPoints(); sh:SetColorTexture(0, 0, 0, 0.2)
+  UI.Pines(bagf, { { "BOTTOMRIGHT", -170, 2, 48, "pine2", 0.30 }, { "BOTTOMLEFT", 10, 2, 44, "pine", 0.26 } })
+  UI.BrassFrame(bagf, 22)
+  local hl = UI.Rope(bagf, false, 5); hl:SetPoint("TOPLEFT", 4, -HEAD + 2); hl:SetPoint("TOPRIGHT", -4, -HEAD + 2)
   local t = bagf:CreateFontString(nil, "OVERLAY"); UI.SetFont(t, UI.TITLE_FONT, 17, ""); t:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); t:SetPoint("LEFT", bagf, "TOPLEFT", 14, -HEAD / 2); t:SetText(L"Сумки")
   bagf.value = UI.Font(bagf, 11, UI.DIM); bagf.value:SetPoint("LEFT", t, "RIGHT", 14, 0)
   -- деньги персонажа - внизу справа, как в сумке игры
   bagf.money = UI.Font(bagf, 13); UI.SetFont(bagf.money, UI.BOLD, 13, ""); bagf.money:SetPoint("BOTTOMRIGHT", -14, 9); bagf.money:SetJustifyH("RIGHT")
   bagf.moneyLbl = UI.Font(bagf, 11, UI.DIM); bagf.moneyLbl:SetPoint("RIGHT", bagf.money, "LEFT", -8, 0); bagf.moneyLbl:SetText(L"у персонажа:")
-  local fl = bagf:CreateTexture(nil, "BORDER"); fl:SetColorTexture(0.18, 0.15, 0.09, 1); fl:SetHeight(1); fl:SetPoint("BOTTOMLEFT", 1, FOOT); fl:SetPoint("BOTTOMRIGHT", -1, FOOT)
+  local fl = bagf:CreateTexture(nil, "BORDER"); fl:SetColorTexture(UI.PAL.brassDark[1], UI.PAL.brassDark[2], UI.PAL.brassDark[3], 0.9); fl:SetHeight(1); fl:SetPoint("BOTTOMLEFT", 4, FOOT); fl:SetPoint("BOTTOMRIGHT", -4, FOOT)
   bagf.sort = UI.Button(bagf, L"Упорядочить", 110, 20, function()
     if C_Container and C_Container.SortBags then pcall(C_Container.SortBags) elseif SortBags then pcall(SortBags) end
   end)
@@ -71,7 +72,6 @@ local function slotButton(i)
   b.count = UI.Font(b, 10); b.count:SetPoint("BOTTOMRIGHT", -2, 2); b.count:SetJustifyH("RIGHT")
   -- метка ячейки сумки ресурсов: зелёная полоска внизу
   b.res = b:CreateTexture(nil, "OVERLAY", nil, 2); b.res:SetHeight(3); b.res:SetPoint("BOTTOMLEFT", 5, 3); b.res:SetPoint("BOTTOMRIGHT", -5, 3); b.res:SetColorTexture(0.35, 0.9, 0.65, 0.9); b.res:Hide()
-  b.badge = b:CreateTexture(nil, "OVERLAY"); b.badge:SetSize(15, 15); b.badge:SetPoint("TOPRIGHT", 3, 3)
   local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.45, 0.18)
   b:SetScript("OnEnter", function(self)
     if not self.bag then return end
@@ -165,10 +165,8 @@ function ns.UpdateAHBags()
       if q and info.quality >= 2 then b.border:SetVertexColor(q.r * 1.2, q.g * 1.2, q.b * 1.2)
       elseif b.special then b.border:SetVertexColor(0.45, 0.95, 0.75) else b.border:SetVertexColor(1, 1, 1) end
       b.res:SetShown(b.special)
-      local where = ns.DB.settings.bagGlow ~= false and ns.SellWhere(b.id, info.isBound) or nil
-      if where == "ah" or where == "vendor" then b.badge:SetTexture(ns.MEDIA .. (where == "ah" and "badge-ah" or "badge-vendor")); b.badge:Show() else b.badge:Hide() end
     else
-      b.icon:Hide(); b.count:SetText(""); b.badge:Hide(); b.res:SetShown(b.special)
+      b.icon:Hide(); b.count:SetText(""); b.res:SetShown(b.special)
       if b.special then b.border:SetVertexColor(0.35, 0.8, 0.62) else b.border:SetVertexColor(0.7, 0.62, 0.5) end
     end
     b:Show()

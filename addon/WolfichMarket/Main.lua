@@ -75,10 +75,10 @@ local function fillCard(rec)
   if card.fade then ns.After(0, card.fade) end -- после раскладки: диапазон прокрутки и растушёвка
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
-    card.title:SetText(L"Выберите рецепт"); card.level:SetText(""); card.total:SetText(""); card.onAH:Hide(); card.craft:Hide(); card.where:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide(); card.chartBox:Hide()
+    card.title:SetText(L"Выберите рецепт"); card.level:SetText(""); card.total:SetText(""); card.onAH:Hide(); card.craft:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide(); card.chartBox:Hide()
     return
   end
-  card.craft:Show(); card.where:Show(); card.onAH:Show(); card.chart:Show(); card.chartBox:Show(); card.portRow:Show()
+  card.craft:Show(); card.onAH:Show(); card.chart:Show(); card.chartBox:Show(); card.portRow:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
   if not mine then card.craft:Disable(); card.craft.tip = L"Рецепт другого персонажа - зайдите им, чтобы крафтить"
@@ -429,7 +429,7 @@ local function buildCraft(f)
     local hl = r:CreateTexture(nil, "BACKGROUND"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.8, 0.4, 0.12); hl:Hide(); r.hl = hl
     r:Hide(); card.rows[i] = r
   end
-  -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
+  -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли
   local prow = CreateFrame("Frame", nil, card); prow:SetHeight(34); card.portRow = prow
   local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 2, 0); pl:SetText(L"Порций:")
   local function setN(v)
@@ -447,20 +447,13 @@ local function buildCraft(f)
   card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
   local plus = UI.Button(prow, "+", 28, 26, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
   local p5 = UI.Button(prow, "+5", 38, 26, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
-  card.plan = UI.Button(prow, L"Запланировать", 150, 26, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
-  card.plan:SetPoint("RIGHT", 0, 0)
-  card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
-  card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  -- кнопки: Крафт / Где взять / На аукционе - на всю ширину карточки, поровну
+  -- кнопки: Крафт / На аукционе - на всю ширину карточки, поровну
   local brow = CreateFrame("Frame", nil, card); brow:SetHeight(34)
   brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)
   card.craft = UI.Button(brow, L"Крафт", 100, 28, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- «Где взять»: тренер, продавцы, добыча, задания, репутация и карта зоны
-  card.where = UI.Button(brow, L"Где взять", 100, 28, function() if sel and ns.ShowSources then ns.ShowSources(sel) end end)
-  card.where:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Где взять рецепт: тренер, продавцы, добыча, задания, нужная репутация и карта зоны (данные Wowhead WoW Forever).", 1, 1, 1, true); GameTooltip:Show() end)
-  card.where:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- «На аукционе»: найти результат у аукциониста и обновить цены всего рецепта
   card.onAH = UI.Button(brow, L"На аукционе", 100, 28, function()
     if not sel then return end
@@ -473,8 +466,8 @@ local function buildCraft(f)
   card.prices, card.alarm = card.onAH, card.onAH
   local function layoutBtns()
     local w = (brow:GetWidth() or 0); if w < 60 then w = 380 end
-    local bw = math.floor((w - 12) / 3)
-    for i, b in ipairs({ card.craft, card.where, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
+    local bw = math.floor((w - 6) / 2)
+    for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
   end
   brow:SetScript("OnSizeChanged", layoutBtns); layoutBtns()
   card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 2, -8); card.total:SetPoint("RIGHT", -12, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
@@ -620,58 +613,6 @@ local function buildSignals(f)
       if e:HasFocus() then local id = ns.idFromLink(link); if id then ns.AddSignal(id, side) end; e:SetText(""); e:ClearFocus() end
     end
   end) end
-end
-
--- ---------- вкладка «Банк» ----------
-local bank = {}
-local refreshBank
-local function buildBank(f)
-  local S = ns.DB.settings
-  bank.status = UI.Font(f, 11, UI.DIM); bank.status:SetPoint("TOPLEFT", 4, 0); bank.status:SetPoint("RIGHT", -4, 0); bank.status:SetWordWrap(true)
-  local cb = UI.Check(f, L"вместе с сумками", function() return S.bankWithBags end, function(v) S.bankWithBags = v; refreshBank() end); cb:SetPoint("TOPLEFT", 0, -30)
-  bank.total = UI.Font(f, 13, UI.GOLD); bank.total:SetPoint("TOPRIGHT", -4, -32); bank.total:SetJustifyH("RIGHT")
-  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -60); hdr:SetPoint("TOPRIGHT", 0, -60); hdr:SetHeight(14)
-  local function col(t, x) local s2 = UI.Font(hdr, 10, UI.DIM); s2:SetPoint("RIGHT", hdr, "RIGHT", x, 0); s2:SetText(t) end
-  local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 46, 0); h1:SetText(L"Предмет")
-  col(L"Всего", -32); col(L"Цена за шт", -140); col(L"Кол-во", -258)
-  bank.list = UI.List(f, 24, function(r)
-    r.star = UI.Icon(r, "star-off", 16, L"Избранное", function(self) local d = self:GetParent().data; if d then ns.ToggleMark(d.id) end end); r.star:SetPoint("LEFT", 4, 0)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", r.star, "RIGHT", 6, 0)
-    r.bell = UI.Bell(r, 16, function(self) local d = self:GetParent().data; return d and d.id end); r.bell:SetPoint("RIGHT", -4, 0)
-    r.sum = UI.Font(r, 11); r.sum:SetPoint("RIGHT", r.bell, "LEFT", -8, 0); r.sum:SetWidth(100); r.sum:SetJustifyH("RIGHT")
-    r.unit = UI.Font(r, 11); r.unit:SetPoint("RIGHT", r.sum, "LEFT", -8, 0); r.unit:SetWidth(110); r.unit:SetJustifyH("RIGHT")
-    r.cnt = UI.Font(r, 12); r.cnt:SetPoint("RIGHT", r.unit, "LEFT", -8, 0); r.cnt:SetWidth(60); r.cnt:SetJustifyH("RIGHT")
-    r.name = UI.Font(r, 12); r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", r.cnt, "LEFT", -6, 0)
-    r:SetScript("OnClick", function(self) if self.data then ns.ShowChartDialog(self.data.id) end end)
-    r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:AddLine(L"Клик - график цены", 0.9, 0.7, 0.3); GameTooltip:Show() end end)
-    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  end, function(r, d)
-    r.star:SetIcon(ns.IsMarked(d.id) and "star-on" or "star-off"); r.bell:Update(d.id)
-    r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
-    r.cnt:SetText(d.n .. (d.inBags and d.inBags > 0 and (" |cffaaaaaa(" .. d.inBags .. ")|r") or ""))
-    r.unit:SetText(d.p and ns.money(d.p, true) or L"|cff777777нет|r")
-    r.sum:SetText(d.p and ns.money(d.p * d.n, true) or "")
-  end)
-  bank.list:SetPoint("TOPLEFT", 0, -76); bank.list:SetPoint("BOTTOMRIGHT")
-end
-function refreshBank()
-  if not bank.list then return end
-  local c = ns.DB.chars[bank.ck or charKey] or {}
-  local S = ns.DB.settings
-  local items = {}
-  for id, n in pairs(c.bank or {}) do items[id] = { id = id, n = n, inBags = 0 } end
-  if S.bankWithBags then
-    for id, n in pairs(c.bags or {}) do local d = items[id] or { id = id, n = 0, inBags = 0 }; d.n = d.n + n; d.inBags = n; items[id] = d end
-  end
-  local list, total = {}, 0
-  ns.WithRealm(c.realmKey, function()
-    for _, d in pairs(items) do d.p = ns.AHPrice(d.id); if d.p then total = total + d.p * d.n end; list[#list + 1] = d end
-  end)
-  table.sort(list, function(a, b) local x, y = (a.p or 0) * a.n, (b.p or 0) * b.n; if x == y then return ns.itemName(a.id) < ns.itemName(b.id) end return x > y end)
-  bank.list:SetData(list)
-  bank.list.empty:SetText(L"Банк этого персонажа ещё не записан - зайдите им и откройте банк у банкира.")
-  bank.status:SetText(c.bankT and (L"Банк: снимок " .. ns.ago(c.bankT) .. L" |cffaaaaaa(обновляется, когда банк открыт)|r") or L"|cffff9966Банк не записан - откройте банк этим персонажем.|r")
-  bank.total:SetText(L"Стоимость по аукциону: " .. ns.money(total))
 end
 
 -- ---------- вкладка «Аукционы»: фракционный (весь аукцион) и общий (что где выгоднее) ----------
@@ -1040,24 +981,17 @@ local function buildSettings(f)
 
   local b = column(410, L"Интерфейс")
   chk(b, L"Кнопка у миникарты (после перезагрузки интерфейса)", "minimapShown", function() S.minimapHidden = not S.minimapShown end)
-  chk(b, L"Компактное главное окно (после перезагрузки интерфейса)", "compactMain", nil, true)
-  chk(b, L"Значки в сумках: молоток - на аукцион, мешочек - торговцу", "bagGlow", function() if ns.UpdateBagGlow then ns.UpdateBagGlow() end end)
-  chk(b, L"Сортировка сумок: аукцион наверх, торговцу вниз", "sortByValue")
-  chk(b, L"Окошко стоимости сумок (перетаскивается)", "bagValue", function() if ns.UpdateBagValue then ns.UpdateBagValue() end end, true)
-  chk(b, L"У торговца: продавать хлам автоматически", "autoJunk")
-  chk(b, L"У торговца: чинить снаряжение автоматически", "autoRepair")
   local rChat = buttons(b, L"Сообщения:", { { "window", L"в журнал", 80 }, { "main", L"в чат", 64 }, { "off", L"никуда", 70 } }, function() return S.chatMode or "window" end, function(v) S.chatMode = v end)
   local rLang = buttons(b, L"Язык:", { { "auto", L"Авто", 64 }, { "ru", "Русский", 74 }, { "en", "English", 74 } }, function() return S.lang or "auto" end, function(v) S.lang = v; setp.reload:Show(); setp.note:Show() end)
   setp.note = UI.Font(f, 10, UI.GOLD); setp.note:SetPoint("TOPLEFT", b.x + 4, b.y - 2); setp.note:SetText(L"Язык меняется после перезагрузки интерфейса."); setp.note:Hide()
   setp.reload = UI.Button(f, L"Перезагрузить интерфейс", 190, 22, function() if ReloadUI then ReloadUI() end end, true)
   setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
-  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Окно профессии игры и часы"); b.y = b.y - 72
+  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Окно профессии игры"); b.y = b.y - 72
   chk(b, L"Таблица «Где купить и где продать» и столбики Ф / Общ", "profUI", function() if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end; if ns.RefreshMarketTable then ns.RefreshMarketTable() end end, true)
-  chk(b, L"Уведомлять, когда готов кулдаун (трансмутации)", "cdNotify", nil, true)
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
   local jb = UI.Button(f, L"Открыть журнал", 170, 22, function() ns.OpenLog() end, true); jb:SetPoint("TOPLEFT", b.x, b.y - 6)
-  jb:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Все сообщения аддона: снимки, общий рынок, сигналы, продажи и кулдауны.", 1, 1, 1, true); GameTooltip:Show() end)
+  jb:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Все сообщения аддона: снимки, общий рынок, сигналы и продажи.", 1, 1, 1, true); GameTooltip:Show() end)
   jb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   setp.journal = jb
   -- /reload одной кнопкой (всегда видна)
@@ -1085,14 +1019,6 @@ local function makePopup(name, w, h, title)
   return p
 end
 local pops = {}
--- банк персонажа
-local function openBank(ck)
-  if not pops.bank then pops.bank = makePopup("WolfichMarketBankPopup", 700, 440, L"Банк"); buildBank(pops.bank.body) end
-  bank.ck = ck
-  local nm = (ns.DB.chars[ck] or {}).name or ck
-  pops.bank.title:SetText(L"Банк" .. " - " .. nm)
-  pops.bank.dim:Show(); refreshBank()
-end
 -- журнал сообщений аддона
 function ns.OpenLog()
   if not win then return end
@@ -1153,144 +1079,14 @@ local function refreshHome()
   home.child:SetHeight(math.max(10, y))
 end
 
--- ---------- раздел «Твинки»: персонажи аккаунта ----------
-local alts = {}
-local function profLines(c)
-  local out = {}
-  for name, p in pairs(c.profs or {}) do if not p.virtual then out[#out + 1] = { name, p.skill or 0, p.max or 0 } end end
-  table.sort(out, function(a, b) return a[1] < b[1] end)
-  return out
-end
-local function buildAlts(f)
-  local t = UI.Font(f, 18, UI.GOLD, "OVERLAY", "OUTLINE"); t:SetPoint("TOPLEFT", 2, 0); t:SetText(L"Персонажи аккаунта")
-  alts.sum = UI.Font(f, 11, UI.DIM); alts.sum:SetPoint("TOPRIGHT", -4, -4); alts.sum:SetJustifyH("RIGHT")
-  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -32); sf:SetPoint("BOTTOMRIGHT", 0, 0)
-  if sf.SetClipsChildren then sf:SetClipsChildren(true) end
-  local child = CreateFrame("Frame", nil, sf); child:SetSize(800, 400); sf:SetScrollChild(child)
-  local cur = 0
-  sf:EnableMouseWheel(true)
-  sf:SetScript("OnMouseWheel", function(self, d)
-    local max = math.max(0, (child:GetHeight() or 0) - (self:GetHeight() or 0))
-    cur = math.max(0, math.min(max, cur - d * 40)); self:SetVerticalScroll(cur)
-  end)
-  alts.child, alts.sf, alts.cards = child, sf, {}
-end
-local CARD_W, CARD_H = 258, 222
-local function altCard(i)
-  local c = alts.cards[i]
-  if c then return c end
-  c = CreateFrame("Frame", nil, alts.child); c:SetSize(CARD_W, CARD_H)
-  UI.Skin(c, { theme = "acard", scale = 0.22 })
-  c.name = UI.Font(c, 14, nil, "OVERLAY", "OUTLINE"); c.name:SetPoint("TOPLEFT", 16, -14); c.name:SetPoint("RIGHT", -56, 0)
-  c.you = UI.Font(c, 10, UI.GOLD); c.you:SetPoint("TOPRIGHT", -16, -16); c.you:SetText(L"ВЫ")
-  c.l2 = UI.Font(c, 11, UI.DIM); c.l2:SetPoint("TOPLEFT", c.name, "BOTTOMLEFT", 0, -4)
-  c.l3 = UI.Font(c, 10, UI.DIM); c.l3:SetPoint("TOPLEFT", c.l2, "BOTTOMLEFT", 0, -3); c.l3:SetPoint("RIGHT", -16, 0)
-  c.sep = c:CreateTexture(nil, "ARTWORK"); c.sep:SetHeight(1); c.sep:SetPoint("TOPLEFT", 16, -66); c.sep:SetPoint("TOPRIGHT", -16, -66); c.sep:SetColorTexture(0.55, 0.42, 0.2, 0.6)
-  c.rows = {}
-  for k = 1, 5 do
-    local a = UI.Font(c, 11, UI.DIM); a:SetPoint("TOPLEFT", 16, -74 - (k - 1) * 18)
-    local b = UI.Font(c, 11); b:SetPoint("TOPRIGHT", -16, -74 - (k - 1) * 18); b:SetJustifyH("RIGHT")
-    c.rows[k] = { a, b }
-  end
-  c.note = UI.Font(c, 10, { 1, 0.6, 0.54 }); c.note:SetPoint("BOTTOMLEFT", 16, 44); c.note:SetPoint("RIGHT", -16, 0)
-  c.bank = UI.Button(c, L"Банк", 108, 26, function() openBank(c.ck) end); c.bank:SetPoint("BOTTOMLEFT", 14, 14); c.bank:SetPoint("BOTTOMRIGHT", -14, 14)
-  alts.cards[i] = c
-  return c
-end
-local function refreshAlts()
-  if not alts.child then return end
-  local list = ns.AltList()
-  local W = (alts.sf:GetWidth() or 0) > 100 and alts.sf:GetWidth() or 812
-  alts.child:SetWidth(W)
-  local per = math.max(1, math.floor((W + 10) / (CARD_W + 10)))
-  local gold = 0
-  for i, ck in ipairs(list) do
-    local c = ns.DB.chars[ck] or {}
-    local card = altCard(i)
-    card.ck = ck
-    local col, row = (i - 1) % per, math.floor((i - 1) / per)
-    card:ClearAllPoints(); card:SetPoint("TOPLEFT", col * (CARD_W + 10), -row * (CARD_H + 10))
-    card.name:SetText(charLabel(ck))
-    card.you:SetShown(ck == ns.charKey)
-    card.l2:SetText((c.level and (L"Уровень" .. " " .. c.level) or "") .. ((c.race or c.className) and (", " .. (c.race or "") .. " " .. (c.className or "")) or ""))
-    local online = ck == ns.charKey
-    card.l3:SetText((c.zone and (c.zone .. " · ") or "") .. (online and ("|cff78d98a" .. L"сейчас в сети" .. "|r") or (L"был в сети" .. " " .. ns.ago(c.seen))))
-    local rows = { { L"Золото", c.money and ns.money(c.money, true) or "|cff777777?|r" } }
-    for _, p in ipairs(profLines(c)) do if #rows < 5 then rows[#rows + 1] = { p[1], p[2] .. " / " .. p[3] } end end
-    for k, r in ipairs(card.rows) do
-      local d = rows[k]
-      if d then r[1]:SetText(d[1]); r[2]:SetText(d[2]); r[1]:Show(); r[2]:Show() else r[1]:Hide(); r[2]:Hide() end
-    end
-    gold = gold + (c.money or 0)
-    card.note:SetText(c.bankT and "" or L"|cff999999Банк ещё не открывали|r")
-    card:Show()
-  end
-  for i = #list + 1, #alts.cards do alts.cards[i]:Hide() end
-  alts.child:SetHeight(math.ceil(#list / per) * (CARD_H + 10))
-  alts.sum:SetText(L"Всего золота" .. ": " .. ns.money(gold, true))
-end
-
--- ---------- раздел «Часы»: кулдауны трансмутаций и других рецептов ----------
-local cdp = {}
-local function buildCds(f)
-  local t = UI.Font(f, 18, UI.GOLD, "OVERLAY", "OUTLINE"); t:SetPoint("TOPLEFT", 2, 0); t:SetText(L"Кулдауны трансмутаций")
-  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -26); sub:SetPoint("RIGHT", -230, 0); sub:SetWordWrap(true)
-  sub:SetText(L"Аддон запоминает, когда персонаж провёл трансмутацию, и считает, когда можно снова. Готово - надпись сверху экрана и свечение часов слева.")
-  local S = ns.DB.settings
-  local chk = UI.Check(f, L"уведомлять, когда готово", function() return S.cdNotify ~= false end, function(v) S.cdNotify = v end)
-  chk:SetPoint("TOPRIGHT", -170, -2)
-  local hd = CreateFrame("Frame", nil, f); hd:SetPoint("TOPLEFT", 0, -62); hd:SetPoint("TOPRIGHT", 0, -62); hd:SetHeight(14)
-  local function col(txt, x) local c = UI.Font(hd, 10, UI.GOLD); c:SetPoint("LEFT", x, 0); c:SetText(txt) end
-  col(L"Рецепт", 34); col(L"Персонаж", 360); col(L"Осталось", 500)
-  cdp.list = UI.List(f, 36, function(r)
-    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(26, 26); r.icon:SetPoint("LEFT", 4, 0)
-    r.name = UI.Font(r, 12); r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0); r.name:SetWidth(320)
-    r.who = UI.Font(r, 11); r.who:SetPoint("LEFT", 360, 0); r.who:SetWidth(130)
-    r.left = UI.Font(r, 12); r.left:SetPoint("TOPLEFT", 500, -4)
-    r.barBg = r:CreateTexture(nil, "ARTWORK"); r.barBg:SetPoint("BOTTOMLEFT", 500, 6); r.barBg:SetSize(180, 7); r.barBg:SetColorTexture(0.1, 0.08, 0.05, 1)
-    r.bar = r:CreateTexture(nil, "ARTWORK", nil, 1); r.bar:SetPoint("LEFT", r.barBg, "LEFT"); r.bar:SetHeight(7); r.bar:SetColorTexture(0.95, 0.78, 0.38, 1)
-    r.when = UI.Font(r, 10, UI.DIM); r.when:SetPoint("RIGHT", -6, 0); r.when:SetJustifyH("RIGHT")
-    r.open = UI.Button(r, L"Открыть профессию", 150, 24, function(self)
-      local d = self:GetParent().data
-      if d and C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then pcall(C_TradeSkillUI.OpenRecipe, d.rid); ns.After(0.3, lower) end
-    end, true)
-    r.open:SetPoint("RIGHT", -4, 0)
-  end, function(r, d)
-    r.icon:SetTexture(d.icon or 134400); r.name:SetText(d.name or "?"); r.who:SetText(charLabel(d.ck))
-    local left = (d.ready or 0) - time()
-    local e = ns.DB.chars[d.ck] and ns.DB.chars[d.ck].cds and ns.DB.chars[d.ck].cds[d.rid]
-    if left <= 0 then
-      r.left:SetText("|cff78d98a" .. L"Готово!" .. "|r"); r.barBg:Hide(); r.bar:Hide(); r.when:SetText("")
-      r.open:SetShown(d.ck == ns.charKey)
-    else
-      local dd, h, m = math.floor(left / 86400), math.floor(left % 86400 / 3600), math.floor(left % 3600 / 60)
-      r.left:SetText((dd > 0 and (dd .. L" д ") or "") .. h .. L" ч " .. m .. L" м")
-      local dur = e and e.dur or 86400 * 2
-      r.barBg:Show(); r.bar:Show(); r.bar:SetWidth(math.max(1, 180 * math.max(0, math.min(1, 1 - left / dur))))
-      r.when:SetText(date("%d.%m %H:%M", d.ready)); r.open:Hide()
-    end
-  end)
-  cdp.list:SetPoint("TOPLEFT", 0, -78); cdp.list:SetPoint("BOTTOMRIGHT", 0, 20)
-  cdp.list.empty:SetText(L"Кулдаунов пока нет. Откройте окно профессии персонажем-алхимиком - трансмутации появятся здесь.")
-  local note = UI.Font(f, 10, UI.DIM); note:SetPoint("BOTTOMLEFT", 2, 2); note:SetPoint("RIGHT", -2, 0)
-  note:SetText(L"Рецепт попадает в список, когда персонаж открывает окно профессии; время отсчитывается от последнего проведения.")
-  -- пока раздел открыт - таймеры идут каждую секунду
-  local acc = 0
-  f:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0); if acc >= 1 then acc = 0; if cdp.list then cdp.list:Refresh() end end end)
-end
-local function refreshCds() if cdp.list then cdp.list:SetData(ns.AllCooldowns()) end end
-
 -- ---------- окно ----------
-local VIEW_HOME, VIEW_ALTS, VIEW_CRAFT, VIEW_AUC, VIEW_CD, VIEW_SET = 1, 2, 3, 4, 5, 6
-local NAV_NAMES = { L"Главная", L"Твинки", L"Профессии", L"Аукцион", L"Часы", L"Настройки" }
-local function updateGlow() if win and win.nav then win.nav[VIEW_CD]:SetPulse(ns.AnyCooldownReady and ns.AnyCooldownReady() or false) end end
+local VIEW_HOME, VIEW_CRAFT, VIEW_AUC, VIEW_SET = 1, 2, 3, 4
+local NAV_NAMES = { L"Главная", L"Профессии", L"Аукцион", L"Настройки" }
 local function refresh()
   if not win or not win:IsShown() then return end
-  if view == VIEW_HOME then refreshHome() elseif view == VIEW_ALTS then refreshAlts() elseif view == VIEW_CRAFT then refreshCraft()
-  elseif view == VIEW_AUC then refreshAuc() elseif view == VIEW_CD then refreshCds() else refreshSettings() end
-  if pops.bank and pops.bank.dim:IsShown() then refreshBank() end
+  if view == VIEW_HOME then refreshHome() elseif view == VIEW_CRAFT then refreshCraft()
+  elseif view == VIEW_AUC then refreshAuc() else refreshSettings() end
   if pops.log and pops.log.dim:IsShown() then refreshLog() end
-  updateGlow()
 end
 local function selectView(i)
   view = i
@@ -1308,17 +1104,12 @@ local function build()
   win:SetPoint("CENTER"); win:SetFrameStrata("HIGH"); win:SetToplevel(true)
   win:SetMovable(true); win:EnableMouse(true); win:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
-  if ns.DB.settings.compactMain ~= false then
-    win.content = UI.MainChromeCompact(win, function(i) selectView(i) end, NAV_NAMES)
-    win.chromeVer:SetText("v" .. (ns.VERSION or ""))
-  else
-    win.content = UI.MainChrome(win, function(i) selectView(i) end, NAV_NAMES)
-    win.chromeSub:SetText("v" .. (ns.VERSION or ""))
-  end
+  win.content = UI.MainChromeCompact(win, function(i) selectView(i) end, NAV_NAMES)
+  win.chromeVer:SetText("v" .. (ns.VERSION or ""))
   -- разделы по порядку значков колонки
   win.tabs = win.nav
   win.pages = {}
-  for i, builder in ipairs({ buildHome, buildAlts, buildCraft, buildAuc, buildCds, buildSettings }) do
+  for i, builder in ipairs({ buildHome, buildCraft, buildAuc, buildSettings }) do
     local f = CreateFrame("Frame", nil, win.content); f:SetAllPoints()
     builder(f); f:Hide(); win.pages[i] = f
   end
@@ -1326,17 +1117,16 @@ local function build()
   win:HookScript("OnMouseDown", raise)
   if win.content then win.content:EnableMouse(true); win.content:HookScript("OnMouseDown", raise) end
   charKey = ns.charKey
+  -- разделов стало меньше (2.44): старый номер раздела не подходит - открыть «Главную»
+  if (ns.DB.settings.mainViewV or 1) < 2 then ns.DB.settings.mainView = nil; ns.DB.settings.mainViewV = 2 end
   selectView(ns.DB.settings.mainView or VIEW_HOME)
   win:Hide() -- новые фреймы видимы сразу; показываем по кнопке
 end
 
 ns._mainCraft = craft -- для автотестов
 ns._mainSig = sig
-ns._mainAlts = alts
-ns._mainCd = cdp
 ns._mainHome = home
 ns._mainPops = pops
-ns._openBank = function(ck) openBank(ck) end
 function ns.ToggleMain(section)
   if not ns.DB or not ns.charKey then return end
   build()
@@ -1363,10 +1153,8 @@ ns.Listen("MARKS", refresh)
 ns.Listen("RECIPES", refresh)
 ns.Listen("NAMES", refresh)
 ns.Listen("AH_STATE", refresh)
-ns.Listen("ALTS", function() if win and win:IsShown() and view == VIEW_ALTS then refresh() end end)
-ns.Listen("CD", function() updateGlow(); if win and win:IsShown() and view == VIEW_CD then refreshCds() end end)
 ns.Listen("LOG", function() if pops.log and pops.log.dim:IsShown() then refreshLog() end end)
-ns.Listen("INVENTORY", function() if (pops.bank and pops.bank.dim:IsShown()) or ns.DB.settings.useBank then refresh() end end)
+ns.Listen("INVENTORY", function() if ns.DB.settings.useBank then refresh() end end)
 ns.Listen("ALTAH", function() if view == VIEW_AUC then refresh() end end)
 ns._mainAuc = aucp
 
