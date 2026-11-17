@@ -581,7 +581,7 @@ function UI.Chart(parent)
     if f.hoverIdx ~= best then
       f.hoverIdx = best
       GameTooltip:SetOwner(f, "ANCHOR_CURSOR")
-      GameTooltip:AddLine(date("%d.%m.%Y  %H:%M", p[1]), 1, 0.85, 0.5)
+      GameTooltip:AddLine(date("%d.%m.%Y  %H:%M", math.floor(p[1])), 1, 0.85, 0.5)
       GameTooltip:AddDoubleLine(L"цена", ns.money(p[2]), 0.85, 0.8, 0.7, 1, 1, 1)
       if f.sold and f.sold[best] and f.sold[best] > 0 then GameTooltip:AddDoubleLine(L"продано с прошлого снимка", f.sold[best] .. " " .. L"шт", 0.85, 0.8, 0.7, 0.3, 0.75, 0.7) end
       if p[3] then GameTooltip:AddDoubleLine(L"выставлено", p[3] .. " " .. L"шт", 0.85, 0.8, 0.7, 0.8, 0.8, 0.8) end
@@ -651,7 +651,7 @@ function UI.Chart(parent)
       end
       local s = lbl(self.labels, steps + 2 + k, 9); s:ClearAllPoints()
       s:SetPoint(k == 0 and "TOPLEFT" or k == nT and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", x, -4)
-      s:SetText(date((t1 - t0) > 2 * 86400 and "%d.%m" or "%d.%m %H:%M", t))
+      s:SetText(date((t1 - t0) > 2 * 86400 and "%d.%m" or "%d.%m %H:%M", math.floor(t)))
     end
     -- продано между снимками: столбики внизу (морская волна)
     local sold, smax = { 0 }, 0
@@ -872,8 +872,8 @@ function UI.ItemDetail(det, opts)
       self.lbl[1]:SetText(L"Себестоимость крафта"); self.val[1]:SetText(ns.money(unit, true))
       self.lbl[2]:SetText(L"Прибыль на Ф"); self.val[2]:SetText(pf(ns.ProfitIn(rec, "main")))
       self.lbl[3]:SetText(L"Прибыль на Общ"); self.val[3]:SetText(pf(ns.ProfitIn(rec, "neutral")))
-      self.btn:SetLabel(L"Найти на аукционе"); self.btn:Show()
-      self.btn:SetScript("OnClick", function() ns.SearchAH(id) end)
+      self.btn:SetLabel(L"В план"); self.btn:Show()
+      self.btn:SetScript("OnClick", function() ns.AddPlan(rec, ck or ns.charKey, prof, 1) end)
     else
       self.lbl[1]:SetText(L"Себестоимость крафта"); self.val[1]:SetText(L"|cff888888не крафтится|r")
       local v = ns.DB.vendor[id]

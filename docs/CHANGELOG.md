@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.2
+
+### ✨ Back
+- **Shopping Plan:** the *Plan* button in the recipe card, *Plan* in *My crafts*, the **Plan** tab at the auctioneer with the shopping list, counts and batch profit.
+
+### ✨ Вернулось
+- **«План» закупки:** кнопка *«Запланировать»* в карточке рецепта, *«План»* в *«Мой крафт»*, вкладка **«План»** у аукциониста со списком покупок, количеством и прибылью партии.
+
 ## 2.44.1
 
 ### 🛠 Changes

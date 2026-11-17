@@ -429,7 +429,7 @@ local function buildCraft(f)
     local hl = r:CreateTexture(nil, "BACKGROUND"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.8, 0.4, 0.12); hl:Hide(); r.hl = hl
     r:Hide(); card.rows[i] = r
   end
-  -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли
+  -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
   local prow = CreateFrame("Frame", nil, card); prow:SetHeight(34); card.portRow = prow
   local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 2, 0); pl:SetText(L"Порций:")
   local function setN(v)
@@ -447,6 +447,10 @@ local function buildCraft(f)
   card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
   local plus = UI.Button(prow, "+", 28, 26, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
   local p5 = UI.Button(prow, "+5", 38, 26, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
+  card.plan = UI.Button(prow, L"Запланировать", 150, 26, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
+  card.plan:SetPoint("RIGHT", 0, 0)
+  card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
+  card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- кнопки: Крафт / На аукционе - на всю ширину карточки, поровну
   local brow = CreateFrame("Frame", nil, card); brow:SetHeight(34)
   brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)

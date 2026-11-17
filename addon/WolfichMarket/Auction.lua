@@ -10,7 +10,7 @@ local busy, processing, wanted = false, false, false
 local panel
 local tabs, pages = nil, {}
 -- вкладки панели у аукциониста
-local TAB_BUY, TAB_SELL = 2, 3 -- 1 избранное, 4 мой крафт
+local TAB_BUY, TAB_SELL, TAB_PLAN = 2, 3, 5 -- 1 избранное, 4 мой крафт
 local buyItem, sellSel
 
 local function setStatus() ns.Fire("SCAN_STATE") end
@@ -261,6 +261,7 @@ local function myIDs()
     end
   end
   for id in pairs(ns.DB.marked) do addAll(ids, seen, id) end
+  for _, pl in ipairs(ns.Plans and ns.Plans() or {}) do recipeIDs(pl, ids, seen) end
   return ids
 end
 function ns.QuickRefresh(ids)
@@ -330,6 +331,7 @@ local function rebuildQuick()
 end
 ns.Listen("RECIPES", rebuildQuick)
 ns.Listen("MARKS", rebuildQuick)
+ns.Listen("PLAN", rebuildQuick)
 function updateQuick()
   if not panel or not panel.quickBtn then return end
   if quick then panel.quickBtn:SetLabel(string.format(L"Стоп %d/%d", math.min(quick.i, #quick.ids), #quick.ids)); panel.quickBtn:Enable()
@@ -456,6 +458,7 @@ local function pageMarked(f)
   l:SetAllPoints()
   withDetail(l)
   f.list = l
+  ns.Listen("PLAN", function() if f:IsShown() then l:Refresh() end end)
   f.refresh = function()
     local d = {}
     for id in pairs(ns.DB.marked) do d[#d + 1] = { id = id } end
@@ -466,12 +469,33 @@ local function pageMarked(f)
 end
 
 -- вкладка: прибыльный крафт
+-- сколько порций рецепта уже в плане у текущего персонажа
+local function planCount(rec)
+  for _, p in ipairs(ns.Plans()) do if p.id == rec.id and p.ck == ns.charKey then return p.n end end
+  return 0
+end
 local function pageCraft(f)
   local l = UI.List(f, 22, function(r)
     itemRow(r)
+    -- «План»: +1 порция рецепта в план закупки (каждый клик - ещё одна)
+    r.plan = UI.Button(r, L"План", 54, 18, function()
+      local d = r.data
+      if d then ns.AddPlan(d.pr.rec, ns.charKey, d.pr.prof, planCount(d.pr.rec) + 1) end
+    end)
+    r.plan:SetPoint("RIGHT", r.bell, "LEFT", -4, 0)
+    r.plan:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      GameTooltip:AddLine(L"Добавить в план закупки", 1, 0.82, 0)
+      GameTooltip:AddLine(L"Каждый клик - ещё одна порция. Что докупить - во вкладке «План».", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    r.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.search:ClearAllPoints(); r.search:SetPoint("RIGHT", r.plan, "LEFT", -4, 0)
   end, function(r, d)
     fillItemRow(r, { id = d.id })
     r.buy:Hide()
+    local n = planCount(d.pr.rec)
+    r.plan:SetLabel(n > 0 and (L"План" .. " ×" .. n) or L"План"); r.plan:SetGold(n > 0)
     r.name:SetText(ns.itemLinkText(d.id) .. (ns.IsLearned(d.pr.rec) and "" or L" |cffff9966(не изучен)|r"))
     r.chg:SetText(d.pr.profit and ((d.pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(d.pr.profit, true) .. "|r") or L"|cffaa8866нет цены|r")
     r.chg:SetWidth(80)
@@ -617,7 +641,7 @@ local function pageBuy(f)
   end
   f.setCommodity(false)
   -- список материалов для всех рецептов персонажа, по профессиям
-  f.back = UI.Button(f, L"< Назад", 110, 20, function() buyItem = nil; f.refresh() end)
+  f.back = UI.Button(f, L"< Назад", 110, 20, function() buyItem = nil; if f.fromPlan then f.fromPlan = nil; tabs.select(TAB_PLAN) else f.refresh() end end)
   f.back:SetPoint("TOPRIGHT", 0, -32)
   f.mats = UI.List(f, 22, itemRow, fillItemRow)
   withDetail(f.mats) -- треугольник: себестоимость, прибыль и график
@@ -690,12 +714,13 @@ local function searchItem(id, tries)
   pcall(C_AuctionHouse.SendSearchQuery, key, sorts, false)
 end
 
-function ns.OpenBuy(id, qty)
+function ns.OpenBuy(id, qty, fromPlan)
   if not panel then return end
   if not ns.ahOpen then ns.say(L"покупка доступна у аукциониста.") return end
   buyItem = id
   tabs.select(TAB_BUY)
   local f = pages[TAB_BUY]
+  f.fromPlan = fromPlan
   if qty and qty > 0 then f.qty:SetText(qty) end
   f.icon:SetTexture(ns.itemIcon(id)); f.title:SetText(ns.itemLinkText(id)); f.sub:SetText(L"ищу на аукционе...")
   f.list:SetData({}); f.total:SetText(""); f.confirm:Disable(); f.setCommodity(false)
@@ -1024,8 +1049,97 @@ function ns.SellSelect(id)
 end
 function ns.OpenChart(id) if ns.ShowChartDialog then ns.ShowChartDialog(id) end end
 
-local BUILDERS = { pageMarked, pageBuy, pageSell, pageCraft }
-local NAMES = { "Избранное", "Купить", "Продать", "Мой крафт" }
+-- «План»: рецепты, запланированные в главном окне, и всё, что для них нужно докупить
+local function pagePlan(f)
+  f.title = UI.Font(f, 13, UI.GOLD, "OVERLAY", "OUTLINE"); f.title:SetPoint("TOPLEFT", 2, -2); f.title:SetText(L"План закупки")
+  f.clear = UI.Button(f, L"Очистить", 90, 20, function() ns.ClearPlans() end); f.clear:SetPoint("TOPRIGHT", 0, 0)
+  -- обновить цены только для плана: результаты и материалы всех рецептов плана
+  f.upd = UI.Button(f, L"Обновить цены плана", 150, 20, function()
+    local ids, seen = {}, {}
+    for _, pl in ipairs(ns.Plans()) do recipeIDs(pl, ids, seen) end
+    ns.QuickRefresh(ids)
+  end); f.upd:SetPoint("RIGHT", f.clear, "LEFT", -6, 0)
+  f.recs = UI.List(f, 20, function(r)
+    r.x = UI.Icon(r, "skin\\ai-x", 14, L"Убрать из плана", function(self) local d = self:GetParent().data; if d then ns.RemovePlan(d.i) end end); r.x:SetPoint("RIGHT", -2, 0)
+    -- количество: [-] [поле] [+], поле можно вписать вручную
+    local function setN(v) local d = r.data; if d then ns.SetPlanCount(d.i, v) end end
+    r.plus = UI.Button(r, "+", 18, 18, function() local d = r.data; if d then setN(d.p.n + 1) end end); r.plus:SetPoint("RIGHT", r.x, "LEFT", -8, 0)
+    r.n = CreateFrame("EditBox", nil, r, "InputBoxTemplate"); r.n:SetSize(30, 18); r.n:SetPoint("RIGHT", r.plus, "LEFT", -4, 0)
+    r.n:SetAutoFocus(false); r.n:SetNumeric(true); r.n:SetMaxLetters(3); r.n:SetJustifyH("CENTER")
+    if r.n.SetFont then UI.SetFont(r.n, UI.FONT, 11, "") end
+    r.n:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    r.n:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
+    r.minus = UI.Button(r, "-", 18, 18, function() local d = r.data; if d then setN(d.p.n - 1) end end); r.minus:SetPoint("RIGHT", r.n, "LEFT", -6, 0)
+    r.profit = UI.Font(r, 11); r.profit:SetPoint("RIGHT", r.minus, "LEFT", -8, 0); r.profit:SetJustifyH("RIGHT")
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 2, 0)
+    r.name = UI.Font(r, 11); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetPoint("RIGHT", r.profit, "LEFT", -6, 0)
+  end, function(r, d)
+    local pr = d.pr or {}
+    r.profit:SetText(pr.profit and ((pr.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(pr.profit, true) .. "|r") or L"|cffaa8866нет цены|r")
+    r.icon:SetTexture(d.p.out and ns.itemIcon(d.p.out) or 134400)
+    local who = d.p.ck and d.p.ck ~= ns.charKey and (" |cffaaaaaa(" .. (d.p.ck:match("^(.-)%-") or d.p.ck) .. ")|r") or ""
+    r.name:SetText(d.p.name .. who); if not r.n:HasFocus() then r.n:SetText(tostring(d.p.n)) end
+  end)
+  f.recs:SetPoint("TOPLEFT", 0, -24); f.recs:SetPoint("RIGHT"); f.recs:SetHeight(84)
+  f.recs.empty:SetText(L"План пуст. В главном окне (/wm) выберите рецепт, задайте порции и нажмите «Запланировать».")
+  -- «учитывать свои материалы»: вычитать то, что уже есть в сумках и банке
+  f.useStock = UI.Check(f, L"учитывать свои материалы", function() return ns.DB.settings.planUseStock ~= false end, function(v) ns.DB.settings.planUseStock = v; f.refresh() end)
+  f.useStock:SetPoint("TOPLEFT", 0, -112)
+  local hdr = CreateFrame("Frame", nil, f); hdr:SetPoint("TOPLEFT", 0, -136); hdr:SetPoint("TOPRIGHT", 0, -136); hdr:SetHeight(14)
+  local h1 = UI.Font(hdr, 10, UI.DIM); h1:SetPoint("LEFT", 24, 0); h1:SetText(L"Материал")
+  local h2 = UI.Font(hdr, 10, UI.DIM); h2:SetPoint("RIGHT", hdr, "RIGHT", -70, 0); h2:SetText(L"Докупить")
+  f.items = UI.List(f, 32, function(r)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(22, 22); r.icon:SetPoint("LEFT", 2, 0)
+    r.buyBtn = UI.Button(r, L"Купить", 62, 20, function(self) local d = self:GetParent().data; if d then ns.OpenBuy(d.id, d.buy, true) end end); r.buyBtn:SetPoint("RIGHT", -2, 0)
+    r.buy = UI.Font(r, 11); r.buy:SetPoint("RIGHT", r.buyBtn, "LEFT", -6, 0); r.buy:SetWidth(96); r.buy:SetJustifyH("RIGHT")
+    r.name = UI.Font(r, 11); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, 2); r.name:SetPoint("RIGHT", r.buy, "LEFT", -4, 0)
+    -- вторая строка: нужно, сколько в сумках и сколько в банке
+    r.cnt = UI.Font(r, 10, UI.DIM); r.cnt:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 6, -2); r.cnt:SetPoint("RIGHT", r.buy, "LEFT", -4, 0)
+    r:SetScript("OnEnter", function(self) if self.data then GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.data.id); GameTooltip:Show() end end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end, function(r, d)
+    r.icon:SetTexture(ns.itemIcon(d.id)); r.name:SetText(ns.itemLinkText(d.id))
+    local col = (d.bags + d.bank) >= d.need and "|cff78d98a" or "|cffffb060"
+    -- лёгкая пометка: где этот материал дешевле всего (торговец или один из трёх аукционов)
+    local where = ""
+    if d.buy > 0 and ns.BestBuy then
+      local bp, bk = ns.BestBuy(d.id)
+      local cur = ns.ahOpen and (ns.ahKind or "main")
+      if bk then
+        local tag = bk == "vendor" and ("|cffbbbbbb" .. L"торговец") or (ns.ALT_COLOR[bk] .. ns.KindShort(bk))
+        where = "   |cff888888" .. L"дешевле:" .. "|r " .. tag .. "|r |cff888888" .. ns.money(bp, true) .. "|r" .. (bk == cur and (" |cff78d98a" .. L"(здесь)" .. "|r") or "")
+      end
+    end
+    r.cnt:SetText(L"нужно" .. " " .. d.need .. "   " .. col .. L"сумки" .. " " .. d.bags .. " / " .. L"банк" .. " " .. d.bank .. "|r" .. where)
+    if d.buy > 0 then
+      r.buy:SetText(d.buy .. (d.unit and (" |cffaaaaaa" .. ns.money(d.unit * d.buy, true) .. "|r") or L" |cffaa8866нет цены|r"))
+      r.buyBtn:Show()
+    else r.buy:SetText(L"|cff78d98aготово|r"); r.buyBtn:Hide() end
+  end)
+  f.items:SetPoint("TOPLEFT", 0, -152); f.items:SetPoint("RIGHT"); f.items:SetPoint("BOTTOM", 0, 44)
+  withDetail(f.items, 4)
+  f.items.empty:SetText(L"Нечего докупать.")
+  f.total = UI.Font(f, 12, UI.TEXT); f.total:SetPoint("BOTTOMLEFT", 2, 24); f.total:SetPoint("RIGHT", -2, 0)
+  f.profit = UI.Font(f, 11, UI.TEXT); f.profit:SetPoint("BOTTOMLEFT", 2, 6); f.profit:SetPoint("RIGHT", -2, 0)
+  f.refresh = function()
+    local plans = ns.Plans()
+    local rd = {}
+    local prs, tot = ns.PlanProfit()
+    for i, p in ipairs(plans) do rd[#rd + 1] = { i = i, p = p, pr = prs[i] } end
+    f.recs:SetData(rd); f.clear:SetShown(#plans > 0); f.upd:SetShown(#plans > 0)
+    local needs, total = ns.PlanNeeds()
+    f.items:SetData(needs)
+    local left = 0; for _, d in ipairs(needs) do if d.buy > 0 then left = left + 1 end end
+    if #plans == 0 then f.total:SetText(""); f.profit:SetText("") return end
+    f.total:SetText(left == 0 and L"|cff78d98aВсё есть - можно крафтить!|r" or string.format(L"Докупить: %d материалов на %s", left, ns.money(total)))
+    -- прибыль всей партии: выручка за результаты минус стоимость всех материалов
+    f.profit:SetText(L"Выручка" .. " ~" .. ns.money(tot.revenue, true) .. "   " .. L"материалы" .. " " .. ns.money(tot.cost, true) .. "   " .. L"прибыль" .. " "
+      .. ((tot.profit >= 0 and "|cff78d98a+" or "|cffff7a66") .. ns.money(tot.profit, true) .. "|r") .. (tot.missing and L" |cffaa8866(не у всего есть цена)|r" or ""))
+  end
+end
+
+local BUILDERS = { pageMarked, pageBuy, pageSell, pageCraft, pagePlan }
+local NAMES = { "Избранное", "Купить", "Продать", "Мой крафт", "План" }
 
 function ns.BuildAHPanel()
   local h = AuctionHouseFrame or AuctionFrame
@@ -1085,6 +1199,8 @@ ns.Listen("PRICES", refreshCurrent)
 ns.Listen("MARKS", refreshCurrent)
 ns.Listen("RECIPES", refreshCurrent)
 ns.Listen("NAMES", refreshCurrent)
+ns.Listen("PLAN", refreshCurrent)
+ns.Listen("INVENTORY", function() if tabs and tabs.current == TAB_PLAN then refreshCurrent() end end) -- запас нужен только «Плану»
 
 -- игра запретила вызов (нужно нажатие игрока) - выключаем автозапрос цены
 ns.On("ADDON_ACTION_BLOCKED", function(addon) if addon == "WolfichMarket" then ns._quoteBlocked = true end end)

@@ -60,7 +60,7 @@ fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
 fire("COMMODITY_PRICE_UPDATED", 101, 1010)
 check(ns.SellWhere(2840) == "ah" and ns.SellWhere(2862) == "vendor", "медь - на аукцион (зелёный), точило - торговцу (жёлтый)")
 -- все вкладки панели аукциона
-for i = 1, 4 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
+for i = 1, 5 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
 -- продажа: выбрать предмет и выставить
 ns.AHSelectTab(3)
 local P = ns._ahPages
@@ -492,12 +492,60 @@ do
   check(ns._mainCraft.card.total.text ~= "", "карточка рецепта с учётом банка строится")
   ns.DB.settings.useBank = nil
 end
--- порции
+-- порции и план закупки
 do
   local rec = { id = 9001, name = "Тест-рецепт", out = 2841, reag = { { 2840, 3 }, { 3470, 2 } } }
   local one, five = ns.Profit(rec), ns.Profit(rec, nil, 5)
   check(five.parts[1].n == 15 and math.abs(five.cost - one.cost * 5) < 1, "порции умножают материалы и себестоимость")
+  ns.ClearPlans()
+  ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 5)
+  ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 4) -- тот же рецепт - обновляет порции
+  check(#ns.Plans() == 1 and ns.Plans()[1].n == 4, "план: рецепт с порциями сохранён, повтор обновляет")
+  local needs = ns.PlanNeeds()
+  local byId = {}; for _, d in ipairs(needs) do byId[d.id] = d end
+  check(byId[2840] and byId[2840].need == 12 and byId[3470].need == 8, "план: сколько нужно материалов")
+  check(byId[3470].buy == math.max(0, 8 - byId[3470].have), "план: докупить = нужно - есть")
   ns.ahOpen = true
+  -- «План» во вкладке «Крафт» у аукциониста
+  do
+    ns.AHSelectTab(4)
+    local pg = ns._ahPages[4]
+    local row = pg.list.rows[1]
+    if row and row.data then
+      local rid = row.data.pr.rec.id
+      local function cnt() for _, p in ipairs(ns.Plans()) do if p.id == rid and p.ck == ns.charKey then return p.n end end return 0 end
+      local b0 = cnt()
+      row.plan.scripts.OnClick(row.plan)
+      check(cnt() == b0 + 1, "«Крафт» у аукциониста: кнопка «План» добавляет порцию")
+      for i, p in ipairs(ns.Plans()) do if p.id == rid and p.ck == ns.charKey then if b0 == 0 then ns.RemovePlan(i) else p.n = b0 end break end end
+    else check(false, "«Крафт» у аукциониста: нет строк") end
+  end
+  ns.AHSelectTab(5)
+  check(ns._ahPages[5]:IsShown() and #ns._ahPages[5].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
+  do
+    ns.DB.ntah = ns.DB.ntah or {}
+    ns.DB.ntah[ns.realmKey] = ns.DB.ntah[ns.realmKey] or { t = time(), items = {} }
+    ns.DB.ntah[ns.realmKey].items[3470] = { p = 1, q = 5 }
+    ns._ahPages[5].refresh()
+    local txt
+    local ids = {}
+    for _, r in ipairs(ns._ahPages[5].items.rows or {}) do if r.data then ids[#ids + 1] = r.data.id .. ":" .. r.data.buy; if r.data.id == 3470 then txt = r.cnt.text end end end
+    check(txt and (txt:find("Общ", 1, true) or txt:find("N", 1, true)), "план: пометка, где материал дешевле (" .. tostring(txt) .. ")")
+    ns.DB.ntah[ns.realmKey].items[3470] = nil
+  end
+  ns.OpenBuy(3470, 5, true)
+  check(ns._ahPages[2].qty:GetText() == 5, "«Купить» из плана подставляет количество")
+  ns.ClearPlans()
+  check(#ns.Plans() == 0, "план очищается")
+  local row = recRow(ns._mainCraft.list)
+  if row and row.data then
+    row.scripts.OnClick(row)
+    local card = ns._mainCraft.card
+    card.portion:SetText("3"); card.portion.scripts.OnEnterPressed(card.portion)
+    card.plan.scripts.OnClick(card.plan)
+    check(#ns.Plans() == 1 and ns.Plans()[1].n == 3, "«Запланировать» в карточке сохраняет порции")
+    ns.ClearPlans()
+  end
 end
 -- «Продать»: лупа у выбранного предмета, график - в раскрытии строки
 do
@@ -568,11 +616,12 @@ do
   f.qty:SetText("999"); f.qty.scripts.OnTextChanged(f.qty, true)
   check(f.total.text:find("30", 1, true) ~= nil, "больше, чем есть на аукционе - предупреждение")
 end
--- «Обновить цены»: сумки и рецепты своих профессий; цены одного рецепта; аукцион занят
+-- «Обновить цены» по вкладке; «План»: свои материалы - отдельно сумки и банк, галочка
 do
   ns.ahOpen = true
   local rec = { id = 9002, name = "Тест", out = 2841, reag = { { 2840, 3 }, { 3470, 2 } } }
-  ns.ToggleMark(2841)
+  ns.ClearPlans(); ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 2)
+  ns.AHSelectTab(5)
   local asked = {}
   local oldQ = C_AuctionHouse.SendSearchQuery
   C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
@@ -580,7 +629,7 @@ do
   for _ = 1, 200 do advance(1) end
   local got = {}; for _, id in ipairs(asked) do got[id] = true end
   local recs = 0; for _, p in pairs(ns.DB.chars[ns.charKey].profs) do for _, r in ipairs(p.recipes or {}) do if r.out and got[r.out] then recs = recs + 1 end end end
-  check(got[2840] and got[3470] and got[2841] and recs > 0 and not ns.QuickBusy(), "«Обновить цены»: сумки, рецепты моих профессий и избранное")
+  check(got[2840] and got[3470] and got[2841] and recs > 0 and not ns.QuickBusy(), "«Обновить цены»: сумки, рецепты моих профессий и план")
   ns.QuickRefresh(); ns.QuickRefresh()
   check(not ns.QuickBusy(), "повторное нажатие останавливает обновление")
   asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
@@ -602,7 +651,36 @@ do
     check(not ns.QuickBusy(), "аукцион не отвечает минуту - обновление останавливается")
     C_AuctionHouse.IsThrottledMessageSystemReady = nil; C_AuctionHouse.SendSearchQuery = oldQ
   end
-  ns.ToggleMark(2841)
+  local d = ns.PlanNeeds()[1]
+  check(d.bags ~= nil and d.bank ~= nil, "план: отдельно в сумках и в банке")
+  ns.DB.settings.planUseStock = false
+  local all = true; for _, x in ipairs(ns.PlanNeeds()) do if x.buy ~= x.need then all = false end end
+  check(all, "план без своих материалов - докупить всё")
+  ns.DB.settings.planUseStock = nil
+  local prs, tot = ns.PlanProfit()
+  check(prs[1] and prs[1].cost > 0 and tot.cost == prs[1].cost, "план: стоимость материалов партии")
+  check(ns._ahPages[5].profit and ns._ahPages[5].upd, "план: строка прибыли и своя кнопка обновления цен")
+  ns.AHSelectTab(5)
+  asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
+  ns._ahPages[5].upd.scripts.OnClick(ns._ahPages[5].upd)
+  for _ = 1, 20 do advance(1) end
+  C_AuctionHouse.SendSearchQuery = oldQ
+  check(#asked == 3, "«Обновить цены плана» - только рецепты плана")
+  -- количество в плане у аукциониста: + / - и ввод вручную
+  do
+    local pg = ns._ahPages[5]; pg.refresh()
+    local r; for _, x in ipairs(pg.recs.rows or {}) do if x.data then r = x; break end end
+    local n0 = ns.Plans()[1].n
+    if r then
+      local cost0 = select(2, ns.PlanProfit()).cost
+      r.plus.scripts.OnClick(r.plus); check(ns.Plans()[1].n == n0 + 1, "план: «+» увеличивает количество")
+      check(select(2, ns.PlanProfit()).cost > cost0, "план: больше порций - дороже материалы")
+      r.minus.scripts.OnClick(r.minus); r.minus.scripts.OnClick(r.minus); r.minus.scripts.OnClick(r.minus)
+      check(ns.Plans()[1].n == math.max(1, n0 - 2), "план: «-» не опускается ниже 1")
+      r.n:SetText("12"); r.n.scripts.OnEditFocusLost(r.n); check(ns.Plans()[1].n == 12 and r.n:GetText() == "12", "план: количество вписывается вручную")
+    else check(false, "план: строка рецепта с количеством") end
+  end
+  ns.ClearPlans()
 end
 -- снимок приходит частями: обработка только когда число лотов перестало расти
 do
