@@ -7,8 +7,18 @@ Each release takes its notes from the matching "## version" section below; they 
 ### ✨ New
 - **Character money window:** a small draggable window like the farm one - gold with coin icons, the tooltip shows how much was earned this session (`/wm money`).
 
+### ✨ Back
+- **Farm window:** bag value, *Reset* before farming, looted money (`/wm bags`).
+- **Item icons:** a gavel - better at auction, a coin bag - sell to a vendor, in the game bags and in the auctioneer bag.
+
+---
+
 ### ✨ Новое
 - **Окошко денег персонажа:** маленькое перетаскиваемое окошко, как окошко фарма - золото значками монет, в подсказке - сколько заработано за эту игру (`/wm money`).
+
+### ✨ Вернулось
+- **Окошко фарма:** стоимость сумок, *«Сбросить»* перед фармом, деньги с добычи (`/wm bags`).
+- **Значки на предметах:** молоток - выгоднее на аукцион, мешочек с монетой - торговцу; в сумках игры и в сумке у аукциониста.
 
 ## 2.44.5
 
