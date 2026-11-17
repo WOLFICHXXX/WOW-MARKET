@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.3
+
+### 📈 Charts
+- Every small chart (expanded rows at the auctioneer and in the main window, the recipe card) is **clickable** - it opens the big detailed chart of this item.
+
+### 📈 Графики
+- Любой маленький график (раскрытые строки у аукциониста и в главном окне, карточка рецепта) **кликабелен** - открывается большое окно с подробным графиком этого предмета.
+
 ## 2.44.2
 
 ### ✨ Back

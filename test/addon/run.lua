@@ -344,6 +344,7 @@ do
       C.sortMain:SetChecked(true); C.sortMain.scripts.OnClick(C.sortMain)
       check(ns.DB.settings.craftSort == "main" and not C.sortNt:GetChecked(), "главное окно: галочки взаимоисключающие")
       check(C.card and C.card.chartBox and C.card.onAH, "карточка рецепта: график в своей панели, кнопка «На аукционе»")
+      check(C.card.chart.onClick ~= nil, "график в карточке рецепта кликабелен")
       ns.DB.settings.craftSort = nil; ns.ToggleMain()
     end
     nt.items[3470], nt.items[2840] = nil, nil
@@ -579,6 +580,14 @@ do
         big.periodBtns[1].scripts.OnClick(big.periodBtns[1])
         check(ns.DB.settings.chartRange == 24 and #big.view < n7, "период «24 ч» оставляет только последние сутки")
         ns.DB.settings.chartRange = nil
+        -- маленький график в раскрытой строке: клик - большое окно графика
+        local det = f.list.det
+        if det and det.chart then
+          if WolfichMarketChartDialog then WolfichMarketChartDialog:Hide() end
+          det.chart.plot.scripts.OnMouseUp(det.chart.plot)
+          check(WolfichMarketChartDialog and WolfichMarketChartDialog:IsShown() and WolfichMarketChartDialog.id == det.id, "клик по маленькому графику - большое окно графика этого предмета")
+          WolfichMarketChartDialog:Hide()
+        end
       end
     end
     local oldC = C_Item

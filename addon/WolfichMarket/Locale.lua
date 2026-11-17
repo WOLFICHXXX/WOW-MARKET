@@ -588,6 +588,7 @@ ns.EN = {
   ["Открыть в WolfichMarket"] = "Open in WolfichMarket",
   ["Себестоимость, прибыль на Ф и Общ и график этого рецепта - в окне WolfichMarket."] = "Crafting cost, profit on F and N and the chart of this recipe - in the WolfichMarket window.",
   ["Прочее"] = "Other",
+  ["Клик - большой подробный график"] = "Click - big detailed chart",
   ["у персонажа:"] = "on character:",
   ["Компактное главное окно (после перезагрузки интерфейса)"] = "Compact main window (after reloading the UI)",
   ["|cffffb060Игра ещё загружает данные предмета - нажмите через секунду.|r"] = "|cffffb060The game is still loading the item data - click again in a second.|r",

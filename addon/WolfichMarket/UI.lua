@@ -563,6 +563,9 @@ function UI.Chart(parent)
   local function hideHover() vline:Hide(); hline:Hide(); dot:Hide(); if GameTooltip and GameTooltip:IsOwned(f) then GameTooltip:Hide() end end
   plot:EnableMouse(true)
   plot:SetScript("OnLeave", hideHover)
+  plot:SetScript("OnEnter", function()
+    if f.compact and f.onClick then GameTooltip:SetOwner(f, "ANCHOR_CURSOR"); GameTooltip:AddLine(L"Клик - большой подробный график", 0.95, 0.78, 0.4); GameTooltip:Show() end
+  end)
   plot:SetScript("OnMouseUp", function() if f.onClick then f.onClick() end end)
   plot:SetScript("OnUpdate", function()
     if f.compact or not f.view or not plot:IsMouseOver() then return end
@@ -585,6 +588,7 @@ function UI.Chart(parent)
       GameTooltip:AddDoubleLine(L"цена", ns.money(p[2]), 0.85, 0.8, 0.7, 1, 1, 1)
       if f.sold and f.sold[best] and f.sold[best] > 0 then GameTooltip:AddDoubleLine(L"продано с прошлого снимка", f.sold[best] .. " " .. L"шт", 0.85, 0.8, 0.7, 0.3, 0.75, 0.7) end
       if p[3] then GameTooltip:AddDoubleLine(L"выставлено", p[3] .. " " .. L"шт", 0.85, 0.8, 0.7, 0.8, 0.8, 0.8) end
+      if f.onClick then GameTooltip:AddLine(L"Клик - большой подробный график", 0.95, 0.78, 0.4) end
       GameTooltip:Show()
     end
   end)
@@ -862,6 +866,8 @@ function UI.ItemDetail(det, opts)
   det.btn = UI.Button(left, "", lw - 20, 18); det.btn:SetPoint("BOTTOMLEFT", 0, 0)
   det.compactLegend = opts.compact
   det.chart = UI.Chart(det); det.chart.noLegend = true; det.chart.compact = opts.compact; det.chart.mid = not opts.compact
+  -- клик по графику - большое окно с подробным графиком этого предмета
+  det.chart.onClick = function() if det.id and ns.ShowChartDialog then ns.ShowChartDialog(det.id) end end
   det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
   det.legend:SetText("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r")
   function det:Set(id)

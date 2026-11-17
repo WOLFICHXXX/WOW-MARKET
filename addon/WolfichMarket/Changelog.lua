@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.3", d = "17.11.2026",
+    ru = { "Любой маленький график (в раскрытых строках у аукциониста и в главном окне, в карточке рецепта) кликабелен - открывается большое окно с подробным графиком этого предмета; в подсказке под курсором - «Клик - большой подробный график»." },
+    en = { "Every small chart (in expanded rows at the auctioneer and in the main window, in the recipe card) is clickable - it opens the big window with the detailed chart of this item; the tooltip under the cursor says so." } },
   { v = "2.44.2", d = "17.11.2026",
     ru = { "Вернулся «План» закупки: кнопка «Запланировать» в карточке рецепта, кнопка «План» в «Мой крафт», вкладка «План» у аукциониста со списком покупок, количеством и прибылью партии." },
     en = { "The shopping Plan is back: the Plan button in the recipe card, the Plan button in My crafts, the Plan tab at the auctioneer with the shopping list, counts and batch profit." } },

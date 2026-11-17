@@ -480,6 +480,7 @@ local function buildCraft(f)
   cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -4, -8); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
   card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0)
   card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
+  card.chart.onClick = function() if card.chartId then ns.ShowChartDialog(card.chartId) end end -- клик - большой график
   card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
   card.chartBox = cbox
   craft.card = card
