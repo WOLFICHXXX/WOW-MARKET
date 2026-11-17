@@ -2,6 +2,15 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.9
+
+### ✨ New
+- **Price chart in the game's buy window:** under the *Buy* button of the commodity buy window — price line and sold bars; click opens the big chart.
+- **Favorite and alert right there:** a star and a bell next to the quantity field.
+- Can be switched off in *Settings → Other*.
+
+---
+
 ## 2.44.8
 
 ### 🧹 Simpler

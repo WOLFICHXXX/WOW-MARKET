@@ -675,6 +675,78 @@ ns.Listen("NAMES", refreshCurrent)
 ns.Listen("PLAN", refreshCurrent)
 ns.Listen("INVENTORY", function() if tabs and tabs.current == TAB_PLAN then refreshCurrent() end end) -- запас нужен только «Плану»
 
+-- ---------- окно покупки товара в аукционе игры ----------
+-- В пустом месте под кнопкой «Купить» - свой график цены, рядом с количеством - звезда «Избранное» и колокольчик сигнала.
+-- Окно игры не меняется: только свои дочерние рамки и хуки (hooksecurefunc / HookScript).
+local buyDeco
+local function buyFrame()
+  local cf = type(AuctionHouseFrame) == "table" and AuctionHouseFrame.CommoditiesBuyFrame
+  if type(cf) == "table" and cf.GetObjectType then return cf end
+end
+local function buyFrameItem()
+  local cf = buyFrame(); if not cf then return nil end
+  for _, o in ipairs({ cf, cf.BuyDisplay }) do
+    if type(o) == "table" and o.GetItemID then local ok, id = pcall(o.GetItemID, o); if ok and id then return id end end
+  end
+  return cf.itemID or (cf.BuyDisplay and cf.BuyDisplay.itemID)
+end
+local function updateBuyDeco()
+  if not buyDeco then return end
+  local id = buyFrameItem()
+  buyDeco.id = id
+  buyDeco:SetShown(id ~= nil and not buyDeco.off)
+  if not id then return end
+  buyDeco.star:Update(id); buyDeco.bell:Update(id)
+  local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
+  buyDeco.info:SetText("|cfff2c761WolfichMarket|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-")
+    .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
+  local h = ns.History(id)
+  ns.After(0, function() if buyDeco.id == id then buyDeco.chart:SetPoints(h) end end)
+end
+function ns.DecorateAHBuy()
+  local cf = buyFrame()
+  if buyDeco or not cf or ns.DB.settings.ahBuyChart == false then return end
+  local bd = (type(cf.BuyDisplay) == "table" and cf.BuyDisplay.GetObjectType) and cf.BuyDisplay or cf
+  local d = CreateFrame("Frame", nil, bd)
+  d:SetAllPoints(bd); d:SetFrameLevel((bd:GetFrameLevel() or 1) + 5)
+  buyDeco = d
+  -- звезда и колокольчик - справа от поля «Количество»
+  local q = bd.QuantityInput
+  local anchor = type(q) == "table" and ((type(q.InputBox) == "table" and q.InputBox.GetObjectType and q.InputBox) or (q.GetObjectType and q)) or nil
+  d.star = UI.Star(d, 18, function() return buyDeco and buyDeco.id end)
+  if anchor then d.star:SetPoint("LEFT", anchor, "RIGHT", 16, 0) else d.star:SetPoint("TOPRIGHT", bd, "TOPRIGHT", -70, -150) end
+  d.bell = UI.Bell(d, 18, function() return buyDeco and buyDeco.id end); d.bell:SetPoint("LEFT", d.star, "RIGHT", 10, 0)
+  -- график: от кнопки «Купить» до низа окна
+  local box = CreateFrame("Frame", nil, d)
+  local bb = type(bd.BuyButton) == "table" and bd.BuyButton.GetObjectType and bd.BuyButton
+  if bb then box:SetPoint("TOP", bb, "BOTTOM", 0, -12) else box:SetPoint("TOP", bd, "CENTER", 0, -60) end
+  box:SetPoint("LEFT", bd, "LEFT", 12, 0); box:SetPoint("RIGHT", bd, "RIGHT", -12, 0); box:SetPoint("BOTTOM", bd, "BOTTOM", 0, 10)
+  d.info = UI.Font(box, 10, UI.DIM); d.info:SetPoint("TOPLEFT", 4, 0); d.info:SetPoint("RIGHT", -4, 0); d.info:SetJustifyH("LEFT")
+  d.chart = UI.Chart(box); d.chart.mid = true; d.chart.noLegend = true
+  d.chart:SetPoint("TOPLEFT", 0, -14); d.chart:SetPoint("BOTTOMRIGHT", 0, 0)
+  d.chart.onClick = function() if buyDeco and buyDeco.id then ns.ShowChartDialog(buyDeco.id) end end
+  d.box = box
+  if type(cf.SetItemIDAndPrice) == "function" then hooksecurefunc(cf, "SetItemIDAndPrice", function() ns.After(0, updateBuyDeco) end) end
+  if type(bd) == "table" and bd ~= cf and type(bd.SetItemIDAndPrice) == "function" then hooksecurefunc(bd, "SetItemIDAndPrice", function() ns.After(0, updateBuyDeco) end) end
+  if cf.HookScript then cf:HookScript("OnShow", function() ns.After(0, updateBuyDeco) end) end
+  updateBuyDeco()
+end
+ns.UpdateAHBuy = updateBuyDeco
+ns._ahBuyDeco = function() return buyDeco end
+function ns.SetAHBuyDeco(on)
+  if on ~= false then if buyDeco then buyDeco.off = nil; updateBuyDeco() elseif ns.ahOpen then ns.DecorateAHBuy() end
+  elseif buyDeco then buyDeco.off = true; buyDeco:Hide() end
+end
+local buyQueued
+local function buyRefresh()
+  if not buyDeco or buyQueued or not buyDeco:IsVisible() then return end
+  buyQueued = true
+  ns.After(0.5, function() buyQueued = false; updateBuyDeco() end)
+end
+ns.Listen("PRICES", buyRefresh)
+ns.Listen("MARKS", buyRefresh)
+ns.On("AUCTION_HOUSE_SHOW", function() ns.After(0, function() if ns.DecorateAHBuy then ns.DecorateAHBuy() end end) end)
+
 -- игра запретила вызов (нужно нажатие игрока) - выключаем автозапрос цены
 ns.On("ADDON_ACTION_BLOCKED", function(addon) if addon == "WolfichMarket" then ns._quoteBlocked = true end end)
 ns.On("ADDON_ACTION_FORBIDDEN", function(addon) if addon == "WolfichMarket" then ns._quoteBlocked = true end end)

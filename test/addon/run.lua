@@ -1083,6 +1083,30 @@ do
   -- окно профессии игры: таблицу можно выключить
   W.tabs[2].scripts.OnClick(W.tabs[2])
 end
+-- окно покупки товара в аукционе игры: свой график, звезда и колокольчик
+do
+  local cf = CreateFrame("Frame"); local bd = CreateFrame("Frame", nil, cf)
+  bd.QuantityInput = CreateFrame("Frame", nil, bd); bd.QuantityInput.InputBox = CreateFrame("EditBox", nil, bd.QuantityInput)
+  bd.BuyButton = CreateFrame("Button", nil, bd)
+  local cur
+  cf.BuyDisplay = bd; cf.GetItemID = function() return cur end; cf.SetItemIDAndPrice = function(self, id) cur = id end
+  AuctionHouseFrame.CommoditiesBuyFrame = cf; cf:Show(); bd:Show()
+  ns.DecorateAHBuy()
+  cur = 2840; ns.UpdateAHBuy(); advance(1)
+  local d = ns._ahBuyDeco and ns._ahBuyDeco()
+  check(d and d.id == 2840 and d:IsShown() and d.chart and d.star and d.bell, "окно покупки игры: график, звезда и колокольчик у товара")
+  local before = ns.IsMarked(2840)
+  if d then d.star.scripts.OnClick(d.star) end
+  check(ns.IsMarked(2840) ~= before, "окно покупки игры: звезда добавляет в избранное")
+  if d then d.star.scripts.OnClick(d.star) end
+  if d then d.bell.scripts.OnClick(d.bell) end
+  check(WolfichMarketSignalDialog and WolfichMarketSignalDialog:IsShown(), "окно покупки игры: колокольчик открывает окно сигнала")
+  if WolfichMarketSignalDialog then WolfichMarketSignalDialog:Hide() end
+  ns.SetAHBuyDeco(false); check(d and not d:IsShown(), "окно покупки игры: выключается в настройках")
+  ns.SetAHBuyDeco(true); check(d and d:IsShown(), "окно покупки игры: включается обратно")
+  cur = nil; ns.UpdateAHBuy(); check(d and not d:IsShown(), "окно покупки игры: без товара - ничего не показываем")
+  AuctionHouseFrame.CommoditiesBuyFrame = nil
+end
 -- у аукциониста: своя сумка под окном аукциона, клик - выставить на аукционе игры
 do
   ns.UpdateAHBags()

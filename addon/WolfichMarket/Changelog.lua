@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.9", d = "17.11.2026",
+    ru = { "Окно покупки товара в аукционе игры: под кнопкой «Купить» - график цены (клик - большой график), рядом с количеством - звезда «Избранное» и колокольчик сигнала. Выключается в настройках («Прочее»)." },
+    en = { "The game's commodity buy window: a price chart under the Buy button (click - the big chart), a Favorites star and an alert bell next to the quantity. Can be switched off in Settings (Other)." } },
   { v = "2.44.8", d = "17.11.2026",
     ru = { "У аукциониста убраны вкладки «Купить» и «Продать»: остались Избранное, Мой крафт и План. Покупка - лупой у строки (предмет открывается в окне аукциона игры), выставление - кликом по предмету в сумке аддона (на аукционе игры). В «Плане» кнопка «Найти» вместо «Купить»." },
     en = { "The Buy and Sell tabs are removed at the auctioneer: Favorites, My crafts and Plan remain. Buying - the magnifier on a row (opens the item in the game's auction window), posting - click an item in the addon bag (on the game's auction house). The Plan has a Find button instead of Buy." } },

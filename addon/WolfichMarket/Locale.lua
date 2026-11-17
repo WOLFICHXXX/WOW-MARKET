@@ -730,6 +730,7 @@ ns.EN = {
   ["клик - выставить в панели аддона, ПКМ - на аукционе игры"] = "click - post in the addon panel, right-click - in the game's auction",
   ["клик - выставить на аукционе игры"] = "click - post on the game's auction house",
   ["Найти"] = "Find",
+  ["У аукциониста: график, избранное и сигнал в окне покупки"] = "At the auctioneer: chart, favorite and alert in the buy window",
   ["Перезагрузить интерфейс (/reload)"] = "Reload UI (/reload)",
   ["Сумка ресурсов"] = "Reagent bag",
   ["починка: не хватает денег (нужно %s)"] = "repair: not enough money (need %s)",

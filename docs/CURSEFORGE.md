@@ -31,6 +31,7 @@ Works alongside Mastercraft and other profession addons: the game's profession w
 ## At the auctioneer
 
 - **Favorites, My crafts, Plan** tabs next to the auction window; the magnifier on any row finds the item in the game's auction window.
+- **Chart in the game's buy window:** under the *Buy* button — the price chart of the item; a Favorites star and an alert bell next to the quantity.
 - **Own bag** under the auction window with the reagent bag and badges: click an item to post it on the game's auction house.
 - **Refresh prices** without the 15-minute wait: bags, your recipes, favorites and the plan.
 
@@ -91,6 +92,7 @@ Commands: `/wm` main window, `/wm bags` farm window, `/wm money` money window, `
 ## У аукциониста
 
 - Вкладки **Избранное, Мой крафт, План** рядом с окном аукциона; лупа у любой строки находит предмет в окне аукциона игры.
+- **График в окне покупки игры:** под кнопкой «Купить» — график цены товара; рядом с количеством — звезда «Избранное» и колокольчик сигнала.
 - **Своя сумка** под окном аукциона, вместе с сумкой ресурсов и значками: клик по предмету — выставить на аукционе игры.
 - **«Обновить цены»** без 15-минутного ожидания: сумки, ваши рецепты, избранное и план.
 
