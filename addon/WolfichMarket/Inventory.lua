@@ -103,6 +103,149 @@ function ns.HaveText(id, charKey, need)
 end
 function ns.HaveCount(id) local a, b = ns.HaveSplit(id); return a + b end
 
+-- ---------- оценка сумок над окном сумок: «Сбросить» (считать только новое - для фарма) и «Обновить» (вся стоимость) ----------
+-- цена предмета: на аукцион (за вычетом 5%) или торговцу - что выгоднее; персональные - только торговцу
+local function unitValue(id, bound)
+  local v = ns.VendorSell and ns.VendorSell(id) or 0
+  if bound then return v end
+  local a = ns.AHPrice(id)
+  local net = a and math.floor(a * (1 - ns.Cut())) or 0
+  return math.max(net, v or 0)
+end
+function ns.BagValue()
+  local counts, units = {}, {}
+  local C = C_Container
+  for _, b in ipairs(bagIDs()) do
+    local n = (C and C.GetContainerNumSlots and safe(C.GetContainerNumSlots, b)) or 0
+    for s = 1, n do
+      local info = C and C.GetContainerItemInfo and safe(C.GetContainerItemInfo, b, s)
+      if info and info.itemID then
+        local id = info.itemID
+        counts[id] = (counts[id] or 0) + (info.stackCount or 1)
+        local u = unitValue(id, info.isBound)
+        if not units[id] or u > units[id] then units[id] = u end
+      end
+    end
+  end
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  local base = c and c.bagBase
+  local total = 0
+  for id, n in pairs(counts) do
+    local k = base and math.max(0, n - (base[id] or 0)) or n
+    total = total + k * (units[id] or 0)
+  end
+  return total, base ~= nil, c and c.bagBaseT
+end
+-- деньги, поднятые с добычи (мобы, сундуки): прибавка денег, пока открыто окно добычи (и секунду после)
+local lootOpen, lootUntil, lastMoney = false, 0, nil
+ns.On("LOOT_OPENED", function() lootOpen = true end)
+ns.On("LOOT_READY", function() lootOpen = true end)
+ns.On("LOOT_CLOSED", function() lootOpen = false; lootUntil = GetTime() + 1.5 end)
+ns.On("PLAYER_MONEY", function()
+  local m = GetMoney and GetMoney() or 0
+  local d = lastMoney and (m - lastMoney) or 0
+  lastMoney = m
+  local c = ns.charKey and ns.DB.chars[ns.charKey]
+  if c and d > 0 and (lootOpen or GetTime() < lootUntil) then
+    c.lootMoney = (c.lootMoney or 0) + d
+    if ns.UpdateBagValue then ns.UpdateBagValue() end
+  end
+end)
+ns.Listen("LOGIN", function() lastMoney = GetMoney and GetMoney() or 0 end)
+-- итог для окошка: предметы и/или поднятые деньги (галочки в меню окошка)
+function ns.FarmValue()
+  local S = ns.DB.settings
+  local items, farm, t = ns.BagValue()
+  local c = ns.charKey and ns.DB.chars[ns.charKey] or {}
+  local money = farm and (c.lootMoney or 0) or (GetMoney and GetMoney() or 0)
+  local total = (S.farmItems ~= false and items or 0) + (S.farmMoney ~= false and money or 0)
+  return total, farm, t, items, money
+end
+function ns.BagReset()
+  local c = ns.DB.chars[ns.charKey]; if not c then return end
+  c.bagBase = read(bagIDs()); c.bagBaseT = time(); c.lootMoney = 0
+  if ns.UpdateBagValue then ns.UpdateBagValue() end
+end
+function ns.BagFull()
+  local c = ns.DB.chars[ns.charKey]; if not c then return end
+  c.bagBase = nil; c.bagBaseT = nil
+  if ns.UpdateBagValue then ns.UpdateBagValue() end
+end
+
+-- маленькое отдельное окошко «стоимость сумок»: перетаскивается мышью, место запоминается, от сумок не зависит
+local bar
+local function updateBar()
+  if not bar then return end
+  if not ns.DB or ns.DB.settings.bagValue == false then bar:Hide() return end
+  local total, farm, t, items, money = ns.FarmValue()
+  bar.text:SetText(farm and (L"Фарм" .. ": |cffffffff" .. ns.money(total, true) .. "|r") or (L"Сумки" .. ": |cffffffff~" .. ns.money(total, true) .. "|r"))
+  bar.farmSince, bar.items, bar.moneyV, bar.isFarm = farm and t or nil, items, money, farm
+  bar:Show()
+end
+local function savePos()
+  local p, _, rp, x, y = bar:GetPoint()
+  ns.DB.settings.bagPos = { p or "CENTER", rp or "CENTER", math.floor((x or 0) + 0.5), math.floor((y or 0) + 0.5) }
+end
+local function buildBar()
+  if bar or not ns.UI then return end
+  local UI = ns.UI
+  bar = CreateFrame("Frame", "WolfichMarketBagValue", UIParent)
+  bar:SetSize(214, 24); bar:SetFrameStrata("MEDIUM"); bar:SetClampedToScreen(true)
+  bar:SetMovable(true); bar:EnableMouse(true); bar:RegisterForDrag("LeftButton")
+  bar:SetScript("OnDragStart", bar.StartMoving)
+  bar:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); savePos() end)
+  local p = ns.DB.settings.bagPos
+  if p then bar:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else bar:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -320, 260) end
+  UI.Skin(bar, { theme = "acard", scale = 0.16 })
+  bar.close = UI.Icon(bar, "skin\\ai-x", 12, L"Скрыть (вернуть: Настройки у аукциониста или /wm bags)", function() ns.DB.settings.bagValue = false; bar:Hide() end)
+  bar.close:SetPoint("RIGHT", -6, 0)
+  -- значки: «сбросить» (считать фарм с этого момента) и «вся стоимость» (восстановить)
+  local function icon(name, fn)
+    local b = CreateFrame("Button", nil, bar); b:SetSize(16, 16)
+    local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); UI.WinTex(t, name)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); UI.WinTex(hl, name); hl:SetBlendMode("ADD"); hl:SetAlpha(0.5)
+    b:SetScript("OnClick", fn); b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return b
+  end
+  bar.full = icon("ic-full", function() ns.BagFull() end); bar.full:SetPoint("RIGHT", bar.close, "LEFT", -6, 0)
+  bar.reset = icon("ic-reset", function() ns.BagReset() end); bar.reset:SetPoint("RIGHT", bar.full, "LEFT", -6, 0)
+  -- треугольник: что считать - предметы и/или поднятые деньги
+  bar.opt = CreateFrame("Button", nil, bar); bar.opt:SetSize(14, 14); bar.opt:SetPoint("LEFT", 6, 0)
+  local ot = bar.opt:CreateTexture(nil, "ARTWORK"); ot:SetAllPoints(); UI.WinTex(ot, "tri"); pcall(ot.SetRotation, ot, -math.pi / 2)
+  local oh = bar.opt:CreateTexture(nil, "HIGHLIGHT"); oh:SetAllPoints(); UI.WinTex(oh, "tri"); oh:SetBlendMode("ADD"); pcall(oh.SetRotation, oh, -math.pi / 2)
+  local menu = CreateFrame("Frame", nil, bar); menu:SetSize(190, 62); menu:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -2); menu:SetFrameStrata("DIALOG"); menu:EnableMouse(true)
+  UI.Box(menu, 0.92); menu:Hide()
+  local S = ns.DB.settings
+  local c1 = UI.Check(menu, L"Предметы (шмот, ресурсы)", function() return S.farmItems ~= false end, function(v) S.farmItems = v; updateBar() end); c1:SetPoint("TOPLEFT", 8, -8)
+  local c2 = UI.Check(menu, L"Валюта (деньги с добычи)", function() return S.farmMoney ~= false end, function(v) S.farmMoney = v; updateBar() end); c2:SetPoint("TOPLEFT", 8, -34)
+  bar.menu = menu
+  bar.opt:SetScript("OnClick", function() menu:SetShown(not menu:IsShown()) end)
+  bar.opt:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Что считать: предметы и/или валюту", 1, 1, 1); GameTooltip:Show() end)
+  bar.opt:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar.text = UI.Font(bar, 11, UI.GOLD); bar.text:SetPoint("LEFT", bar.opt, "RIGHT", 4, 0); bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -3, 0)
+  bar.reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сбросить", 1, 0.82, 0); GameTooltip:AddLine(L"Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое (и деньги, поднятые с добычи).", 1, 1, 1, true); GameTooltip:Show() end)
+  bar.reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar.full:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Восстановить", 1, 0.82, 0); GameTooltip:AddLine(L"Снова показывать полную стоимость сумок.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar.full:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(L"Стоимость сумок: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу. Перетащите мышью, чтобы передвинуть.", 1, 1, 1, true)
+    if self.farmSince then GameTooltip:AddLine(string.format(L"Фарм считается с %s", date("%H:%M", self.farmSince)), 0.9, 0.7, 0.3) end
+    GameTooltip:AddDoubleLine(L"Предметы", ns.money(self.items or 0, true), 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:AddDoubleLine(self.isFarm and L"Валюта с добычи" or L"Золото", ns.money(self.moneyV or 0, true), 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  bar:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar:Hide()
+end
+ns.Listen("LOGIN", function() buildBar(); updateBar() end)
+-- не чаще раза в полсекунды, сколько бы раз ни нажимали и ни менялись сумки
+local barQueued
+local function queueBar() if barQueued then return end; barQueued = true; ns.After(0.3, function() barQueued = false; updateBar() end) end
+ns.Listen("INVENTORY", queueBar)
+ns.Listen("PRICES", queueBar)
+ns.UpdateBagValue = queueBar
+
 -- ---------- план закупки: рецепты × порции → что докупить ----------
 function ns.Plans() ns.DB.plans = ns.DB.plans or {}; return ns.DB.plans end
 function ns.AddPlan(rec, charKey, prof, n)

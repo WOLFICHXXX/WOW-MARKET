@@ -58,6 +58,19 @@ ns.SearchAH(2835); check(searched == "Грубый камень", "поиск н
 ns.OpenBuy(2840); check(lastQuery and lastQuery.itemID == 2840, "запрос поиска для покупки")
 fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
 fire("COMMODITY_PRICE_UPDATED", 101, 1010)
+-- подсветка в сумках
+ns.UpdateBagGlow(); advance(1)
+local g1, g2 = BAGBTNS[1].wmSellBadge, BAGBTNS[2].wmSellBadge
+check(g1 and g1.shown and g2 and g2.shown, "значки на предметах в сумках появились")
+local function bt(g) return g and g.tex or "" end
+do
+  local old = C_Container.GetContainerItemInfo
+  C_Container.GetContainerItemInfo = function(b, s) if s == 2 then return { itemID = 2862, stackCount = 1 } end return old(b, s) end
+  ns.UpdateBagGlow(); advance(1)
+  C_Container.GetContainerItemInfo = old
+  check(bt(g1):find("badge%-ah") and bt(g2):find("badge%-vendor"), "значки: молоток (аукцион) и мешочек (торговец): " .. bt(g1) .. " / " .. bt(g2))
+  ns.UpdateBagGlow(); advance(1)
+end
 check(ns.SellWhere(2840) == "ah" and ns.SellWhere(2862) == "vendor", "медь - на аукцион (зелёный), точило - торговцу (жёлтый)")
 -- все вкладки панели аукциона
 for i = 1, 5 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
@@ -691,6 +704,21 @@ do
   end
   ns.ClearPlans()
 end
+-- стоимость сумок: полная, «Сбросить» (только новое), «Обновить»
+do
+  ns.UpdateBagValue()
+  local full = ns.BagValue()
+  check(full > 0 and WolfichMarketBagValue and WolfichMarketBagValue:IsShown(), "над сумками строка с оценкой стоимости")
+  ns.BagReset()
+  check(ns.BagValue() == 0, "«Сбросить»: уже лежащее не считается")
+  local oldI = C_Container.GetContainerItemInfo
+  C_Container.GetContainerItemInfo = function(b, s2) local r = oldI(b, s2); if r and s2 == 1 then r = { itemID = r.itemID, stackCount = r.stackCount + 4 } end; return r end
+  local farmed = ns.BagValue()
+  check(farmed > 0 and farmed < full, "после сброса считается только нафармленное")
+  C_Container.GetContainerItemInfo = oldI
+  ns.BagFull()
+  check(ns.BagValue() == full, "«Обновить»: снова полная стоимость")
+end
 -- снимок приходит частями: обработка только когда число лотов перестало расти
 do
   ns.ahOpen = true; ns.DB.ahLastReq = 0
@@ -1176,6 +1204,7 @@ do
   local B = WolfichMarketAHBags
   local btn; for _, b in ipairs(B and B.btns or {}) do if b.id == 2840 then btn = b end end
   check(B and B:IsShown() and btn ~= nil, "своя сумка у аукциониста с предметами из сумок")
+  check(btn and btn.badge and btn.badge.shown and (btn.badge.tex or ""):find("badge%-ah"), "сумка у аукциониста: значок «на аукцион» у меди")
   check(B and (B.money.text or ""):find("Icon", 1, true) ~= nil and B.moneyLbl ~= nil, "сумка у аукциониста: деньги персонажа значками монет внизу")
   if btn then btn.scripts.OnClick(btn, "LeftButton") end
   check(ns._ahPages[3]:IsShown(), "клик по предмету в сумке аддона - вкладка «Продать»")

@@ -69,6 +69,10 @@ local function slash(msg)
     local map = { window = "window", main = "main", tab = "tab", quiet = "quiet", off = "off" }
     if map[m] then ns.DB.settings.chatMode = map[m]; ns.tell(L"сообщения аддона: " .. L(({ window = "только в журнале главного окна", main = "в общий чат", tab = "в свою вкладку чата", quiet = "в чат только сигналы", off = "выключены" })[m]))
     else ns.tell(L"/wm chat window | main | tab | quiet | off - журнал окна, общий чат, своя вкладка, только сигналы, выключить") end
+  elseif msg == "bags" then
+    ns.DB.settings.bagValue = not (ns.DB.settings.bagValue ~= false)
+    if ns.UpdateBagValue then ns.UpdateBagValue() end
+    ns.tell(ns.DB.settings.bagValue ~= false and L"окошко стоимости сумок показано" or L"окошко стоимости сумок скрыто")
   elseif msg == "debug" then
     ns.DB.settings.debug = not ns.DB.settings.debug; ns.tell(L"отладка: " .. (ns.DB.settings.debug and L"вкл" or L"выкл"))
   else if ns.ToggleMain then ns.ToggleMain() else help() end end

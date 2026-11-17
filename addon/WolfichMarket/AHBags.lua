@@ -70,6 +70,7 @@ local function slotButton(i)
   b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetPoint("TOPLEFT", 4, -4); b.icon:SetPoint("BOTTOMRIGHT", -4, 4); b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   b.count = UI.Font(b, 10); b.count:SetPoint("BOTTOMRIGHT", -2, 2); b.count:SetJustifyH("RIGHT")
   -- метка ячейки сумки ресурсов: зелёная полоска внизу
+  b.badge = b:CreateTexture(nil, "OVERLAY"); b.badge:SetSize(15, 15); b.badge:SetPoint("TOPRIGHT", 3, 3)
   b.res = b:CreateTexture(nil, "OVERLAY", nil, 2); b.res:SetHeight(3); b.res:SetPoint("BOTTOMLEFT", 5, 3); b.res:SetPoint("BOTTOMRIGHT", -5, 3); b.res:SetColorTexture(0.35, 0.9, 0.65, 0.9); b.res:Hide()
   local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.45, 0.18)
   b:SetScript("OnEnter", function(self)
@@ -164,8 +165,10 @@ function ns.UpdateAHBags()
       if q and info.quality >= 2 then b.border:SetVertexColor(q.r * 1.2, q.g * 1.2, q.b * 1.2)
       elseif b.special then b.border:SetVertexColor(0.45, 0.95, 0.75) else b.border:SetVertexColor(1, 1, 1) end
       b.res:SetShown(b.special)
+      local where = ns.DB.settings.bagGlow ~= false and ns.SellWhere(b.id, info.isBound) or nil
+      if where == "ah" or where == "vendor" then b.badge:SetTexture(ns.MEDIA .. (where == "ah" and "badge-ah" or "badge-vendor")); b.badge:Show() else b.badge:Hide() end
     else
-      b.icon:Hide(); b.count:SetText(""); b.res:SetShown(b.special)
+      b.icon:Hide(); b.count:SetText(""); b.badge:Hide(); b.res:SetShown(b.special)
       if b.special then b.border:SetVertexColor(0.35, 0.8, 0.62) else b.border:SetVertexColor(0.7, 0.62, 0.5) end
     end
     b:Show()

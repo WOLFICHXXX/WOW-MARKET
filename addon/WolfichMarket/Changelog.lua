@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.5", d = "17.11.2026",
+    ru = { "Вернулись окошко фарма (стоимость сумок, «Сбросить» перед фармом, деньги с добычи) и значки на предметах: молоток - выгоднее на аукцион, мешочек с монетой - торговцу (в сумках игры и в сумке у аукциониста). Оба включаются в настройках; окошко - ещё и командой /wm bags." },
+    en = { "The farm window (bag value, Reset before farming, looted money) and item icons are back: a gavel - better at auction, a coin bag - sell to a vendor (in the game bags and in the auctioneer bag). Both can be switched in Settings; the window also with /wm bags." } },
   { v = "2.44.4", d = "17.11.2026",
     ru = {
       "Звезда «Избранное» у каждого предмета: «Весь аукцион», «Общий», «Сигналы», «Продать», «План», окно графика, окно сигнала, выбранный предмет во «Купить».",
