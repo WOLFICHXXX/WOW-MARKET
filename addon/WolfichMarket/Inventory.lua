@@ -246,6 +246,51 @@ ns.Listen("INVENTORY", queueBar)
 ns.Listen("PRICES", queueBar)
 ns.UpdateBagValue = queueBar
 
+-- ---------- маленькое окошко «деньги персонажа»: как окошко фарма, только золото этого персонажа ----------
+local mbar, sessionStart
+local function updateMoney()
+  if not mbar then return end
+  if not ns.DB or ns.DB.settings.moneyBar == false then mbar:Hide() return end
+  local m = GetMoney and GetMoney() or 0
+  sessionStart = sessionStart or m
+  mbar.text:SetText(ns.coins(m))
+  mbar:Show()
+end
+local function buildMoney()
+  if mbar or not ns.UI then return end
+  local UI = ns.UI
+  mbar = CreateFrame("Frame", "WolfichMarketMoneyBar", UIParent)
+  mbar:SetSize(150, 24); mbar:SetFrameStrata("MEDIUM"); mbar:SetClampedToScreen(true)
+  mbar:SetMovable(true); mbar:EnableMouse(true); mbar:RegisterForDrag("LeftButton")
+  mbar:SetScript("OnDragStart", mbar.StartMoving)
+  mbar:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local p, _, rp, x, y = self:GetPoint()
+    ns.DB.settings.moneyPos = { p or "CENTER", rp or "CENTER", math.floor((x or 0) + 0.5), math.floor((y or 0) + 0.5) }
+  end)
+  local p = ns.DB.settings.moneyPos
+  if p then mbar:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else mbar:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -364, 290) end
+  UI.Skin(mbar, { theme = "acard", scale = 0.16 })
+  mbar.close = UI.Icon(mbar, "skin\\ai-x", 12, L"Скрыть (вернуть: Настройки или /wm money)", function() ns.DB.settings.moneyBar = false; mbar:Hide() end)
+  mbar.close:SetPoint("RIGHT", -6, 0)
+  mbar.text = UI.Font(mbar, 12, UI.TEXT); UI.SetFont(mbar.text, UI.BOLD, 12, ""); mbar.text:SetPoint("LEFT", 10, 0); mbar.text:SetPoint("RIGHT", mbar.close, "LEFT", -4, 0); mbar.text:SetJustifyH("LEFT")
+  mbar:SetScript("OnEnter", function(self)
+    local m = GetMoney and GetMoney() or 0
+    local d = m - (sessionStart or m)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(L"Деньги персонажа", 1, 0.82, 0)
+    GameTooltip:AddDoubleLine(L"Сейчас", ns.coins(m), 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:AddDoubleLine(L"За эту игру", (d >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(d), true) .. "|r", 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:AddLine(L"Перетащите мышью, чтобы передвинуть.", 0.6, 0.6, 0.6)
+    GameTooltip:Show()
+  end)
+  mbar:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  mbar:Hide()
+end
+ns.Listen("LOGIN", function() buildMoney(); updateMoney() end)
+ns.On("PLAYER_MONEY", function() updateMoney() end)
+ns.UpdateMoneyBar = updateMoney
+
 -- ---------- план закупки: рецепты × порции → что докупить ----------
 function ns.Plans() ns.DB.plans = ns.DB.plans or {}; return ns.DB.plans end
 function ns.AddPlan(rec, charKey, prof, n)

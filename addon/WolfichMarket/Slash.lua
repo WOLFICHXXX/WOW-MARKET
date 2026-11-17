@@ -10,6 +10,7 @@ local function help()
   ns.out(L"  |cffe6b450/wm best|r - лучший крафт сейчас")
   ns.out(L"  |cffe6b450/wm marks|r - отмеченные предметы")
   ns.out(L"  |cffe6b450/wm chat|r - куда писать сообщения: window - журнал окна (по умолчанию), main - чат, tab - своя вкладка, off - никуда")
+  ns.out(L"  |cffe6b450/wm bags|r - окошко фарма, |cffe6b450/wm money|r - окошко денег персонажа")
   ns.out(L"  |cffe6b450/wm net|r - проверка общего рынка, |cffe6b450/wm netsend|r - разослать свой снимок ещё раз")
   ns.out(L"  Клавиша для выставления по очереди: Настройки > Управление > WolfichMarket (или макрос /click WolfichMarketPostNextButton)")
   ns.out(L"  |cffe6b450/wm reset|r - очистить отметки и историю цен")
@@ -69,6 +70,10 @@ local function slash(msg)
     local map = { window = "window", main = "main", tab = "tab", quiet = "quiet", off = "off" }
     if map[m] then ns.DB.settings.chatMode = map[m]; ns.tell(L"сообщения аддона: " .. L(({ window = "только в журнале главного окна", main = "в общий чат", tab = "в свою вкладку чата", quiet = "в чат только сигналы", off = "выключены" })[m]))
     else ns.tell(L"/wm chat window | main | tab | quiet | off - журнал окна, общий чат, своя вкладка, только сигналы, выключить") end
+  elseif msg == "money" then
+    ns.DB.settings.moneyBar = not (ns.DB.settings.moneyBar ~= false)
+    if ns.UpdateMoneyBar then ns.UpdateMoneyBar() end
+    ns.tell(ns.DB.settings.moneyBar ~= false and L"окошко денег показано" or L"окошко денег скрыто")
   elseif msg == "bags" then
     ns.DB.settings.bagValue = not (ns.DB.settings.bagValue ~= false)
     if ns.UpdateBagValue then ns.UpdateBagValue() end

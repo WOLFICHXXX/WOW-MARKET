@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.6
+
+### ✨ New
+- **Character money window:** a small draggable window like the farm one - gold with coin icons, the tooltip shows how much was earned this session (`/wm money`).
+
+### ✨ Новое
+- **Окошко денег персонажа:** маленькое перетаскиваемое окошко, как окошко фарма - золото значками монет, в подсказке - сколько заработано за эту игру (`/wm money`).
+
 ## 2.44.5
 
 ### ✨ Back

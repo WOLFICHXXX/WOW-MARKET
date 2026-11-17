@@ -719,6 +719,16 @@ do
   ns.BagFull()
   check(ns.BagValue() == full, "«Обновить»: снова полная стоимость")
 end
+-- окошко денег персонажа
+do
+  GetMoney = function() return 5497630 end
+  fire("PLAYER_MONEY")
+  check(WolfichMarketMoneyBar and WolfichMarketMoneyBar:IsShown() and (WolfichMarketMoneyBar.text.text or ""):find("549", 1, true) and (WolfichMarketMoneyBar.text.text or ""):find("Gold", 1, true), "окошко денег персонажа: золото значками монет")
+  SlashCmdList.WOLFICHMARKET("money")
+  check(not WolfichMarketMoneyBar:IsShown(), "/wm money скрывает окошко денег")
+  SlashCmdList.WOLFICHMARKET("money")
+  check(WolfichMarketMoneyBar:IsShown(), "/wm money показывает его снова")
+end
 -- снимок приходит частями: обработка только когда число лотов перестало расти
 do
   ns.ahOpen = true; ns.DB.ahLastReq = 0
