@@ -1,32 +1,54 @@
 # WolfichMarket — a shared market for WoW Forever
 
-**One auction scan — fresh prices for everyone.** WolfichMarket links players into a shared price network. When anyone with the addon scans the auction house, fresh prices reach everyone else automatically. No standing at the auctioneer, no waiting 15 minutes for the next scan, no searching item by item.
+**One auction scan — fresh prices for everyone.** WolfichMarket links players into a shared price network and focuses on one thing: the market. When anyone with the addon scans the auction house, fresh prices reach everyone else automatically. No standing at the auctioneer, no waiting 15 minutes for the next scan, no searching item by item.
+
+Works alongside Mastercraft and other profession addons: the game's profession window stays untouched — WolfichMarket only adds one **Open in WolfichMarket** button there.
 
 ## Shared market
 
 - **Prices arrive by themselves.** Someone scans, and within a couple of minutes prices for the materials and results of every recipe in the game reach every player with the addon on your auction house. Strangers too, no need to be friends or guildmates.
-- **What you need comes first.** The addon tells the network your alerts and your shopping-plan materials. Whoever scans sends those first, whatever their professions.
+- **What you need comes first.** The addon tells the network your alerts, favorites and shopping-plan materials. Whoever scans sends those first, whatever their professions.
 - **Alerts without visiting the AH.** Enter your own buy or sell price, and you get a sound notification as soon as the price reaches it, when any player refreshes that price, even from the other side of the world.
 - **Only your auction house.** PvP and normal modes, Alliance and Horde are never mixed. Players on different layers of the same mode share one market.
 - **Yours beats theirs.** Others' prices are used only when they are fresher than yours. Obviously wrong prices are discarded.
-- **Quiet and light.** Data travels in the background through a hidden addon channel, within safe traffic limits. Prices are packed densely, and every snapshot is compared with prices the network already has: only changed prices are sent. A newcomer without prices gets the whole auction personally.
+- **Quiet and light.** Data travels in the background through a hidden addon channel, within safe traffic limits. Only changed prices are sent; a newcomer without prices gets the whole auction personally.
 - **You are in control.** "Share snapshots" and "accept prices" can be switched off in settings. Check the connection with `/wmnet`.
 
-## Also inside
+## Detailed price charts
 
-- **Crafting for all your characters:** profit for every recipe, skill-level groups, batch sizes, a shopping plan with a "to buy" list and a hint where each material is cheapest. Add to the plan from the main window, at the auctioneer or right from the profession window.
+- **Big chart window:** price line with a fill, **sold** bars between snapshots, grid, price and quantity scales.
+- **min / avg / max** lines and a summary: now, min, max, average, change for the period, sold.
+- **Periods** 24 h / 3 d / 7 d / 30 d / all; a crosshair with a tooltip under the cursor — date, price, sold since the previous snapshot, listed.
+- **Every small chart is clickable** — in expanded rows and in the recipe card it opens the big chart of that item.
+- Sold in 24 h and auctions on the AH right now for every item.
+
+## Two auction houses
+
+- **Faction and neutral** (Zephyr Isle, Stranglethorn Vale, Tanaris) are detected by zone and kept separately, each with its own fee (5% and 15%).
+- **Where it is cheaper and where it sells better:** for the neutral auction — what is better to buy there and what is better to sell there.
+- Crafting profit is shown for **F** (faction) and **N** (neutral) side by side.
+
+## At the auctioneer
+
+- **Favorites, Buy, Sell, My crafts, Plan** tabs next to the auction window.
+- **Buy:** search by name and categories over the latest snapshot, cheapest first; buying with automatic price calculation.
+- **Sell:** crafting cost and a "worth it / sell to vendor" verdict, posting checked items one by one, a Refresh button.
+- **Own bag** under the auction window with the reagent bag: click — post in the addon panel, right-click — post on the game's auction house.
+- **Refresh prices** without the 15-minute wait: bags, your recipes, favorites and the plan.
+
+## Crafting
+
+- **Profit for every recipe** of all your characters on F and N, skill-level groups or one flat list sorted by profit, batch sizes.
+- **Shopping plan:** "Plan" from the recipe card or My crafts, then at the auctioneer — everything to buy, where each material is cheapest, counts and batch profit.
 - **Own materials:** bags and bank counted separately for each character.
-- **"Where to get" a recipe:** trainer, vendors with coordinates, drops, quests, reputation, zone map and a map waypoint. Data from Wowhead WoW Forever.
-- **Alerts with your own price:** "buy at or below" and "sell at or above" - you set the price. Alerts are shared by all your characters.
-- **Auction house from the addon window:** buying with automatic price calculation, selling with crafting cost and a "worth it / sell to vendor" verdict, posting checked items one by one.
-- **Price charts** with peaks and dips labelled and a second line showing how many were sold.
-- **Two auction houses:** faction and neutral (Zephyr Isle, Stranglethorn Vale, Tanaris) are detected by zone and kept separately. The profession window shows crafting profit in F / N columns and a "where to buy materials and where to sell" table, with each auction house's own fee (5% and 15%); the main window "Auctions" tab lists the whole faction auction with sorting and categories, and for the neutral auction what is better to buy or sell there.
-- **Item tooltip:** crafting cost, auction price and profit with a + or − sign.
-- **Bag value** in a small movable window, with a "Reset" button before farming.
 - **Professions you don't have** can be added to track their prices.
-- **Icons on bag items:** an auctioneer's gavel means sell at auction, a coin bag means sell to a vendor. After sorting your bags, auction items move to the top and vendor items to the bottom.
-- **No chat spam:** all addon messages go to the "Log" tab of the main window; alerts also pop up as notifications.
-- **Windows auto-updater:** `WolfichMarket-Updater.bat` from the site, double-click and the latest version installs itself into the game folder.
+
+## Also
+
+- **Item tooltip:** auction price, neutral auction price, crafting cost and profit, where it is better to sell.
+- **Compact main window:** Home, Professions, Auction, Settings.
+- **No chat spam:** all addon messages go to the Log; alerts also pop up as notifications.
+- **Windows auto-updater:** `WolfichMarket-Updater.bat` from the site — double-click and the latest version installs itself.
 - **Two languages:** English and Russian.
 
 **The more players use it, the fresher everyone's prices.** Install it and tell your guild.
@@ -37,32 +59,54 @@ Commands: `/wm` main window, `/wmnet` shared market check, `/wm help` all comman
 
 # WolfichMarket — общий рынок для WoW Forever
 
-**Один снимок аукциона — свежие цены у всех.** WolfichMarket объединяет игроков в общую сеть цен: стоит кому-то с аддоном отсканировать аукцион, и свежие цены сами приходят всем остальным. Не нужно стоять у аукциониста, ждать 15 минут до следующего снимка или искать каждый предмет вручную.
+**Один снимок аукциона — свежие цены у всех.** WolfichMarket объединяет игроков в общую сеть цен и занимается одним — рынком. Стоит кому-то с аддоном отсканировать аукцион, и свежие цены сами приходят всем остальным. Не нужно стоять у аукциониста, ждать 15 минут до следующего снимка или искать каждый предмет вручную.
+
+Работает вместе с Mastercraft и другими аддонами профессий: окно профессии игры не меняется — WolfichMarket добавляет туда только кнопку **«Открыть в WolfichMarket»**.
 
 ## Общий рынок
 
 - **Цены приходят сами.** Кто-то сделал снимок — через пару минут цены материалов и результатов всех рецептов игры есть у каждого игрока с аддоном на вашем аукционе. Незнакомые игроки тоже, дружить и состоять в одной гильдии не обязательно.
-- **Сначала то, что нужно вам.** Аддон сообщает в сеть ваши сигналы и материалы из плана закупок. Тот, кто сканирует, рассылает их первыми — неважно, какие у него профессии.
+- **Сначала то, что нужно вам.** Аддон сообщает в сеть ваши сигналы, избранное и материалы из плана закупок. Тот, кто сканирует, рассылает их первыми — неважно, какие у него профессии.
 - **Сигналы, не заходя на аукцион.** Впишите свою цену покупки или продажи — уведомление со звуком придёт, как только цена до неё дойдёт. Цену может обновить любой игрок, а вы в это время хоть в другом конце мира.
 - **Только ваш аукцион.** PvP и обычный режим, Альянс и Орда не смешиваются. Игроки с разных «каналов» одного режима видят общий рынок.
 - **Своё важнее чужого.** Чужие цены принимаются, только если они свежее ваших. Явно ненормальные цены отбрасываются.
-- **Тихо и бережно.** Обмен идёт фоном через скрытый канал аддона, в безопасных пределах трафика. Цены записываются плотно, и каждый снимок сравнивается с ценами, уже известными сети: уходят только изменившиеся. Новичку, у которого цен нет, весь аукцион отправляется лично.
+- **Тихо и бережно.** Обмен идёт фоном через скрытый канал аддона, в безопасных пределах трафика. Уходят только изменившиеся цены; новичку, у которого цен нет, весь аукцион отправляется лично.
 - **Под вашим контролем.** «Делиться снимками» и «принимать цены» выключаются в настройках. Проверка связи — `/wmnet`.
+
+## Подробные графики цены
+
+- **Большое окно графика:** линия цены с заливкой, столбики **«продано»** между снимками, сетка, шкалы цены и штук.
+- Линии **мин / сред / макс** и строка итогов: сейчас, мин, макс, среднее, изменение за период, продано.
+- **Периоды** 24 ч / 3 д / 7 д / 30 д / всё; перекрестие с подсказкой под курсором — дата, цена, продано с прошлого снимка, выставлено.
+- **Любой маленький график кликабелен** — в раскрытых строках и в карточке рецепта он открывает большой график этого предмета.
+- У каждого предмета — продано за 24 ч и сколько лотов сейчас на аукционе.
+
+## Два аукциона
+
+- **Фракционный и общий** (Остров Зефрис, Тернистая долина, Танарис) определяются по зоне и хранятся отдельно, комиссия у каждого своя (5% и 15%).
+- **Где дешевле и где выгоднее:** для общего аукциона — что лучше купить там и что лучше продать.
+- Прибыль крафта показывается рядом для **Ф** (фракционный) и **Общ** (общий).
+
+## У аукциониста
+
+- Вкладки **Избранное, Купить, Продать, Мой крафт, План** рядом с окном аукциона.
+- **Купить:** поиск по названию и категории по последнему снимку, сначала дешёвые; покупка с автоматическим расчётом цены.
+- **Продать:** себестоимость и вывод «выгодно / торговцу», выставление отмеченных по очереди, кнопка «Обновить».
+- **Своя сумка** под окном аукциона, вместе с сумкой ресурсов: клик — выставить в панели аддона, ПКМ — на аукционе игры.
+- **«Обновить цены»** без 15-минутного ожидания: сумки, ваши рецепты, избранное и план.
+
+## Крафт
+
+- **Прибыль каждого рецепта** всех ваших персонажей на Ф и Общ, группы по навыку или общий список по прибыли, порции.
+- **План закупок:** «Запланировать» в карточке рецепта или «План» в «Мой крафт», а у аукциониста — всё, что нужно докупить, где материал дешевле, количество и прибыль партии.
+- **Учёт своих материалов:** отдельно сумки и банк каждого персонажа.
+- **Профессии, которых у вас нет,** можно добавить и следить за их ценами.
 
 ## А ещё
 
-- **Крафт по всем персонажам:** прибыль каждого рецепта, группы по навыку, порции, план закупок со списком «докупить» и пометкой, где материал дешевле. Добавить в план можно из главного окна, у аукциониста и прямо из окна профессии.
-- **Учёт своих материалов:** отдельно сумки и банк каждого персонажа.
-- **«Где взять» рецепт:** тренер, продавцы с координатами, добыча, задания, репутация, карта зоны и метка на карте. Данные Wowhead WoW Forever.
-- **Сигналы со своей ценой:** «купить, если не дороже» и «продать, если не дешевле» — цену вписываете сами. Сигналы общие для всех ваших персонажей.
-- **Аукцион прямо из окна аддона:** покупка с автоматическим расчётом цены, продажа с себестоимостью и выводом «выгодно / торговцу», выставление отмеченных по очереди.
-- **Графики цен** с подписями пиков и провалов и второй линией — сколько штук продано.
-- **Два аукциона:** фракционный и общий (Остров Зефрис, Тернистая долина, Танарис) определяются по зоне и хранятся отдельно. В окне профессии — выгода крафта столбиками Ф / Общ и таблица «где купить материалы и где продать», комиссия у каждого своя (5% и 15%); в главном окне — вкладка «Аукционы»: весь фракционный аукцион с сортировкой и категориями, а для общего — что лучше купить там и что лучше продать.
-- **Подсказка предмета:** стоимость крафта, цена на аукционе и прибыль со знаком + или −.
-- **Стоимость сумок** в маленьком перемещаемом окошке, с кнопкой «Сброс» перед фармом.
-- **Профессии, которых у вас нет,** можно добавить и следить за их ценами.
-- **Значки на предметах в сумках:** молоток аукциониста — выгоднее на аукцион, мешочек с монетой — торговцу. После сортировки сумок выгодное на аукцион встаёт наверх, торговцу — вниз.
-- **Чат не засоряется:** все сообщения аддона — во вкладке «Журнал» главного окна, сигналы ещё и всплывают уведомлением.
+- **Подсказка предмета:** цена на аукционе и на общем аукционе, стоимость крафта и прибыль, где выгоднее продать.
+- **Компактное главное окно:** Главная, Профессии, Аукцион, Настройки.
+- **Чат не засоряется:** все сообщения аддона — в «Журнале», сигналы ещё и всплывают уведомлением.
 - **Автообновление для Windows:** `WolfichMarket-Updater.bat` с сайта — двойной клик, и свежая версия сама встаёт в папку игры.
 - **Два языка:** русский и английский.
 

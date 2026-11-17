@@ -4,11 +4,47 @@ Each release takes its notes from the matching "## version" section below; they 
 
 ## 2.44.3
 
-### 📈 Charts
-- Every small chart (expanded rows at the auctioneer and in the main window, the recipe card) is **clickable** - it opens the big detailed chart of this item.
+**🇬🇧 English** · 🇷🇺 Русский - ниже
 
-### 📈 Графики
-- Любой маленький график (раскрытые строки у аукциониста и в главном окне, карточка рецепта) **кликабелен** - открывается большое окно с подробным графиком этого предмета.
+### 🎯 Focused on the market
+- Features that **Mastercraft** already has are removed: *Alts*, *Cooldowns*, *Where to get* a recipe, the farm window, auto-selling junk and repairs, bag icons and sorting. The **shopping Plan stays**.
+- **The game's profession window is no longer changed**, so it does not get in the way of other addons. One button stays there - **Open in WolfichMarket**: the Professions section with the recipe selected in the game.
+- Main window: **Home, Professions, Auction, Settings**. The addon is lighter.
+
+### 📈 Detailed price charts
+- Fill under the price line, **sold** bars, grid, price and quantity scales, **min / avg / max** lines and a summary line (now, min, max, avg, change, sold).
+- Periods **24 h / 3 d / 7 d / 30 d / all**, a crosshair with a tooltip under the cursor. The chart window is bigger.
+- **Every small chart is clickable** - it opens the big detailed chart of that item.
+
+### 🔨 At the auctioneer
+- **Sell:** a *Refresh* button; the list also updates itself when a lot is posted through the game window or right-click.
+- *Scan*, *Refresh prices* and *Faction / Neutral* buttons are more compact.
+
+### 🛠 Fixes
+- **No more freezes after crafting:** the whole profession is no longer re-read after every crafted item when only the skill went up.
+- The item tooltip no longer forces the tooltip to show - this could interfere with the game code. If the game ever blocks an action because of the addon, the log gets a line naming it.
+
+---
+
+**🇷🇺 Русский**
+
+### 🎯 Только рынок
+- Убрано то, что уже делает **Mastercraft**: *«Твинки»*, *«Часы»*, *«Где взять»* рецепт, окошко фарма, автопродажа хлама и починка, значки и сортировка сумок. **«План» закупки остался.**
+- **Окно профессии игры больше не меняется**, чтобы не мешать другим аддонам. Там осталась одна кнопка - **«Открыть в WolfichMarket»**: раздел «Профессии» с выбранным в игре рецептом.
+- Главное окно: **Главная, Профессии, Аукцион, Настройки**. Аддон стал легче.
+
+### 📈 Подробные графики цены
+- Заливка под линией цены, столбики **«продано»**, сетка, шкалы цены и штук, линии **мин / сред / макс** и строка итогов (сейчас, мин, макс, сред, изменение, продано).
+- Периоды **24 ч / 3 д / 7 д / 30 д / всё**, перекрестие с подсказкой под курсором. Окно графика стало крупнее.
+- **Любой маленький график кликабелен** - открывается большой подробный график этого предмета.
+
+### 🔨 У аукциониста
+- **«Продать»:** кнопка *«Обновить»*; список обновляется и сам, когда лот выставлен окном игры или ПКМ.
+- Кнопки *«Сканировать»*, *«Обновить цены»* и *«Фракционный / Общий»* компактнее.
+
+### 🛠 Исправлено
+- **Игра больше не подвисает после крафта:** профессия не перечитывается целиком после каждого предмета, если вырос только навык.
+- Подсказка предмета больше не вызывает показ подсказки сама - это могло задевать код игры. Если игра заблокирует действие из-за аддона, в журнале появится строка с его названием.
 
 ## 2.44.2
 
