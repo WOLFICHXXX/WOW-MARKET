@@ -713,7 +713,7 @@ function ns.DecorateAHBuy()
   local anchor = type(q) == "table" and ((type(q.InputBox) == "table" and q.InputBox.GetObjectType and q.InputBox) or (q.GetObjectType and q)) or nil
   d.star = UI.Star(d, 18, function() return buyDeco and buyDeco.id end)
   if anchor then d.star:SetPoint("LEFT", anchor, "RIGHT", 16, 0) else d.star:SetPoint("TOPRIGHT", bd, "TOPRIGHT", -70, -150) end
-  d.bell = UI.Bell(d, 22, function() return buyDeco and buyDeco.id end); d.bell:SetPoint("LEFT", d.star, "RIGHT", 10, -3)
+  d.bell = UI.Bell(d, 18, function() return buyDeco and buyDeco.id end); d.bell:SetPoint("LEFT", d.star, "RIGHT", 8, -1)
   -- график: от кнопки «Купить» до низа окна
   local box = CreateFrame("Frame", nil, d)
   local bb = type(bd.BuyButton) == "table" and bd.BuyButton.GetObjectType and bd.BuyButton

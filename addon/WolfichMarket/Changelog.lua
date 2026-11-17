@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.12", d = "17.11.2026",
+    ru = { "Колокольчик в окне покупки игры - снова размером со звезду." },
+    en = { "The bell in the game's buy window is the size of the star again." } },
   { v = "2.44.11", d = "17.11.2026",
     ru = { "Уведомление «Лучший крафт» (и /wm best) больше не предлагает трансмутации: они делаются раз в сутки по кулдауну." },
     en = { "The Best craft notification (and /wm best) no longer suggests transmutes: they are on a daily cooldown." } },

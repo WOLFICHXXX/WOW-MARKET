@@ -2,6 +2,13 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.12
+
+### 🎨 Look
+- The alert bell in the game's buy window is the size of the star again.
+
+---
+
 ## 2.44.11
 
 ### 🔧 Changed
