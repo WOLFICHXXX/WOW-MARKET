@@ -2,6 +2,19 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.4", d = "17.11.2026",
+    ru = {
+      "Звезда «Избранное» у каждого предмета: «Весь аукцион», «Общий», «Сигналы», «Продать», «План», окно графика, окно сигнала, выбранный предмет во «Купить».",
+      "Окно сигнала и меню категорий больше не прозрачные - под ними ничего не видно и не нажимается.",
+      "Перекрестие и подсказка «клик - большой график» - только у графика под курсором: если сверху открыто окно (большой график, сигнал), график под ним не отзывается.",
+      "Подписи легенды графика больше не превращаются в квадратики.",
+    },
+    en = {
+      "A Favorites star next to every item: Whole auction, Neutral, Alerts, Sell, Plan, the chart window, the alert window, the selected item in Buy.",
+      "The alert window and category menus are no longer transparent - nothing shows through or gets clicked underneath.",
+      "The crosshair and the click hint belong only to the chart under the cursor: a chart covered by another window no longer reacts.",
+      "Chart legend symbols no longer turn into boxes.",
+    } },
   { v = "2.44.3", d = "17.11.2026",
     ru = { "Любой маленький график (в раскрытых строках у аукциониста и в главном окне, в карточке рецепта) кликабелен - открывается большое окно с подробным графиком этого предмета; в подсказке под курсором - «Клик - большой подробный график»." },
     en = { "Every small chart (in expanded rows at the auctioneer and in the main window, in the recipe card) is clickable - it opens the big window with the detailed chart of this item; the tooltip under the cursor says so." } },

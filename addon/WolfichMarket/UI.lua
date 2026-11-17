@@ -140,7 +140,7 @@ function UI.FrameSkin(f, s)
 end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
 function UI.Box(f, alpha)
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.02, 0.02, 0.03, alpha or 0.42)
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.03, 0.025, 0.02, alpha or 0.42)
   local function line(p1, p2, horiz)
     local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.42, 0.33, 0.17, 0.95)
     if horiz then t:SetHeight(1) else t:SetWidth(1) end
@@ -157,7 +157,7 @@ function UI.Skin(f, opts)
   opts = opts or {}
   if winReady() and not opts.old then
     if opts.theme == "main" or opts.theme == "ah" then return UI.FrameSkin(f, opts.frame or (opts.theme == "ah" and 0.55 or 0.42)) end
-    return UI.Box(f, opts.theme and 0.42 or 0.9)
+    return UI.Box(f, opts.alpha or (opts.theme and 0.42 or 0.9))
   end
   local sz = opts.theme and ns.SKIN and ns.SKIN[opts.theme]
   if not sz then return plainSkin(f, opts) end
@@ -508,7 +508,7 @@ function UI.Chart(parent)
   UI.Edge(plot, P.brassDark[1], P.brassDark[2], P.brassDark[3], 0.8, "BORDER")
   -- легенда и строка цифр над графиком
   f.legend = UI.Font(f, 10, UI.DIM, "OVERLAY")
-  f.legend:SetText("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r")
+  f.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
   f.stats = UI.Font(f, 11, UI.TEXT, "OVERLAY"); f.stats:SetJustifyH("LEFT")
   local msg = UI.Font(f, 12, UI.DIM); msg:SetPoint("CENTER", plot); msg:SetJustifyH("CENTER")
   -- кнопки периода
@@ -569,6 +569,9 @@ function UI.Chart(parent)
   plot:SetScript("OnMouseUp", function() if f.onClick then f.onClick() end end)
   plot:SetScript("OnUpdate", function()
     if f.compact or not f.view or not plot:IsMouseOver() then return end
+    -- график закрыт другим окном (большой график, окно сигнала) - курсор не над ним
+    local focus = (GetMouseFoci and (GetMouseFoci() or {})[1]) or (GetMouseFocus and GetMouseFocus())
+    if focus and focus ~= plot then if vline:IsShown() then hideHover(); f.hoverIdx = nil end return end
     local cx = GetCursorPosition and (select(1, GetCursorPosition()) / (plot:GetEffectiveScale() or 1)) or nil
     local left = plot:GetLeft()
     if not cx or not left then return end
@@ -786,6 +789,12 @@ function ns.HasSignal(id)
   local d = ns.DB.alarmDir and ns.DB.alarmDir[id]
   return (t and (t.buy or t.sell)) and true or (d ~= nil)
 end
+-- звезда «Избранное» у любого предмета: клик - добавить / убрать
+function UI.Star(parent, size, getId)
+  local b = UI.Icon(parent, "star-off", size or 14, L"Избранное", function(self) local id = getId(self); if id then ns.ToggleMark(id); self:Update(id) end end)
+  function b:Update(id) id = id or getId(self); self:SetIcon(id and ns.IsMarked(id) and "star-on" or "star-off") end
+  return b
+end
 function UI.Bell(parent, size, getId)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(size or 16, size or 16)
@@ -812,9 +821,10 @@ function ns.OpenSignalDialog(id)
     sigDlg:SetMovable(true); sigDlg:RegisterForDrag("LeftButton"); sigDlg:SetClampedToScreen(true)
     sigDlg:SetScript("OnDragStart", sigDlg.StartMoving); sigDlg:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     tinsert(UISpecialFrames, "WolfichMarketSignalDialog")
-    UI.Skin(sigDlg, { theme = "acard", scale = 0.3 })
+    UI.Skin(sigDlg, { theme = "acard", scale = 0.3, alpha = 0.97 }) -- непрозрачное: под ним ничего не видно и не нажимается
     sigDlg.icon = sigDlg:CreateTexture(nil, "ARTWORK"); sigDlg.icon:SetSize(26, 26); sigDlg.icon:SetPoint("TOPLEFT", 18, -16)
-    sigDlg.name = UI.Font(sigDlg, 13, UI.GOLD); sigDlg.name:SetPoint("TOPLEFT", sigDlg.icon, "TOPRIGHT", 8, -1); sigDlg.name:SetPoint("RIGHT", -18, 0)
+    sigDlg.star = UI.Star(sigDlg, 16, function() return sigDlg.id end); sigDlg.star:SetPoint("TOPRIGHT", -16, -18)
+    sigDlg.name = UI.Font(sigDlg, 13, UI.GOLD); sigDlg.name:SetPoint("TOPLEFT", sigDlg.icon, "TOPRIGHT", 8, -1); sigDlg.name:SetPoint("RIGHT", sigDlg.star, "LEFT", -6, 0)
     sigDlg.now = UI.Font(sigDlg, 10, UI.DIM); sigDlg.now:SetPoint("TOPLEFT", sigDlg.name, "BOTTOMLEFT", 0, -2)
     local l1 = UI.Font(sigDlg, 11); l1:SetPoint("TOPLEFT", 20, -58); l1:SetText(L"Купить, если цена не выше:")
     sigDlg.buy = UI.MoneyInput(sigDlg, nil, true); sigDlg.buy:SetPoint("TOPRIGHT", -18, -54)
@@ -829,7 +839,7 @@ function ns.OpenSignalDialog(id)
     local cancel = UI.Button(sigDlg, L"Отмена", 80, 24, function() sigDlg:Hide() end); cancel:SetPoint("BOTTOMLEFT", 18, 16)
   end
   sigDlg.id = id
-  sigDlg.icon:SetTexture(ns.itemIcon(id)); sigDlg.name:SetText(ns.itemLinkText(id))
+  sigDlg.icon:SetTexture(ns.itemIcon(id)); sigDlg.name:SetText(ns.itemLinkText(id)); sigDlg.star:Update(id)
   local p = ns.AHPrice(id)
   sigDlg.now:SetText(L"сейчас на аукционе" .. ": " .. (p and ns.money(p, true) or L"нет цены"))
   local t = ns.DB.target and ns.DB.target[id] or {}
@@ -869,7 +879,7 @@ function UI.ItemDetail(det, opts)
   -- клик по графику - большое окно с подробным графиком этого предмета
   det.chart.onClick = function() if det.id and ns.ShowChartDialog then ns.ShowChartDialog(det.id) end end
   det.chart:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0); det.chart:SetPoint("BOTTOMRIGHT", -6, 0)
-  det.legend:SetText("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r")
+  det.legend:SetText("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r")
   function det:Set(id)
     self.id = id
     local unit, rec, _, ck, prof = ns.CraftCost(id)
@@ -891,7 +901,7 @@ function UI.ItemDetail(det, opts)
     -- над графиком: продано за 24 ч и сколько сейчас лотов
     local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
     -- в узкой панели - без подписей линий (цвета линий и так видны), только числа
-    self.legend:SetText((self.compactLegend and "" or ("|cfff2c761━ " .. L"цена" .. "|r   |cff66d9cc▮ " .. L"продано, шт" .. "|r     ")) .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
+    self.legend:SetText((self.compactLegend and "" or ("|cfff2c761— " .. L"цена" .. "|r   |cff66d9cc— " .. L"продано, шт" .. "|r     ")) .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
     local h = ns.History(id)
     ns.After(0, function() if self.id == id then self.chart:SetPoints(h) end end)
   end

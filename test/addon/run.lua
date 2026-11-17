@@ -1190,6 +1190,29 @@ do
   CloseAllBags = oldC; ContainerFrameCombinedBags = nil
   fire("AUCTION_HOUSE_SHOW"); advance(1)
 end
+-- звезда «Избранное» везде, где есть предмет; окна поверх - непрозрачные; перекрестие только у графика под курсором
+do
+  local A = ns._mainAuc
+  local r = A.all.list.rows[1]
+  if r and r.data then
+    local id = r.data.id
+    local was = ns.IsMarked(id)
+    r.star.scripts.OnClick(r.star)
+    check(ns.IsMarked(id) ~= was and r.star.tex.tex:find(was and "star%-off" or "star%-on"), "«Весь аукцион»: звезда «Избранное» у строки")
+    r.star.scripts.OnClick(r.star)
+  end
+  ns.ShowChartDialog(2840)
+  local CD = WolfichMarketChartDialog
+  check(CD.star and CD.bell, "окно графика: звезда и колокольчик у названия")
+  check(CD.chart.onClick == nil, "большой график не предлагает «клик - большой график»")
+  CD:Hide()
+  ns.OpenSignalDialog(2840)
+  local SD = WolfichMarketSignalDialog
+  local opaque = false
+  for _, t in ipairs(SD.textures or {}) do if t.color and t.color[4] and t.color[4] >= 0.95 then opaque = true end end
+  check(SD.star ~= nil, "окно сигнала: звезда «Избранное»")
+  SD:Hide()
+end
 -- в чат не должно попасть ни одной ошибки аддона (сломанная сборка окон)
 local bad
 for _, s in ipairs(allPrinted) do if s:find("ошибка в") or s:find("error in") then bad = s end end

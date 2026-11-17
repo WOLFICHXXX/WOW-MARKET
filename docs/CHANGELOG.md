@@ -2,6 +2,18 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.4
+
+### ✨ Changes
+- **Favorites star** next to every item: Whole auction, Neutral, Alerts, Sell, Plan, the chart window, the alert window, the selected item in Buy.
+- The alert window and category menus are **no longer transparent**.
+- The chart crosshair and the click hint belong only to the chart under the cursor; legend symbols no longer turn into boxes.
+
+### ✨ Изменения
+- **Звезда «Избранное»** у каждого предмета: «Весь аукцион», «Общий», «Сигналы», «Продать», «План», окно графика, окно сигнала, выбранный предмет во «Купить».
+- Окно сигнала и меню категорий **больше не прозрачные**.
+- Перекрестие и подсказка про клик - только у графика под курсором; значки легенды больше не квадратики.
+
 ## 2.44.3
 
 **🇬🇧 English** · 🇷🇺 Русский - ниже
