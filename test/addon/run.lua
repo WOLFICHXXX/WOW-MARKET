@@ -302,15 +302,13 @@ do
     check(pN and math.abs(pN - (sN * 0.85 - cN)) < 1, "прибыль на общем - за вычетом 15%")
     local _, where = ns.BestBuy(2840)
     check(where == "neutral", "материал дешевле на общем аукционе")
-    local M = ns.RecipeMarket(rec)
-    check(#M.rows == 1 and M.rows[1].bestKind == "neutral" and M.out.p.neutral == 90000000 and M.out.p.bm == nil, "таблица: материалы и продажа по двум аукционам")
-    -- окно профессии игры: столбики на строках и таблица под реагентами
+    -- окно профессии игры: аддон его не меняет, только кнопка «Открыть в WolfichMarket»
     local oldPF = ProfessionsFrame
     ProfessionsFrame = CreateFrame("Frame"); ProfessionsFrame.CraftingPage = CreateFrame("Frame")
     local rl = CreateFrame("Frame"); rl.ScrollBox = CreateFrame("Frame"); ProfessionsFrame.CraftingPage.RecipeList = rl
     local form = CreateFrame("Frame"); form.Init = function() end; ProfessionsFrame.CraftingPage.SchematicForm = form
     local okH = pcall(ns._hookRows)
-    check(okH, "окно профессии: столбики и таблица подключаются без ошибок")
+    check(okH, "окно профессии: подключение без ошибок")
     -- окно профессии: вырос навык (крафт поднял уровень) - уровень обновлён без полного чтения рецептов (иначе игра подвисала)
     do
       local p = ns.DB.chars[ns.charKey].profs[ns.curProf or ""]
@@ -324,46 +322,21 @@ do
         np.t = oldT
       end
     end
-    local okF = pcall(ns._fillMarketTable, rec)
-    check(okF, "таблица «где купить, где продать» заполняется без ошибок")
+    -- кнопка «Открыть в WolfichMarket»: главное окно, «Профессии», рецепт, выбранный в игре
     do
-      local m = ns._marketTable
-      local ln = m and m.lines[1]
-      if ln and ln.id then
-        ln.scripts.OnClick(ln)
-        check(m.det:IsShown() and m.open == ln.id and ln.star and ln.bell, "окно профессии: клик по строке - график цены под ней; у строки звезда и колокольчик")
-        ln.scripts.OnClick(ln)
-        check(m.open == nil, "окно профессии: повторный клик сворачивает график")
-      end
+      fire("TRADE_SKILL_SHOW"); advance(1)
+      local btn = ns._openInMainBtn
+      local own; for _, r in ipairs(ns.DB.chars[ns.charKey].profs[ns.curProf].recipes) do if r.out then own = r; break end end
+      if HOOKS.Init and own then HOOKS.Init(form, { recipeID = own.id }) end
+      check(btn and ns._currentRecipe() == own, "окно профессии: запомнен рецепт, выбранный в игре")
+      if btn then btn.scripts.OnClick(btn) end
+      local MF = WolfichMarketMainFrame
+      check(MF and MF:IsShown() and MF.pages[2]:IsShown() and (ns._mainCraft.card.title.text or ""):find(own.name, 1, true), "«Открыть в WolfichMarket» - раздел «Профессии» с этим рецептом")
+      MF:Hide()
+      check(ProfessionsFrame.CraftingPage.RecipeList.ScrollBox.wmSorted == nil, "список рецептов игры не меняется")
     end
-    -- сортировка списка рецептов игры по прибыли: фиктивное дерево как у игры
     do
-      local function node(data, kids) local n = { data = data, nodes = kids or {} }
-        function n:GetData() return self.data end
-        function n:GetNodes() return self.nodes end
-        function n:SetSortComparator(c) self.cmp = c; for _, ch in ipairs(self.nodes) do ch.cmp = c end end
-        function n:Sort() local function srt(x) if x.cmp then table.sort(x.nodes, x.cmp) end; for _, ch in ipairs(x.nodes) do srt(ch) end end; srt(self) end
-        return n end
-      ns.DB.chars[ns.charKey].profs["ТестПроф"] = { recipes = {
-        { id = 9001, name = "A", out = 3470, reag = { { 2840, 1 } }, qmin = 1, qmax = 1 },
-        { id = 9002, name = "B", out = 2862, reag = { { 2840, 1 } }, qmin = 1, qmax = 1 } }, line = 1, skill = 1, max = 1 }
-      local saveProf = ns.curProf; ns.curProf = "ТестПроф"; ns.MarkProfitDirty()
-      local cat = node({ categoryInfo = {} }, { node({ recipeInfo = { recipeID = 9002 } }), node({ recipeInfo = { recipeID = 9001 } }) })
-      local root = node({}, { cat })
-      local dp = { GetRootNode = function() return root end }
-      ProfessionsFrame.CraftingPage.RecipeList.ScrollBox.GetDataProvider = function() return dp end
       local nt = ns.DB.ntah[ns.realmKey]
-      nt.items[3470] = { p = 90000000, q = 1 }; nt.items[2862] = { p = 1, q = 1 }
-      ns.DB.settings.profSort = "neutral"; ns.ApplyRecipeSort()
-      check(cat.nodes[1].data.recipeInfo.recipeID == 9001, "окно профессии: сортировка по прибыли на общем")
-      -- пришла новая цена от игрока (не свой снимок) - порядок не дёргается
-      nt.items[3470] = { p = 1, q = 1 }; ns.ApplyRecipeSort()
-      check(cat.nodes[1].data.recipeInfo.recipeID == 9001, "окно профессии: от каждой пришедшей цены строки не меняются местами")
-      nt.items[3470] = { p = 90000000, q = 1 }
-      ns.DB.settings.profSort = nil; ns.ApplyRecipeSort()
-      check(cat.nodes[1].data.recipeInfo.recipeID == 9002, "окно профессии: без галочки - исходный порядок игры")
-      local mtb = ns._marketTable
-      check(mtb and mtb.sortMain and mtb.sortNt, "окно профессии: галочки «по прибыли Ф» и «по прибыли Общ»")
       ns.ToggleMain()
       local C = ns._mainCraft
       local okS = C and C.sortNt and pcall(C.sortNt.scripts.OnClick, (function() C.sortNt:SetChecked(true); return C.sortNt end)())
@@ -372,17 +345,7 @@ do
       check(ns.DB.settings.craftSort == "main" and not C.sortNt:GetChecked(), "главное окно: галочки взаимоисключающие")
       check(C.card and C.card.chartBox and C.card.onAH, "карточка рецепта: график в своей панели, кнопка «На аукционе»")
       ns.DB.settings.craftSort = nil; ns.ToggleMain()
-      nt.items[2862] = nil
-      ns.DB.chars[ns.charKey].profs["ТестПроф"] = nil; ns.curProf = saveProf; ns.MarkProfitDirty()
     end
-    local row = CreateFrame("Frame")
-    row.GetElementData = function() return { GetData = function() return { recipeInfo = { recipeID = 777001 } } end } end
-    local okD, errD = pcall(ns._decorateRow, row)
-    check(okD and row.wmCols and row.wmCols.main, "строка рецепта: столбики Ф / Общ")
-    local cat = CreateFrame("Frame")
-    cat.GetElementData = function() return { GetData = function() return { categoryInfo = { name = "Избранное" } } end } end
-    pcall(ns._decorateRow, cat)
-    check(cat.wmCols and (cat.wmCols.main.text or ""):find("Ф", 1, true) or (cat.wmCols and (cat.wmCols.main.text or ""):find("F", 1, true)), "заголовок группы: подписи столбиков над цифрами")
     nt.items[3470], nt.items[2840] = nil, nil
     ProfessionsFrame = oldPF
   end
@@ -1118,9 +1081,6 @@ do
   local h = ns._mainHome.cards[1]
   check(h and h.v.text == ns.VERSION and h.lines[1] and h.lines[1].text ~= "", "«Главная»: что нового в текущей версии " .. tostring(h and h.v.text))
   -- окно профессии игры: таблицу можно выключить
-  ns.DB.settings.profUI = false
-  if ns._marketTable then ns.RefreshMarketTable(); check(not ns._marketTable:IsShown(), "настройка выключает таблицу в окне профессии игры") end
-  ns.DB.settings.profUI = true
   W.tabs[2].scripts.OnClick(W.tabs[2])
 end
 -- у аукциониста: своя сумка под окном аукциона, клик - предмет в «Продать»

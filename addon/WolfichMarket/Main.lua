@@ -992,8 +992,7 @@ local function buildSettings(f)
   setp.reload = UI.Button(f, L"Перезагрузить интерфейс", 190, 22, function() if ReloadUI then ReloadUI() end end, true)
   setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
-  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Окно профессии игры"); b.y = b.y - 72
-  chk(b, L"Таблица «Где купить и где продать» и столбики Ф / Общ", "profUI", function() if ns.DecorateRecipeRows then ns.DecorateRecipeRows() end; if ns.RefreshMarketTable then ns.RefreshMarketTable() end end, true)
+  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Прочее"); b.y = b.y - 72
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
   local jb = UI.Button(f, L"Открыть журнал", 170, 22, function() ns.OpenLog() end, true); jb:SetPoint("TOPLEFT", b.x, b.y - 6)
   jb:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Все сообщения аддона: снимки, общий рынок, сигналы и продажи.", 1, 1, 1, true); GameTooltip:Show() end)
@@ -1132,6 +1131,15 @@ ns._mainCraft = craft -- для автотестов
 ns._mainSig = sig
 ns._mainHome = home
 ns._mainPops = pops
+-- «Открыть в WolfichMarket» из окна профессии игры: раздел «Профессии», этот персонаж, эта профессия, этот рецепт
+function ns.OpenRecipeInMain(rec)
+  if not ns.DB or not ns.charKey then return end
+  build()
+  charKey = ns.charKey
+  if ns.curProf and prof ~= ns.curProf then prof = ns.curProf; sel = nil end
+  win:Show(); selectView(VIEW_CRAFT); raise()
+  if rec then craft.chartRec = nil; fillCard(rec) end
+end
 function ns.ToggleMain(section)
   if not ns.DB or not ns.charKey then return end
   build()

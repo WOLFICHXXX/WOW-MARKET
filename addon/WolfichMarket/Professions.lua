@@ -329,15 +329,25 @@ local function fillDetail(rec)
 end
 ns.FillRecipeDetail = fillDetail
 
--- Отдельной панели у окна профессии больше нет: всё — в главном окне WolfichMarket.
--- На окне профессии остаются суммы прибыли на строках и кнопка-лапа, открывающая главное окно.
+-- В окне профессии игры аддон ничего не меняет (чтобы не мешать другим аддонам) - только кнопка
+-- «Открыть в WolfichMarket»: главное окно, раздел «Профессии», выбранный в игре рецепт.
 local built = false
+local currentRecipe -- рецепт, выбранный в окне профессии игры
 local function build()
   local h = host()
   if built or not h then return end
   built = true
-  local tg = UI.Icon(h, "paw", 22, L"WolfichMarket: прибыль крафта", function() if ns.ToggleMain then ns.ToggleMain() end end)
-  tg:SetPoint("TOPRIGHT", h, "TOPRIGHT", -28, -2); tg:SetFrameLevel(h:GetFrameLevel() + 20)
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local form = page and page.SchematicForm
+  local b = UI.Button(form or h, L"Открыть в WolfichMarket", 190, 18, function()
+    if ns.OpenRecipeInMain then ns.OpenRecipeInMain(currentRecipe) elseif ns.ToggleMain then ns.ToggleMain() end
+  end)
+  b:FitWidth(170, 240)
+  if form then b:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 24, 14) else b:SetPoint("TOPRIGHT", h, "TOPRIGHT", -36, -30) end
+  b:SetFrameLevel(((form or h):GetFrameLevel() or 1) + 20)
+  b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Себестоимость, прибыль на Ф и Общ и график этого рецепта - в окне WolfichMarket.", 1, 1, 1, true); GameTooltip:Show() end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  ns._openInMainBtn = b
 end
 
 -- ---------- прибыль прямо на строках списка рецептов игры ----------
@@ -352,17 +362,7 @@ local function indexRecipes()
 end
 -- ---------- два аукциона: Ф - фракционный, Общ - общий ----------
 local KINDS = { "main", "neutral" }
-local KSHORT = { main = L"Ф", neutral = L"Общ" }
-local NK = #KINDS
-local COLW = 40
-local COLR = -24 -- столбики левее правого края: там у заголовков групп кнопка «свернуть»
--- короткая сумма: золото, а меньше золотого - серебро
-local function short(c)
-  local a = math.abs(c)
-  local t = a >= 10000 and (math.floor(a / 10000) .. L"з") or a >= 100 and (math.floor(a / 100) .. L"с") or (math.floor(a) .. L"м")
-  return (c >= 0 and "+" or "-") .. t
-end
--- выгода рецепта на каждом аукционе: { main = прибыль, neutral = ..., bm = ... }, лучший аукцион
+-- выгода рецепта на каждом аукционе: { main = прибыль, neutral = ... }, лучший аукцион
 function ns.ProfitByKind(rec)
   local res, best = {}, nil
   for _, k in ipairs(KINDS) do
@@ -372,301 +372,6 @@ function ns.ProfitByKind(rec)
   end
   return res, best
 end
-local function decorate(frame)
-  if not frame or not frame.GetElementData then return end
-  local node = frame:GetElementData()
-  local data = node and node.GetData and node:GetData()
-  local ri = data and data.recipeInfo
-  if not frame.wmCols then
-    frame.wmCols = {}
-    for i, k in ipairs(KINDS) do
-      -- шрифт аддона (Inter), как в новом оформлении
-      local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); UI.SetFont(fs, UI.FONT, 11, "")
-      fs:SetPoint("RIGHT", frame, "RIGHT", COLR - (NK - i) * COLW, 0); fs:SetWidth(COLW); fs:SetJustifyH("RIGHT")
-      frame.wmCols[k] = fs
-    end
-    -- название рецепта не должно залезать под столбики
-    if type(frame.Label) == "table" and frame.Label.SetPoint then pcall(frame.Label.SetPoint, frame.Label, "RIGHT", frame, "RIGHT", COLR - NK * COLW, 0) end
-  end
-  -- столбики Ф / Общ выключены в настройках - окно профессии как в игре
-  if ns.DB.settings.profUI == false then
-    for _, fs in pairs(frame.wmCols) do fs:Hide() end
-    frame:SetAlpha(1)
-    return
-  end
-  local pr = ri and recipeIndex[ri.recipeID]
-  if pr and pr.rec.out then
-    local by, best = ns.ProfitByKind(pr.rec)
-    for _, k in ipairs(KINDS) do
-      local v = by[k]
-      local fs = frame.wmCols[k]
-      if v then
-        -- лучший аукцион - ярко, остальные - приглушённо
-        local col = v >= 0 and (k == best and "|cff78d98a" or "|cff5a8a62") or (k == best and "|cffff7a66" or "|cff9a6058")
-        fs:SetText(col .. short(v) .. "|r")
-      else fs:SetText("|cff555555-|r") end
-      fs:Show()
-    end
-    frame:SetAlpha(ns.DB.settings.profitOnly and not (pr.profit and pr.profit > 0) and 0.35 or 1)
-  elseif data and data.categoryInfo then
-    -- заголовок группы рецептов: подписи столбиков ровно над цифрами
-    for _, k in ipairs(KINDS) do frame.wmCols[k]:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r"); frame.wmCols[k]:Show() end
-    frame:SetAlpha(1)
-  else
-    for _, fs in pairs(frame.wmCols) do fs:Hide() end
-    frame:SetAlpha(ri and ns.DB.settings.profitOnly and 0.35 or 1)
-  end
-end
-ns._decorateRow = decorate
-
--- ---------- сортировка списка рецептов игры по прибыли (Ф или Общ) ----------
--- Внутри каждой группы рецепты встают по убыванию прибыли на выбранном аукционе; без галочки - исходный порядок игры.
-local function recipeSortList()
-  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
-  local sb = page and page.RecipeList and page.RecipeList.ScrollBox
-  return sb, sb and sb.GetDataProvider and sb:GetDataProvider()
-end
-function ns.ApplyRecipeSort()
-  local sb, dp = recipeSortList()
-  if not dp or not dp.GetRootNode then return end
-  local root = dp:GetRootNode()
-  if not root or not root.SetSortComparator then return end
-  -- запомнить исходный порядок игры (один раз для каждого списка)
-  if not dp.wmIndexed then
-    local i = 0
-    local function walk(node)
-      for _, ch in ipairs((node.GetNodes and node:GetNodes()) or node.nodes or {}) do i = i + 1; ch.wmIdx = i; walk(ch) end
-    end
-    walk(root); dp.wmIndexed = true
-  end
-  local mode = ns.DB.settings.profSort
-  -- значения для сортировки запоминаются и не меняются от каждой пришедшей цены - иначе строки «дёргаются».
-  -- Пересчёт - только при смене галочки, новом своём снимке аукциона или смене профессии.
-  local stamp = (mode or "") .. "|" .. (ns.curProf or "") .. "|" .. ((ns.CurrentScan() or {}).t or 0)
-  if ns._sortStamp ~= stamp then
-    local v = {}
-    if mode then
-      indexRecipes()
-      for rid, pr in pairs(recipeIndex) do if pr.rec.out then v[rid] = ns.ProfitIn(pr.rec, mode) end end
-    end
-    ns._sortVal, ns._sortStamp = v, stamp
-  end
-  local val = ns._sortVal or {}
-  local function key(node)
-    local d = node.GetData and node:GetData()
-    local ri = d and d.recipeInfo
-    return ri and ri.recipeID
-  end
-  local cmp = function(a, b)
-    local ra, rb = key(a), key(b)
-    if mode and ra and rb then
-      local x, y = val[ra], val[rb]
-      -- разница меньше 1 медной - считаем равными (порядок игры)
-      if x and y and math.abs(x - y) >= 1 then return x > y end
-      if (x ~= nil) ~= (y ~= nil) then return x ~= nil end
-    end
-    return (a.wmIdx or 0) < (b.wmIdx or 0)
-  end
-  pcall(root.SetSortComparator, root, cmp, true)
-  if root.Sort then pcall(root.Sort, root) end
-  if dp.Invalidate then pcall(dp.Invalidate, dp) end
-end
-
--- ---------- таблица цен под реагентами в окне профессии ----------
--- для каждого материала - цена на обоих аукционах и у торговца (дешевле - зелёным),
--- для результата - продажа на обоих аукционах (дороже - золотым), внизу - где купить и где продать
-function ns.RecipeMarket(rec)
-  local rows = {}
-  for _, r in ipairs(rec.reag or {}) do
-    local row = { id = r[1], n = r[2], p = {} }
-    for _, k in ipairs(KINDS) do row.p[k] = ns.PriceIn(k, r[1]) end
-    row.vendor = ns.DB.vendor[r[1]]
-    row.best, row.bestKind = ns.BestBuy(r[1])
-    rows[#rows + 1] = row
-  end
-  local out
-  if rec.out then
-    out = { id = rec.out, q = ((rec.qmin or 1) + (rec.qmax or 1)) / 2, p = {} }
-    for _, k in ipairs(KINDS) do out.p[k] = ns.PriceIn(k, rec.out) end
-  end
-  local by, best = ns.ProfitByKind(rec)
-  return { rows = rows, out = out, profit = by, best = best }
-end
-local mt
--- Блок «Где купить и где продать» под реагентами: компактно, всё внутри рамки.
--- Строка: ▸ (график ниже) · значок · название · Ф · Общ · ☆ избранное · колокольчик сигнала
-local ROW = 18
-local function buildMarketTable(form)
-  mt = CreateFrame("Frame", nil, form)
-  ns._marketTable = mt
-  local reag = type(form.Reagents) == "table" and form.Reagents.GetBottom and form.Reagents or nil
-  if reag then mt:SetPoint("TOPLEFT", reag, "BOTTOMLEFT", 0, -6); mt:SetPoint("RIGHT", form, "RIGHT", -30, 0)
-  else mt:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 26, 46); mt:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -30, 46) end
-  mt.anchoredTop = reag ~= nil
-  mt:SetHeight(160)
-  if mt.SetClipsChildren then mt:SetClipsChildren(true) end
-  -- минималистичное оформление: ткань с лапками, тонкая золотая кромка, лапа и заголовок шрифтом заголовков
-  local bg = mt:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
-  UI.PawsBG(mt)
-  UI.Edge(mt, 0.43, 0.33, 0.16, 1)
-  mt.paw = mt:CreateTexture(nil, "ARTWORK"); mt.paw:SetSize(13, 13); mt.paw:SetPoint("TOPLEFT", 8, -7); UI.WinTex(mt.paw, "nav-paw"); mt.paw:SetVertexColor(0.95, 0.78, 0.38)
-  mt.title = mt:CreateFontString(nil, "OVERLAY"); UI.SetFont(mt.title, UI.TITLE_FONT, 14, ""); mt.title:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
-  mt.title:SetPoint("LEFT", mt.paw, "RIGHT", 6, 0); mt.title:SetText(L"Где купить и где продать")
-  local lb = mt:CreateTexture(nil, "ARTWORK"); lb:SetHeight(1); lb:SetPoint("BOTTOMLEFT", 1, 25); lb:SetPoint("BOTTOMRIGHT", -1, 25); lb:SetColorTexture(0.18, 0.15, 0.09, 1)
-  -- столбики: Ф, Общ, затем звезда и колокольчик (по 18)
-  local XN, XF = -46, -100
-  mt.colX = { main = XF, neutral = XN }
-  local hdr = UI.Font(mt, 10, UI.DIM); hdr:SetPoint("TOPLEFT", 22, -30); hdr:SetText(L"Материалы")
-  for _, k in ipairs(KINDS) do
-    local h = UI.Font(mt, 10, UI.GOLD); h:SetPoint("TOPRIGHT", mt, "TOPRIGHT", mt.colX[k], -30); h:SetWidth(54); h:SetJustifyH("RIGHT")
-    h:SetText(ns.ALT_COLOR[k] .. KSHORT[k] .. "|r")
-  end
-  local l0 = mt:CreateTexture(nil, "ARTWORK"); l0:SetHeight(1); l0:SetPoint("TOPLEFT", 6, -43); l0:SetPoint("TOPRIGHT", -6, -43); l0:SetColorTexture(0.18, 0.15, 0.09, 1)
-  -- строки, график и итог - на прокручиваемом листе: блок не выходит за низ окна профессии
-  local sf = CreateFrame("ScrollFrame", nil, mt); sf:SetPoint("TOPLEFT", 0, -44); sf:SetPoint("BOTTOMRIGHT", 0, 26)
-  if sf.SetClipsChildren then sf:SetClipsChildren(true) end
-  local body = CreateFrame("Frame", nil, sf); body:SetSize(300, 200); sf:SetScrollChild(body)
-  sf:SetScript("OnSizeChanged", function(self, w) if w and w > 0 then body:SetWidth(w) end end)
-  sf:EnableMouseWheel(true)
-  sf:SetScript("OnMouseWheel", function(self, d)
-    local max = math.max(0, (body:GetHeight() or 0) - (self:GetHeight() or 0))
-    mt.scroll = math.max(0, math.min(max, (mt.scroll or 0) - d * 30)); self:SetVerticalScroll(mt.scroll)
-  end)
-  mt.sf, mt.body = sf, body
-  mt.lines = {}
-  for i = 1, 10 do
-    local ln = CreateFrame("Button", nil, body); ln:SetHeight(ROW); ln:SetPoint("LEFT", 4, 0); ln:SetPoint("RIGHT", -4, 0)
-    ln.bg = ln:CreateTexture(nil, "BACKGROUND", nil, 1); ln.bg:SetAllPoints(); ln.bg:Hide()
-    local hl = ln:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 0.85, 0.45, 0.07)
-    ln.tri = ln:CreateTexture(nil, "ARTWORK"); ln.tri:SetSize(9, 9); ln.tri:SetPoint("LEFT", 2, 0); UI.WinTex(ln.tri, "tri")
-    ln.icon = ln:CreateTexture(nil, "ARTWORK"); ln.icon:SetSize(14, 14); ln.icon:SetPoint("LEFT", 14, 0)
-    ln.bell = UI.Bell(ln, 14, function(self) return self:GetParent().id end); ln.bell:SetPoint("RIGHT", -2, 0)
-    ln.star = UI.Icon(ln, "star-off", 13, L"Избранное", function(self) local id = self:GetParent().id; if id then ns.ToggleMark(id) end end); ln.star:SetPoint("RIGHT", ln.bell, "LEFT", -3, 0)
-    ln.p = {}
-    for _, k in ipairs(KINDS) do
-      local fs = UI.Font(ln, 11); fs:SetPoint("RIGHT", ln, "RIGHT", mt.colX[k] + 4, 0); fs:SetWidth(54); fs:SetJustifyH("RIGHT"); ln.p[k] = fs
-    end
-    ln.name = UI.Font(ln, 11); ln.name:SetPoint("LEFT", ln.icon, "RIGHT", 4, 0); ln.name:SetPoint("RIGHT", ln, "RIGHT", XF - 54 + 2, 0)
-    -- клик - график цены этого предмета под строками; ещё раз - свернуть
-    ln:SetScript("OnClick", function(self) if self.id then mt.open = (mt.open ~= self.id) and self.id or nil; ns._fillMarketTable(mt.rec) end end)
-    ln:SetScript("OnEnter", function(self)
-      if not self.id then return end
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id)
-      if self.tip then GameTooltip:AddLine(self.tip, 0.9, 0.9, 0.9, true) end
-      GameTooltip:AddLine(L"Клик - график цены", 0.9, 0.7, 0.3); GameTooltip:Show()
-    end)
-    ln:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    ln:Hide(); mt.lines[i] = ln
-  end
-  -- график раскрытой строки: продано за 24 ч и лотов - сверху
-  local det = CreateFrame("Frame", nil, body); det:SetHeight(96); det:SetPoint("LEFT", 6, 0); det:SetPoint("RIGHT", -6, 0)
-  local dbg = det:CreateTexture(nil, "BACKGROUND"); dbg:SetAllPoints(); dbg:SetColorTexture(0, 0, 0, 0.35)
-  det.info = UI.Font(det, 10, UI.DIM); det.info:SetPoint("TOPLEFT", 6, -3); det.info:SetPoint("RIGHT", -6, 0)
-  det.chart = UI.Chart(det); det.chart.compact = true; det.chart.noLegend = true
-  det.chart:SetPoint("TOPLEFT", -14, -10); det.chart:SetPoint("BOTTOMRIGHT", 4, -2)
-  det:Hide(); mt.det = det
-  mt.foot = UI.Font(body, 10, UI.TEXT); mt.foot:SetJustifyH("LEFT"); mt.foot:SetWordWrap(true)
-  local l1 = mt:CreateTexture(nil, "ARTWORK"); l1:SetHeight(1); l1:SetPoint("BOTTOMLEFT", 6, 24); l1:SetPoint("BOTTOMRIGHT", -6, 24); l1:SetColorTexture(0.42, 0.33, 0.17, 0.8)
-  -- сортировка списка рецептов: одна галочка всегда стоит (по умолчанию - Ф)
-  local S = ns.DB.settings
-  local function setSort(k)
-    S.profSort = k; ns._sortStamp = nil
-    mt.sortMain:SetChecked(S.profSort == "main"); mt.sortNt:SetChecked(S.profSort == "neutral")
-    ns.ApplyRecipeSort()
-  end
-  local sl = UI.Font(mt, 10, UI.DIM); sl:SetPoint("BOTTOMLEFT", 8, 7); sl:SetText(L"Сортировать:")
-  mt.sortMain = UI.Check(mt, L"по прибыли Ф", function() return S.profSort == "main" end, function(v) setSort("main", v) end)
-  mt.sortMain:SetSize(16, 16); mt.sortMain:SetPoint("LEFT", sl, "RIGHT", 6, 0)
-  mt.sortNt = UI.Check(mt, L"по прибыли Общ", function() return S.profSort == "neutral" end, function(v) setSort("neutral", v) end)
-  mt.sortNt:SetSize(16, 16); mt.sortNt:SetPoint("LEFT", mt.sortMain.label, "RIGHT", 10, 0)
-  for _, c in ipairs({ mt.sortMain, mt.sortNt }) do UI.SetFont(c.label, UI.FONT, 10, "") end
-end
-local function sm(c) return c and ns.money(c, true) or nil end
-local function fillMarketTable(rec)
-  if not mt then return end
-  for _, ln in ipairs(mt.lines) do ln:Hide(); ln.id = nil end
-  if not rec or ns.DB.settings.profUI == false then mt:Hide() return end
-  if mt.rec ~= rec then mt.open = nil; mt.scroll = 0 end
-  mt.rec = rec
-  local M = ns.RecipeMarket(rec)
-  local y, i = -2, 0
-  local body = mt.body
-  local function line(id, name, vals, bg, tip)
-    i = i + 1; local ln = mt.lines[i]; if not ln then return end
-    ln.id, ln.tip = id, tip
-    ln:ClearAllPoints(); ln:SetPoint("TOPLEFT", body, "TOPLEFT", 4, y); ln:SetPoint("RIGHT", body, "RIGHT", -4, 0); y = y - ROW
-    ln.icon:SetShown(id ~= nil); ln.tri:SetShown(id ~= nil); ln.star:SetShown(id ~= nil); ln.bell:SetShown(id ~= nil)
-    if id then
-      ln.icon:SetTexture(ns.itemIcon(id)); ln.bell:Update(id); ln.star:SetIcon(ns.IsMarked(id) and "star-on" or "star-off")
-      pcall(ln.tri.SetRotation, ln.tri, mt.open == id and -math.pi / 2 or 0)
-    end
-    ln.name:SetText(name)
-    for _, k in ipairs(KINDS) do ln.p[k]:SetText(vals[k] or "|cff555555-|r") end
-    if bg then ln.bg:SetColorTexture(bg[1], bg[2], bg[3], bg[4]); ln.bg:Show() else ln.bg:Hide() end
-    ln:Show()
-    -- график раскрытой строки - сразу под ней
-    if id and mt.open == id then
-      local d = mt.det
-      d:ClearAllPoints(); d:SetPoint("TOPLEFT", body, "TOPLEFT", 6, y - 2); d:SetPoint("RIGHT", body, "RIGHT", -6, 0); y = y - d:GetHeight() - 4
-      local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
-      local p = ns.AHPrice(id)
-      d.info:SetText("|cfff2c761" .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
-      d:Show()
-      local h = ns.History(id)
-      ns.After(0, function() if mt.open == id then d.chart:SetPoints(h) end end)
-    end
-  end
-  if not mt.open then mt.det:Hide() end
-  for _, r in ipairs(M.rows) do
-    local v = {}
-    for _, k in ipairs(KINDS) do local p = r.p[k]; v[k] = p and ((r.bestKind == k and "|cff5dff7a" or "|cff9a9a9a") .. sm(p * r.n) .. "|r") end
-    line(r.id, ns.itemName(r.id) .. (r.n ~= 1 and (" |cffaaaaaa×" .. r.n .. "|r") or ""), v, nil,
-      r.vendor and (L"торговец" .. ": " .. sm(r.vendor * r.n)) or nil)
-  end
-  if M.out then
-    local bestSell
-    for _, k in ipairs(KINDS) do local p = M.out.p[k]; if p and (not bestSell or p > M.out.p[bestSell]) then bestSell = k end end
-    local v = {}
-    for _, k in ipairs(KINDS) do local p = M.out.p[k]; v[k] = p and ((k == bestSell and "|cffffd100" or "|cff9a9a9a") .. sm(p * M.out.q) .. "|r") end
-    line(M.out.id, "|cffe6b450» |r" .. ns.itemName(M.out.id) .. (M.out.q ~= 1 and (" |cffaaaaaa×" .. M.out.q .. "|r") or ""), v, { 0.42, 0.33, 0.17, 0.2 }, L"Продажа")
-    local pv = {}
-    for _, k in ipairs(KINDS) do local x = M.profit[k]; pv[k] = x and ((x >= 0 and (k == M.best and "|cff5dff7a" or "|cff4f9a5c") or "|cffff7a66") .. short(x) .. "|r") end
-    line(nil, "|cffe6b450" .. L"Прибыль" .. "|r |cff888888" .. L"(-5% / -15%)" .. "|r", pv, { 0.47, 0.85, 0.54, 0.10 })
-  end
-  -- итог одной-двумя короткими строками
-  local buyAt = {}
-  for _, r in ipairs(M.rows) do
-    local w = r.bestKind == "vendor" and L"торговец" or r.bestKind and KSHORT[r.bestKind]
-    if w then buyAt[w] = (buyAt[w] or 0) + 1 end
-  end
-  local parts = {}
-  for w, n in pairs(buyAt) do parts[#parts + 1] = w .. (n > 1 and (" ×" .. n) or "") end
-  table.sort(parts)
-  mt.foot:SetText((#parts > 0 and (L"Дешевле купить: " .. table.concat(parts, ", ")) or L"|cffaa8866Нет цен материалов|r")
-    .. (M.best and ("   ·   " .. L"Продать: " .. ns.ALT_COLOR[M.best] .. KSHORT[M.best] .. "|r " .. short(M.profit[M.best])) or ""))
-  mt.foot:ClearAllPoints(); mt.foot:SetPoint("TOPLEFT", body, "TOPLEFT", 6, y - 4); mt.foot:SetPoint("RIGHT", body, "RIGHT", -6, 0)
-  local fh = mt.foot:GetStringHeight(); if type(fh) ~= "number" or fh < 10 then fh = 13 end
-  local need = -y + 8 + fh
-  body:SetHeight(need)
-  -- высота блока: по содержимому, но не ниже низа окна профессии; лишнее - прокруткой колёсиком
-  local form = mt:GetParent()
-  local top, bot = mt:GetTop(), form and form:GetBottom()
-  local avail = (top and bot) and (top - bot - 34) or 400 -- над «Отслеживать» и кнопками «Создать»
-  mt:SetHeight(math.max(110, math.min(need + 44 + 26, avail)))
-  local max = math.max(0, need - (mt.sf:GetHeight() or need))
-  mt.scroll = math.min(mt.scroll or 0, max); mt.sf:SetVerticalScroll(mt.scroll)
-  mt:Show()
-end
-ns._fillMarketTable = fillMarketTable
--- настройка «таблица в окне профессии» переключена - показать/спрятать сразу
-function ns.RefreshMarketTable()
-  if not mt then return end
-  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
-  local form = page and page.SchematicForm
-  if ns.DB.settings.profUI == false then mt:Hide() return end
-  if form and form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) elseif mt.rec then fillMarketTable(mt.rec) end
-end
-ns._marketTable = nil
 local function recFromInfo(ri)
   if not ri then return end
   indexRecipes()
@@ -681,39 +386,18 @@ local function hookForm()
   local form = page and page.SchematicForm
   if not form or not form.Init then return end
   formHooked = true
-  buildMarketTable(form)
-  pcall(hooksecurefunc, form, "Init", function(self, recipeInfo) fillMarketTable(recFromInfo(recipeInfo)) end)
-  if form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) end
+  -- после показа рецепта игрой - только запомнить его (окно игры не трогаем)
+  pcall(hooksecurefunc, form, "Init", function(self, recipeInfo) currentRecipe = recFromInfo(recipeInfo) end)
+  if form.GetRecipeInfo then currentRecipe = recFromInfo(form:GetRecipeInfo()) end
 end
-ns.Listen("PRICES", function()
-  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
-  local form = page and page.SchematicForm
-  if mt and mt:IsVisible() and form and form.GetRecipeInfo then fillMarketTable(recFromInfo(form:GetRecipeInfo())) end
-end)
-function ns.DecorateRecipeRows()
-  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
-  local sb = page and page.RecipeList and page.RecipeList.ScrollBox
-  if not sb or not sb.ForEachFrame then return end
-  indexRecipes()
-  pcall(sb.ForEachFrame, sb, decorate)
-end
-local hooked = false
+-- раньше здесь были столбики Ф / Общ на строках списка игры - теперь окно игры не меняется
+function ns.DecorateRecipeRows() end
 local function hookRows()
   ns._hookRowsCalled = true
-  if hooked then return end
-  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
-  local sb = page and page.RecipeList and page.RecipeList.ScrollBox
-  if not sb then return end
-  hooked = true
-  if ScrollUtil and ScrollUtil.AddInitializedFrameCallback then
-    pcall(ScrollUtil.AddInitializedFrameCallback, sb, function(_, frame) decorate(frame) end, panel or sb, true)
-  end
-  if sb.Update then pcall(hooksecurefunc, sb, "Update", function() ns.DecorateRecipeRows() end) end
-  -- игра пересобрала список (поиск, фильтр, другая профессия) - снова отсортировать
-  if sb.SetDataProvider then pcall(hooksecurefunc, sb, "SetDataProvider", function() if ns.DB.settings.profSort then pcall(ns.ApplyRecipeSort) end end) end
   hookForm()
 end
 ns._hookRows = hookRows
+ns._currentRecipe = function() return currentRecipe end -- для автотестов
 
 -- ---------- события ----------
 local timer

@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.1
+
+### 🛠 Changes
+- **Game profession window** is no longer changed, so it does not get in the way of other addons: no F / N columns, no *where to buy and where to sell* block, no list sorting. One button stays - **Open in WolfichMarket**: the Professions section with the recipe selected in the game.
+
+### 🛠 Изменения
+- **Окно профессии игры** больше не меняется, чтобы не мешать другим аддонам: нет столбиков Ф / Общ, блока *«Где купить и где продать»* и сортировки списка. Осталась одна кнопка **«Открыть в WolfichMarket»** - раздел «Профессии» с выбранным в игре рецептом.
+
 ## 2.44.0
 
 **🇬🇧 English** · 🇷🇺 Русский - ниже
