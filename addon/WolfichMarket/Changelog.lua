@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.11", d = "17.11.2026",
+    ru = { "Уведомление «Лучший крафт» (и /wm best) больше не предлагает трансмутации: они делаются раз в сутки по кулдауну." },
+    en = { "The Best craft notification (and /wm best) no longer suggests transmutes: they are on a daily cooldown." } },
   { v = "2.44.10", d = "17.11.2026",
     ru = { "Панель у аукциониста, большой график цены и всплывающие окна - в простой рамке, как главное окно: ткань с лапками и тонкая золотая кромка вместо рамки из картинок. Колокольчик в окне покупки игры - крупнее." },
     en = { "The auctioneer panel, the big price chart and popups now use the simple frame like the main window: cloth with paws and a thin gold edge instead of the picture frame. The bell in the game's buy window is bigger." } },

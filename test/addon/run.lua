@@ -1083,6 +1083,16 @@ do
   -- окно профессии игры: таблицу можно выключить
   W.tabs[2].scripts.OnClick(W.tabs[2])
 end
+-- трансмутации не участвуют в уведомлении «лучший крафт»
+do
+  check(ns.IsTransmute({ name = "Трансмутация: арканит" }) and ns.IsTransmute({ name = "Transmute: Arcanite" }) and ns.IsTransmute({ id = 11479, name = "x" })
+    and not ns.IsTransmute({ name = "Медный жезл" }), "трансмутация узнаётся по названию и по номеру рецепта")
+  local old = ns.AllRecipeProfits
+  ns.AllRecipeProfits = function() return { { rec = { id = 17187, name = "Трансмутация: арканит" }, profit = 999999 }, { rec = { id = 1, name = "Медный жезл" }, profit = 50 } } end
+  local b = ns.BestCraft()
+  ns.AllRecipeProfits = old
+  check(b and b.rec.name == "Медный жезл", "лучший крафт - без трансмутаций")
+end
 -- окно покупки товара в аукционе игры: свой график, звезда и колокольчик
 do
   local cf = CreateFrame("Frame"); local bd = CreateFrame("Frame", nil, cf)

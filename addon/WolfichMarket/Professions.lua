@@ -239,9 +239,22 @@ function ns.CraftCost(id)
   end
   return best, bestRec, bestPr, bestCk, bestProf
 end
+-- трансмутация (алхимия): раз в сутки по кулдауну - в уведомлениях «лучший крафт» не участвует
+function ns.IsTransmute(rec)
+  if not rec then return false end
+  local names = { rec.name }
+  local d = ns.RecipeSourceData and ns.RecipeSourceData(rec)
+  if d and type(d.n) == "table" then names[#names + 1] = d.n[1]; names[#names + 1] = d.n[2] end
+  for _, n in ipairs(names) do
+    if type(n) == "string" and (n:find("^Трансмутация") or n:find("^Transmute")) then return true end
+  end
+  return false
+end
 function ns.BestCraft()
   local best
-  for _, pr in ipairs(ns.AllRecipeProfits()) do if pr.profit and (not best or pr.profit > best.profit) then best = pr end end
+  for _, pr in ipairs(ns.AllRecipeProfits()) do
+    if pr.profit and not ns.IsTransmute(pr.rec) and (not best or pr.profit > best.profit) then best = pr end
+  end
   return best
 end
 -- предметы, связанные с рецептами персонажа (для истории)
