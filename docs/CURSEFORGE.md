@@ -46,6 +46,9 @@ Works alongside Mastercraft and other profession addons: the game's profession w
 ## Also
 
 - **Item tooltip:** auction price, neutral auction price, crafting cost and profit, where it is better to sell.
+- **Item icons in bags:** a gavel — better sold at auction, a coin bag — sell to a vendor; in the game bags and in the auctioneer bag.
+- **Farm window:** a small draggable window with the value of your bags; press *Reset* before farming and it counts only new loot and looted money (`/wm bags`).
+- **Character money window:** a small draggable window with your gold; the tooltip shows how much you earned this session (`/wm money`).
 - **Compact main window:** Home, Professions, Auction, Settings.
 - **No chat spam:** all addon messages go to the Log; alerts also pop up as notifications.
 - **Windows auto-updater:** `WolfichMarket-Updater.bat` from the site — double-click and the latest version installs itself.
@@ -53,7 +56,7 @@ Works alongside Mastercraft and other profession addons: the game's profession w
 
 **The more players use it, the fresher everyone's prices.** Install it and tell your guild.
 
-Commands: `/wm` main window, `/wmnet` shared market check, `/wm help` all commands.
+Commands: `/wm` main window, `/wm bags` farm window, `/wm money` money window, `/wmnet` shared market check, `/wm help` all commands.
 
 ---
 
@@ -105,6 +108,9 @@ Commands: `/wm` main window, `/wmnet` shared market check, `/wm help` all comman
 ## А ещё
 
 - **Подсказка предмета:** цена на аукционе и на общем аукционе, стоимость крафта и прибыль, где выгоднее продать.
+- **Значки на предметах в сумках:** молоток — выгоднее продать на аукционе, мешочек с монетой — торговцу; в сумках игры и в сумке у аукциониста.
+- **Окошко фарма:** маленькое перетаскиваемое окошко со стоимостью сумок; нажмите *«Сбросить»* перед фармом — и считается только новая добыча и поднятые деньги (`/wm bags`).
+- **Окошко денег персонажа:** маленькое перетаскиваемое окошко с золотом; в подсказке — сколько заработано за эту игру (`/wm money`).
 - **Компактное главное окно:** Главная, Профессии, Аукцион, Настройки.
 - **Чат не засоряется:** все сообщения аддона — в «Журнале», сигналы ещё и всплывают уведомлением.
 - **Автообновление для Windows:** `WolfichMarket-Updater.bat` с сайта — двойной клик, и свежая версия сама встаёт в папку игры.
@@ -112,4 +118,4 @@ Commands: `/wm` main window, `/wmnet` shared market check, `/wm help` all comman
 
 **Чем больше игроков с аддоном, тем свежее цены у каждого.** Поставьте сами и расскажите гильдии.
 
-Команды: `/wm` — главное окно, `/wmnet` — проверка общего рынка, `/wm help` — все команды.
+Команды: `/wm` — главное окно, `/wm bags` — окошко фарма, `/wm money` — окошко денег, `/wmnet` — проверка общего рынка, `/wm help` — все команды.
