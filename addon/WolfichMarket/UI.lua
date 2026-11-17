@@ -37,6 +37,8 @@ UI.SetFont = setFont
 UI.THEMES = {
   -- новый макет: места заголовка и крестика - в пикселях рамки (умножаются на масштаб)
   win = { title = { 64, -74 }, close = { -20, -13, 48, 48 }, btn = "mbtn" },
+  -- простая рамка (как у главного окна): ткань с лапками, тонкая золотая кромка, шапка 40 px
+  flat = { title = { 16, -20 }, close = { -8, -7, 26, 26 }, btn = "mbtn" },
   main = { scale = 0.85, title = { 84, -40 }, close = { -2, -6, 60, 62 }, btn = "mbtn" },
   ah = { scale = 0.5, title = { 186, -60 }, close = { -56, -38, 56, 48 }, btn = "abtn" },
   mcard = { scale = 0.5, btn = "mbtn" },
@@ -156,7 +158,7 @@ end
 function UI.Skin(f, opts)
   opts = opts or {}
   if winReady() and not opts.old then
-    if opts.theme == "main" or opts.theme == "ah" then return UI.FrameSkin(f, opts.frame or (opts.theme == "ah" and 0.55 or 0.42)) end
+    if opts.theme == "main" or opts.theme == "ah" then return UI.FlatSkin(f, opts) end
     return UI.Box(f, opts.alpha or (opts.theme and 0.42 or 0.9))
   end
   local sz = opts.theme and ns.SKIN and ns.SKIN[opts.theme]
@@ -192,6 +194,14 @@ function UI.Font(parent, size, color, layer, flags)
 end
 
 function UI.Title(parent, text)
+  if parent.wmTheme == "flat" then
+    local logo = parent:CreateTexture(nil, "OVERLAY"); logo:SetSize(18, 18); logo:SetPoint("LEFT", parent, "TOPLEFT", 14, -20)
+    UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(0.95, 0.78, 0.38)
+    local fs = parent:CreateFontString(nil, "OVERLAY"); setFont(fs, UI.TITLE_FONT, 19, "")
+    fs:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); fs:SetJustifyH("LEFT"); fs:SetWordWrap(false)
+    fs:SetPoint("LEFT", logo, "RIGHT", 8, 0); fs:SetText(text)
+    return fs, logo
+  end
   local th = parent.wmTheme and UI.THEMES[parent.wmTheme]
   if th and th.title then
     local s = parent.wmScale
@@ -215,7 +225,12 @@ end
 function UI.Close(parent, onClick)
   local th = parent.wmTheme and UI.THEMES[parent.wmTheme]
   local b
-  if th and th.close then
+  if parent.wmTheme == "flat" then
+    b = CreateFrame("Button", nil, parent); b:SetSize(26, 26); b:SetPoint("TOPRIGHT", -8, -7)
+    local cx = UI.Font(b, 16, UI.DIM); cx:SetPoint("CENTER"); cx:SetText("×"); b.x = cx
+    b:SetScript("OnEnter", function() cx:SetTextColor(1, 0.85, 0.4) end)
+    b:SetScript("OnLeave", function() cx:SetTextColor(UI.DIM[1], UI.DIM[2], UI.DIM[3]) end)
+  elseif th and th.close then
     local s = parent.wmScale
     b = CreateFrame("Button", nil, parent)
     b:SetSize(th.close[3] * s, th.close[4] * s); b:SetPoint("TOPRIGHT", th.close[1] * s, th.close[2] * s)
@@ -926,6 +941,18 @@ local function edge(f, r, g, b, a, layer)
   return L
 end
 UI.Edge = edge
+-- простая рамка окна (вместо рамки из картинок): ткань с лапками, тонкая золотая кромка, линия под шапкой
+function UI.FlatSkin(f, opts)
+  opts = opts or {}
+  f.wmTheme, f.wmScale = "flat", 1
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
+  UI.PawsBG(f)
+  edge(f, 0.43, 0.33, 0.16, 1)
+  local head = opts.head or 40
+  local hl = f:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1)
+  hl:SetPoint("TOPLEFT", 1, -head); hl:SetPoint("TOPRIGHT", -1, -head)
+  return f
+end
 function UI.MainChromeCompact(win, onNav, navTips)
   local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
   win:SetSize(W, H)

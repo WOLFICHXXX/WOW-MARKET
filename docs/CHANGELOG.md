@@ -2,6 +2,14 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.10
+
+### 🎨 Look
+- **Simple frame everywhere:** the auctioneer panel, the big price chart and popups use the same minimalist frame as the main window — cloth with paws, a thin gold edge.
+- The alert bell in the game's buy window is a bit bigger.
+
+---
+
 ## 2.44.9
 
 ### ✨ New
