@@ -12,7 +12,6 @@ local function help()
   ns.out(L"  |cffe6b450/wm chat|r - куда писать сообщения: window - журнал окна (по умолчанию), main - чат, tab - своя вкладка, off - никуда")
   ns.out(L"  |cffe6b450/wm bags|r - окошко фарма, |cffe6b450/wm money|r - окошко денег персонажа")
   ns.out(L"  |cffe6b450/wm net|r - проверка общего рынка, |cffe6b450/wm netsend|r - разослать свой снимок ещё раз")
-  ns.out(L"  Клавиша для выставления по очереди: Настройки > Управление > WolfichMarket (или макрос /click WolfichMarketPostNextButton)")
   ns.out(L"  |cffe6b450/wm reset|r - очистить отметки и историю цен")
   ns.out(L"  Alt+клик по предмету - отметить |TInterface\\AddOns\\WolfichMarket\\media\\star-on:12:12|t (уведомления о скачках цены только по отмеченным)")
 end
@@ -91,10 +90,8 @@ SlashCmdList.WOLFICHMARKET = function(msg)
 end
 -- привязка клавиши: «Выставить следующий отмеченный лот» (Настройки → Управление → WolfichMarket)
 BINDING_HEADER_WOLFICHMARKET = "WolfichMarket"
-BINDING_NAME_WOLFICHMARKET_POSTNEXT = L"Выставить следующий отмеченный лот"
 BINDING_NAME_WOLFICHMARKET_TOGGLE = L"Окно WolfichMarket (крафт и сигналы)"
 function WolfichMarket_Toggle() if ns.ToggleMain then ns.ToggleMain() end end
-function WolfichMarket_PostNext() if ns.PostNext then ns.PostNext() end end
 
 -- короткие команды общего рынка (и на случай, если пишут без пробела)
 SLASH_WOLFICHMARKETNET1 = "/wmnet"

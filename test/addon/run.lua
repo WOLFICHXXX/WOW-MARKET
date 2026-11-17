@@ -54,10 +54,6 @@ local found = false; for _, e in ipairs(ns.log) do if e.msg:find("Медный �
 check(found, "строка о подорожании меди в журнале (сигнал)")
 -- поиск на аукционе
 ns.SearchAH(2835); check(searched == "Грубый камень", "поиск на аукционе по названию")
--- покупка товара
-ns.OpenBuy(2840); check(lastQuery and lastQuery.itemID == 2840, "запрос поиска для покупки")
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
-fire("COMMODITY_PRICE_UPDATED", 101, 1010)
 -- подсветка в сумках
 ns.UpdateBagGlow(); advance(1)
 local g1, g2 = BAGBTNS[1].wmSellBadge, BAGBTNS[2].wmSellBadge
@@ -73,111 +69,8 @@ do
 end
 check(ns.SellWhere(2840) == "ah" and ns.SellWhere(2862) == "vendor", "медь - на аукцион (зелёный), точило - торговцу (жёлтый)")
 -- все вкладки панели аукциона
-for i = 1, 5 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
--- продажа: выбрать предмет и выставить
-ns.AHSelectTab(3)
-local P = ns._ahPages
-local sell = P[3]
-check(#sell.list.data == 2, "продажа: предметов в сумках " .. #sell.list.data)
-sell.select(sell.list.data[1])
-check(tonumber(sell.qty:GetText()) == sell.list.data[1].count, "продажа: количество по умолчанию = всё в сумках")
-check(sell.money:Get() == ns.AHPrice(sell.list.data[1].id) - 1, "продажа: цена = мин − 1м")
-sell.calc(); check(sell.post.enabled, "кнопка «Выставить» активна")
-check(sell.analysis:GetText():find("Себестоимость крафта", 1, true) and sell.analysis:GetText():find("Выгодно продавать", 1, true), "продажа: себестоимость и вывод «выгодно»")
-io.write("     ", (sell.analysis:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("\n", " // ")), "\n")
-sell.doPost(); check(postedLot and postedLot[2] == sell.list.data[1].count, "лот выставлен")
-local base = sell.money:Get()
-sell.mulBtns[3].scripts.OnClick(sell.mulBtns[3]); check(sell.money:Get() == math.floor(base * 1.1 + 0.5), "кнопка +10%")
-sell.mulBtns[2].scripts.OnClick(sell.mulBtns[2]); check(sell.money:Get() == math.floor(base * 1.05 + 0.5), "кнопка +5%")
-sell.mulBtns[1].scripts.OnClick(sell.mulBtns[1]); check(sell.money:Get() == base, "кнопка «мин»")
--- массовое выставление
-sell.allBtn.scripts.OnClick(sell.allBtn)
-local n = 0; for _ in pairs(sell.checked) do n = n + 1 end
-check(n == 2 and sell.bulk.enabled, "продажа: отмечены все с ценой (" .. n .. ")")
-sell.mulBtns[3].scripts.OnClick(sell.mulBtns[3])
-local q1 = sell.queue()[1]
-check(q1 and q1.unit == math.floor((ns.AHPrice(q1.d.id) - 1) * 1.10 + 0.5), "«Выставить отмеченные» учитывает +10%")
-sell.mulBtns[1].scripts.OnClick(sell.mulBtns[1])
-postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-check(postedLot ~= nil, "продажа: «Выставить отмеченные» выставил первый лот")
--- второй клик до подтверждения игрой - не выставляет ещё раз; после подтверждения - следующий лот
-do
-  local firstId = postedLot and postedLot[1]
-  local n0 = 0; for _ in pairs(sell.checked) do n0 = n0 + 1 end
-  postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-  check(postedLot == nil, "массовое выставление: пока игра не подтвердила лот - второй не уходит")
-  fire("AUCTION_HOUSE_AUCTION_CREATED"); advance(1)
-  local n1 = 0; for _ in pairs(sell.checked) do n1 = n1 + 1 end
-  check(n1 == n0 - 1 and sell.bulk.enabled, "после подтверждения - отметка снята, кнопка снова активна")
-  postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-  check(postedLot ~= nil, "массовое выставление: третий клик - следующий лот")
-  -- игра не подтвердила - через несколько секунд можно нажать снова, лот остаётся в очереди
-  advance(5)
-  local n2 = 0; for _ in pairs(sell.checked) do n2 = n2 + 1 end
-  check(sell.pending == nil and n2 == n1, "без подтверждения - лот остаётся в очереди, кнопку можно нажать снова")
-  -- окно «Продать» самой игры занято предметом - массовое выставление не шлёт параллельно
-  do
-    local oldA = AuctionHouseFrame
-    local sellFr = CreateFrame("Frame"); sellFr.GetItem = function() return { bagID = 0, slotIndex = 1 } end; sellFr:Show()
-    AuctionHouseFrame = CreateFrame("Frame"); AuctionHouseFrame:Show(); AuctionHouseFrame.CommoditiesSellFrame = sellFr
-    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-    check(postedLot == nil and ((sell.bulkInfo.text or ""):find("Продать", 1, true) or (sell.bulkInfo.text or ""):find("Sell", 1, true)), "окно «Продать» игры занято - выставление не уходит, подсказка")
-    AuctionHouseFrame = oldA
-  end
-  -- игра ещё не знает, товар это или предмет - не выставляем (иначе лот уходит не тем способом и аукцион зависает)
-  do
-    advance(20); sell.pending = nil
-    local oldS = C_AuctionHouse.GetItemCommodityStatus
-    C_AuctionHouse.GetItemCommodityStatus = function() return 0 end
-    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-    check(postedLot == nil, "тип лота неизвестен - выставление ждёт загрузки предмета")
-    C_AuctionHouse.GetItemCommodityStatus = oldS
-  end
-  -- аукцион «занят»: первые секунды - подождать, дальше аддон пробует выставить всё равно
-  do
-    advance(20); sell.pending = nil
-    C_AuctionHouse.IsThrottledMessageSystemReady = function() return false end
-    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-    check(postedLot == nil, "аукцион занят - сначала просим подождать")
-    advance(4); sell.pending = nil
-    postedLot = nil; sell.bulk.scripts.OnClick(sell.bulk)
-    check(postedLot ~= nil, "аукцион долго «занят» - лот всё равно отправляется по нажатию")
-    C_AuctionHouse.IsThrottledMessageSystemReady = nil; sell.pending = nil
-  end
-
-end
-do
-  local n0 = #sell.list.data
-  local oldI = C_Container.GetContainerItemInfo
-  C_Container.GetContainerItemInfo = function(b, s2) if s2 == 2 then return nil end return oldI(b, s2) end -- лот выставили окном игры
-  sell.reload.scripts.OnClick(sell.reload)
-  check(#sell.list.data == n0 - 1, "«Продать»: кнопка «Обновить» перечитывает сумки")
-  C_Container.GetContainerItemInfo = oldI; sell.refresh()
-end
-check(sell.durBtns[2].label:GetText() == "8 ч", "сроки 2/8/24 ч")
-local buy = P[2]
-ns.OpenBuy(2840); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
-check(#buy.list.data == 2, "покупка: строк результатов " .. #buy.list.data)
-buy.qty:SetText("5"); buy.price.scripts.OnClick(buy.price)
-check(startedBuy and startedBuy[2] == 5, "покупка: запрос цены на 5 шт")
-fire("COMMODITY_PRICE_UPDATED", 101, 505)
-check(buy.confirm.enabled, "покупка: кнопка подтверждения активна")
-buy.confirm.scripts.OnClick(buy.confirm)
-check(confirmedBuy and confirmedBuy[2] == 5, "покупка подтверждена: 5 шт")
-buy.back.scripts.OnClick(buy.back)
-local md = buy.mats.data
-check(#md >= 4 and md[1].header == "Кузнечное дело", "покупка: список материалов по профессиям (" .. #md .. " строк)")
--- «Купить»: строка поиска и категории
-do
-  buy.search:SetText("слиток"); buy.search.scripts.OnTextChanged(buy.search, true)
-  local ok = #buy.mats.data > 0
-  for _, d in ipairs(buy.mats.data) do if not ns.itemName(d.id):lower():find("слиток", 1, true) then ok = false end end
-  check(ok, "«Купить»: поиск по названию в снимке аукциона (" .. #buy.mats.data .. ")")
-  buy.catBtn.scripts.OnClick(buy.catBtn)
-  check(buy.catMenu and buy.catMenu:IsShown() and #buy.catMenu.btns == #ns.AucCats + 1, "«Купить»: меню категорий")
-  buy.search:SetText(""); buy.search.scripts.OnTextChanged(buy.search, true); buy.catMenu:Hide()
-  check(buy.mats.data[1] and buy.mats.data[1].header ~= nil, "«Купить»: пустой поиск - снова материалы рецептов")
-end
+for i = 1, 3 do local ok, err = pcall(ns.AHSelectTab, i); check(ok, "вкладка " .. i .. (ok and "" or (": " .. tostring(err)))) end
+check(#ns._ahPages == 3, "у аукциониста три вкладки: Избранное, Мой крафт, План (без «Купить» и «Продать»)")
 ns.OpenChart(2840)
 -- подсказка
 local tl = tooltip(2840); check(#tl >= 2, "подсказка: " .. (tl[1] or "пусто"))
@@ -522,8 +415,8 @@ do
   ns.ahOpen = true
   -- «План» во вкладке «Крафт» у аукциониста
   do
-    ns.AHSelectTab(4)
-    local pg = ns._ahPages[4]
+    ns.AHSelectTab(2)
+    local pg = ns._ahPages[2]
     local row = pg.list.rows[1]
     if row and row.data then
       local rid = row.data.pr.rec.id
@@ -534,21 +427,19 @@ do
       for i, p in ipairs(ns.Plans()) do if p.id == rid and p.ck == ns.charKey then if b0 == 0 then ns.RemovePlan(i) else p.n = b0 end break end end
     else check(false, "«Крафт» у аукциониста: нет строк") end
   end
-  ns.AHSelectTab(5)
-  check(ns._ahPages[5]:IsShown() and #ns._ahPages[5].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
+  ns.AHSelectTab(3)
+  check(ns._ahPages[3]:IsShown() and #ns._ahPages[3].items.data >= 2, "вкладка «План» у аукциониста со списком покупок")
   do
     ns.DB.ntah = ns.DB.ntah or {}
     ns.DB.ntah[ns.realmKey] = ns.DB.ntah[ns.realmKey] or { t = time(), items = {} }
     ns.DB.ntah[ns.realmKey].items[3470] = { p = 1, q = 5 }
-    ns._ahPages[5].refresh()
+    ns._ahPages[3].refresh()
     local txt
     local ids = {}
-    for _, r in ipairs(ns._ahPages[5].items.rows or {}) do if r.data then ids[#ids + 1] = r.data.id .. ":" .. r.data.buy; if r.data.id == 3470 then txt = r.cnt.text end end end
+    for _, r in ipairs(ns._ahPages[3].items.rows or {}) do if r.data then ids[#ids + 1] = r.data.id .. ":" .. r.data.buy; if r.data.id == 3470 then txt = r.cnt.text end end end
     check(txt and (txt:find("Общ", 1, true) or txt:find("N", 1, true)), "план: пометка, где материал дешевле (" .. tostring(txt) .. ")")
     ns.DB.ntah[ns.realmKey].items[3470] = nil
   end
-  ns.OpenBuy(3470, 5, true)
-  check(ns._ahPages[2].qty:GetText() == 5, "«Купить» из плана подставляет количество")
   ns.ClearPlans()
   check(#ns.Plans() == 0, "план очищается")
   local row = recRow(ns._mainCraft.list)
@@ -561,18 +452,16 @@ do
     ns.ClearPlans()
   end
 end
--- «Продать»: лупа у выбранного предмета, график - в раскрытии строки
+-- «Избранное»: график - в раскрытии строки
 do
-  ns.AHSelectTab(3)
-  local f = ns._ahPages[3]
-  local row = f.list.rows[1]
+  if not ns.IsMarked(2840) then ns.ToggleMark(2840) end
+  ns.AHSelectTab(1)
+  local f = ns._ahPages[1]
+  f.refresh()
+  local row; for _, r in ipairs(f.list.rows or {}) do if r.data and r.data.id then row = r; break end end
   if row and row.data then
     row.scripts.OnClick(row)
-    check(f.searchBtn:IsShown() and f.chartBtn == nil, "«Продать»: у выбранного предмета лупа, кнопки графика нет")
-    row.tri.scripts.OnClick(row.tri)
-    check(f.list.det and f.list.det:IsShown() and f.list.det.id == row.data.id, "«Продать»: треугольник раскрывает подробности и график")
-    row.tri.scripts.OnClick(row.tri)
-    check(not f.list.det:IsShown(), "«Продать»: повторный клик сворачивает")
+    check(f.list.det and f.list.det:IsShown() and f.list.det.id == row.data.id, "«Избранное»: клик раскрывает подробности и график")
     do
       local ch = ns.UI.Chart(UIParent)
       if ch then
@@ -603,12 +492,9 @@ do
         end
       end
     end
-    local oldC = C_Item
-    C_Item = setmetatable({ GetItemCount = function() return 37 end }, { __index = oldC or {} })
-    f.qty:SetText(1); f.qtyAll.scripts.OnClick(f.qtyAll)
-    check(tonumber(f.qty:GetText()) == 37, "«Продать»: «Все» ставит всё количество из сумок")
-    C_Item = oldC
-  else check(false, "«Продать»: нет строк для проверки") end
+    row.scripts.OnClick(row)
+    check(not f.list.det:IsShown(), "«Избранное»: повторный клик сворачивает")
+  else check(false, "«Избранное»: нет строк для проверки") end
 end
 -- ручной снимок по умолчанию и быстрое обновление цен отмеченных
 do
@@ -619,31 +505,12 @@ do
   ns.SeenPrice(2840, 777, 10)
   check(#ns.DB.hist[2840] == before + 1 and ns.DB.hist[2840][#ns.DB.hist[2840]][2] == 777, "свежая цена добавляет точку на график")
 end
--- покупка товара: цена пересчитывается сама при изменении количества
-do
-  ns.ahOpen = true
-  ns.OpenBuy(2840)
-  fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2840)
-  local f = ns._ahPages[2]
-  startedBuy = nil
-  f.qty:SetText("15"); f.qty.scripts.OnTextChanged(f.qty, true)
-  check(startedBuy and startedBuy[2] == 15, "при изменении количества цена запрашивается сама")
-  check(f.confirm.enabled ~= false, "«Купить» активна сразу после изменения количества")
-  startedBuy, confirmedBuy = nil, nil
-  f.confirm.scripts.OnClick(f.confirm)
-  check(startedBuy and startedBuy[2] == 15 and not confirmedBuy, "первое нажатие без точной цены - узнаёт цену")
-  fire("COMMODITY_PRICE_UPDATED", 101, 1515)
-  f.confirm.scripts.OnClick(f.confirm)
-  check(confirmedBuy and confirmedBuy[2] == 15, "второе нажатие - покупка")
-  f.qty:SetText("999"); f.qty.scripts.OnTextChanged(f.qty, true)
-  check(f.total.text:find("30", 1, true) ~= nil, "больше, чем есть на аукционе - предупреждение")
-end
 -- «Обновить цены» по вкладке; «План»: свои материалы - отдельно сумки и банк, галочка
 do
   ns.ahOpen = true
   local rec = { id = 9002, name = "Тест", out = 2841, reag = { { 2840, 3 }, { 3470, 2 } } }
   ns.ClearPlans(); ns.AddPlan(rec, ns.charKey, "Кузнечное дело", 2)
-  ns.AHSelectTab(5)
+  ns.AHSelectTab(3)
   local asked = {}
   local oldQ = C_AuctionHouse.SendSearchQuery
   C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
@@ -681,16 +548,16 @@ do
   ns.DB.settings.planUseStock = nil
   local prs, tot = ns.PlanProfit()
   check(prs[1] and prs[1].cost > 0 and tot.cost == prs[1].cost, "план: стоимость материалов партии")
-  check(ns._ahPages[5].profit and ns._ahPages[5].upd, "план: строка прибыли и своя кнопка обновления цен")
-  ns.AHSelectTab(5)
+  check(ns._ahPages[3].profit and ns._ahPages[3].upd, "план: строка прибыли и своя кнопка обновления цен")
+  ns.AHSelectTab(3)
   asked = {}; C_AuctionHouse.SendSearchQuery = function(k) asked[#asked + 1] = k.itemID end
-  ns._ahPages[5].upd.scripts.OnClick(ns._ahPages[5].upd)
+  ns._ahPages[3].upd.scripts.OnClick(ns._ahPages[3].upd)
   for _ = 1, 20 do advance(1) end
   C_AuctionHouse.SendSearchQuery = oldQ
   check(#asked == 3, "«Обновить цены плана» - только рецепты плана")
   -- количество в плане у аукциониста: + / - и ввод вручную
   do
-    local pg = ns._ahPages[5]; pg.refresh()
+    local pg = ns._ahPages[3]; pg.refresh()
     local r; for _, x in ipairs(pg.recs.rows or {}) do if x.data then r = x; break end end
     local n0 = ns.Plans()[1].n
     if r then
@@ -1216,7 +1083,7 @@ do
   -- окно профессии игры: таблицу можно выключить
   W.tabs[2].scripts.OnClick(W.tabs[2])
 end
--- у аукциониста: своя сумка под окном аукциона, клик - предмет в «Продать»
+-- у аукциониста: своя сумка под окном аукциона, клик - выставить на аукционе игры
 do
   ns.UpdateAHBags()
   local B = WolfichMarketAHBags
@@ -1224,8 +1091,10 @@ do
   check(B and B:IsShown() and btn ~= nil, "своя сумка у аукциониста с предметами из сумок")
   check(btn and btn.badge and btn.badge.shown and (btn.badge.tex or ""):find("badge%-ah"), "сумка у аукциониста: значок «на аукцион» у меди")
   check(B and (B.money.text or ""):find("Icon", 1, true) ~= nil and B.moneyLbl ~= nil, "сумка у аукциониста: деньги персонажа значками монет внизу")
+  local postLoc; AuctionHouseFrame.SetPostItem = function(_, loc) postLoc = loc end
   if btn then btn.scripts.OnClick(btn, "LeftButton") end
-  check(ns._ahPages[3]:IsShown(), "клик по предмету в сумке аддона - вкладка «Продать»")
+  AuctionHouseFrame.SetPostItem = nil
+  check(postLoc ~= nil, "клик по предмету в сумке аддона - выставление на аукционе игры")
   local okP = pcall(ns.PlaceAH); check(okP, "окно аукциона и панель размещаются на экране")
   -- сумки игры только прячутся, CloseAllBags не вызывается (иначе спальник и т.п. блокируются)
   local closed = false; local oldC = CloseAllBags; CloseAllBags = function() closed = true end

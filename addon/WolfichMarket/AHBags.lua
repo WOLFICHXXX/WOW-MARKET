@@ -47,7 +47,7 @@ local function build()
   end)
   bagf.sort:SetPoint("RIGHT", bagf, "TOPRIGHT", -12, -HEAD / 2)
   local hint = UI.Font(bagf, 10, UI.DIM); hint:SetPoint("RIGHT", bagf.sort, "LEFT", -10, 0); hint:SetPoint("LEFT", bagf.value, "RIGHT", 14, 0); hint:SetJustifyH("RIGHT")
-  hint:SetText(L"клик - выставить в панели аддона, ПКМ - на аукционе игры")
+  hint:SetText(L"клик - выставить на аукционе игры")
   bagf.btns = {}
   -- прокрутка колёсиком, если все ячейки не помещаются до низа экрана
   bagf.offset = 0
@@ -87,8 +87,8 @@ local function slotButton(i)
     if not self.bag then return end
     if GetCursorInfo and GetCursorInfo() then safe(C_Container.PickupContainerItem, self.bag, self.slot) return end
     if IsModifiedClick and IsModifiedClick() and self.link and HandleModifiedItemClick then HandleModifiedItemClick(self.link) return end
-    if btn == "RightButton" then
-      -- ПКМ - выставить на стандартном аукционе игры (как правый клик в сумке игры у аукциониста)
+    do
+      -- клик - выставить на стандартном аукционе игры (как правый клик в сумке игры у аукциониста)
       local AH = AuctionHouseFrame
       local loc = ItemLocation and ItemLocation:CreateFromBagAndSlot(self.bag, self.slot)
       if AH and AH.SetPostItem and loc then
@@ -101,9 +101,7 @@ local function slotButton(i)
         pcall(AH.SetDisplayMode, AH, isC and AuctionHouseFrameDisplayMode.CommoditiesSell or AuctionHouseFrameDisplayMode.ItemSell)
       end
       safe(C_Container.PickupContainerItem, self.bag, self.slot)
-      return
     end
-    if self.id and ns.SellSelect then ns.SellSelect(self.id) end
   end)
   bagf.btns[i] = b
   return b

@@ -2,6 +2,15 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.8
+
+### 🧹 Simpler
+- **Buy and Sell tabs removed** at the auctioneer — the panel now has *Favorites*, *My crafts* and *Plan*.
+- **Buying:** the magnifier on any row opens the item in the game's auction window; in the Plan — the *Find* button.
+- **Posting:** click an item in the addon bag under the auction window — it goes to the game's auction house.
+
+---
+
 ## 2.44.7
 
 ### 🐞 Fixed
