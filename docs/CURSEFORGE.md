@@ -45,6 +45,7 @@ Works alongside Mastercraft and other profession addons: the game's profession w
 ## Also
 
 - **Item tooltip:** auction price, neutral auction price, crafting cost and profit, where it is better to sell.
+- **At the trainer — "worth learning?":** crafting cost, auction price, profit per craft, demand and how many crafts pay off the training.
 - **Item icons in bags:** a gavel — better sold at auction, a coin bag — sell to a vendor; in the game bags and in the auctioneer bag.
 - **Farm window:** a small draggable window with the value of your bags; press *Reset* before farming and it counts only new loot and looted money (`/wm bags`).
 - **Character money window:** a small draggable window with your gold; the tooltip shows how much you earned this session (`/wm money`).
@@ -106,6 +107,7 @@ Commands: `/wm` main window, `/wm bags` farm window, `/wm money` money window, `
 ## А ещё
 
 - **Подсказка предмета:** цена на аукционе и на общем аукционе, стоимость крафта и прибыль, где выгоднее продать.
+- **У тренера — «стоит ли учить»:** себестоимость, цена на аукционе, прибыль за крафт, спрос и за сколько крафтов окупится обучение.
 - **Значки на предметах в сумках:** молоток — выгоднее продать на аукционе, мешочек с монетой — торговцу; в сумках игры и в сумке у аукциониста.
 - **Окошко фарма:** маленькое перетаскиваемое окошко со стоимостью сумок; нажмите *«Сбросить»* перед фармом — и считается только новая добыча и поднятые деньги (`/wm bags`).
 - **Окошко денег персонажа:** маленькое перетаскиваемое окошко с золотом; в подсказке — сколько заработано за эту игру (`/wm money`).

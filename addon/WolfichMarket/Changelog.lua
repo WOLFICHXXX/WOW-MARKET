@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.17", d = "21.11.2026",
+    ru = { "У тренера профессии: в подсказке рецепта - «стоит ли учить»: себестоимость, цена на аукционе, прибыль за крафт, продано за 24 ч и лотов сейчас, средняя цена за неделю и за сколько крафтов окупится обучение." },
+    en = { "At a profession trainer: the recipe tooltip shows \"worth learning?\" - crafting cost, auction price, profit per craft, sold in 24 h and listed now, 7-day average and how many crafts pay off the training." } },
   { v = "2.44.16", d = "21.11.2026",
     ru = { "Графики для снаряжения: история цен теперь копится не только для рецептов и избранного, но и для всего, что лежит в сумках и банке ваших персонажей, и для предметов, открытых в окнах покупки и выставления (30 дней). Точки появляются с каждым снимком аукциона и с цен других игроков." },
     en = { "Charts for gear: price history is now kept not only for recipes and favorites but for everything in your characters' bags and bank, and for items opened in the buy and posting windows (30 days). Points are added with every auction snapshot and with prices from other players." } },

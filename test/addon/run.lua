@@ -1150,6 +1150,15 @@ do
   check(ns.HistWant()[777002] and ns.DB.histWatch[777002], "история: предмет из окна выставления запоминается на 30 дней")
   c.bags[777001] = nil
 end
+-- у тренера: «стоит ли учить» в подсказке рецепта
+do
+  local lines = {}
+  local tt = { AddLine = function(_, t) lines[#lines + 1] = t end, AddDoubleLine = function(_, a, b) lines[#lines + 1] = a .. " " .. (b or "") end }
+  local ok = ns.TrainerLines(tt, { out = 2840, reag = { { 2770, 2 } }, name = "x" }, 1000)
+  local all = table.concat(lines, "\n")
+  check(ok and all:find("WolfichMarket", 1, true) and #lines >= 5, "тренер: в подсказке рецепта есть себестоимость, цена, спрос и вывод")
+  check(not ns.TrainerLines(tt, { out = 2840, reag = { { 2770, 2 } } }, 1000), "тренер: строки не дублируются в одной подсказке")
+end
 -- трансмутации не участвуют в уведомлении «лучший крафт»
 do
   check(ns.IsTransmute({ name = "Трансмутация: арканит" }) and ns.IsTransmute({ name = "Transmute: Arcanite" }) and ns.IsTransmute({ id = 11479, name = "x" })

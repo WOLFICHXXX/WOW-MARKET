@@ -2,6 +2,13 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.17
+
+### ✨ New
+- **"Worth learning?" at the trainer:** the recipe tooltip at a profession trainer shows crafting cost, auction price, profit per craft, sold in 24 h / listed now, the 7-day average and how many crafts pay off the training cost.
+
+---
+
 ## 2.44.16
 
 ### 🔧 Changed
