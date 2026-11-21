@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.16", d = "21.11.2026",
+    ru = { "Графики для снаряжения: история цен теперь копится не только для рецептов и избранного, но и для всего, что лежит в сумках и банке ваших персонажей, и для предметов, открытых в окнах покупки и выставления (30 дней). Точки появляются с каждым снимком аукциона и с цен других игроков." },
+    en = { "Charts for gear: price history is now kept not only for recipes and favorites but for everything in your characters' bags and bank, and for items opened in the buy and posting windows (30 days). Points are added with every auction snapshot and with prices from other players." } },
   { v = "2.44.15", d = "21.11.2026",
     ru = { "Чат больше не засыпает строками «Персонаж по имени ... в игре не найден»: если игрок, попросивший цены, вышел из игры, аддон прячет эти строки, выбрасывает недосланное ему и 15 минут ему не отвечает." },
     en = { "No more chat spam of \"No player named ... is currently playing\": if the player who asked for prices went offline, the addon hides these lines, drops what is left for him and does not answer him for 15 minutes." } },

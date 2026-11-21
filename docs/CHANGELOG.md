@@ -2,6 +2,13 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.16
+
+### 🔧 Changed
+- **Charts for gear:** price history is now kept for everything in your characters' bags and bank and for items opened in the buy and posting windows (30 days), not only for recipes and favorites.
+
+---
+
 ## 2.44.15
 
 ### 🐞 Fixed

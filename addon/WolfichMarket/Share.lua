@@ -541,9 +541,7 @@ local function apply(inc, sender)
   if cnt == 0 then return 0 end
   net.t, net.from = math.max(net.t or 0, inc.t), sender
   -- точки на графиках для отмеченных и предметов рецептов
-  local want = ns.RecipeItems and ns.RecipeItems() or {}
-  for id in pairs(ns.DB.marked) do want[id] = true end
-  for id in pairs(want) do local r = scan.items[id]; if r then ns.AddHistory(id, r[1], r[2], inc.t) end end
+  for id in pairs(ns.HistWant()) do local r = scan.items[id]; if r then ns.AddHistory(id, r[1], r[2], inc.t) end end
   inc.newCount = (inc.newCount or 0) + cnt
   ns.Fire("PRICES")
   ns.Fire("NET_DONE", scan, nil)
@@ -612,12 +610,13 @@ local function onMessage(prefix, msg, dist, sender)
     lastFrom["S" .. sender] = time()
     local net = netTable(ns.realmKey)
     local scan, cnt = { t = t, items = {}, net = true, from = sender }, 0
+    local want = ns.HistWant()
     for a, b, c in body:gmatch("(%w+),(%w+),(%w+);") do
       local id, p, q = dec(a), dec(b), dec(c)
       local _, myT = ns.AHPrice(id)
       if id and p and p > 0 and (not myT or myT < t) and plausible(id, p) then
         net.items[id] = { p, q or 0, t }; scan.items[id] = { p, q or 0, 1 }; cnt = cnt + 1
-        if ns.IsMarked(id) then ns.AddHistory(id, p, q or 0, t) end
+        if want[id] then ns.AddHistory(id, p, q or 0, t) end
       end
     end
     if cnt > 0 then net.t, net.from = math.max(net.t or 0, t), sender; ns.Fire("PRICES"); ns.Fire("NET_DONE", scan, nil) end

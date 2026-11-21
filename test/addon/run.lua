@@ -1141,6 +1141,15 @@ do
   C_ChatInfo.SendAddonMessage = oldSend
   for _ = 1, 40 do advance(1) end
 end
+-- история цен копится и для вещей из сумок (снаряжение на продажу) и для предметов, открытых в окнах аукциона
+do
+  local c = ns.DB.chars[ns.charKey]
+  c.bags = c.bags or {}; c.bags[777001] = 1
+  check(ns.HistWant()[777001], "история: вещь из сумок попадает в список для графиков")
+  ns.WatchHistory(777002)
+  check(ns.HistWant()[777002] and ns.DB.histWatch[777002], "история: предмет из окна выставления запоминается на 30 дней")
+  c.bags[777001] = nil
+end
 -- трансмутации не участвуют в уведомлении «лучший крафт»
 do
   check(ns.IsTransmute({ name = "Трансмутация: арканит" }) and ns.IsTransmute({ name = "Transmute: Arcanite" }) and ns.IsTransmute({ id = 11479, name = "x" })

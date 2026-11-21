@@ -8,7 +8,7 @@ function ns.Lang()
 end
 function ns.L(s) if ns.Lang() == "en" then return (ns.EN and ns.EN[s]) or s end return s end
 local L = ns.L
-ns.VERSION = "2.44.15"
+ns.VERSION = "2.44.16"
 ns.MEDIA = "Interface\\AddOns\\WolfichMarket\\media\\"
 ns.AH_CUT = 0.05 -- комиссия фракционного аукциона
 -- комиссия аукциона: фракционный 5%, общий (межфракционный) 15%. Без kind - аукцион, чьи цены сейчас в силе
@@ -469,6 +469,33 @@ function ns.AddHistory(id, p, q, t)
   end
   h[#h + 1] = { t, p, q, r }
   while #h > HIST_MAX do table.remove(h, 1) end
+end
+-- для каких предметов копить историю цен (графики): рецепты, избранное, всё, что лежит в сумках и банке
+-- ваших персонажей (то, что вы продаёте - снаряжение тоже), и предметы, открытые в окнах покупки/выставления (30 дней)
+function ns.HistWant()
+  local want = ns.RecipeItems and ns.RecipeItems() or {}
+  for id in pairs(ns.DB.marked or {}) do want[id] = true end
+  for _, c in pairs(ns.DB.chars or {}) do
+    for id in pairs(c.bags or {}) do want[id] = true end
+    for id in pairs(c.bank or {}) do want[id] = true end
+  end
+  local w = ns.DB.histWatch
+  if w then
+    local old = time() - 30 * 86400
+    for id, t in pairs(w) do if t < old then w[id] = nil else want[id] = true end end
+  end
+  return want
+end
+-- предмет открыт в окне аукциона: следить за его ценой и сразу поставить точку из последнего снимка
+function ns.WatchHistory(id)
+  if not id then return end
+  ns.DB.histWatch = ns.DB.histWatch or {}
+  ns.DB.histWatch[id] = time()
+  local h = ns.History(id)
+  if h and #h > 0 then return end
+  local sc = ns.CurrentScan and ns.CurrentScan()
+  local r = sc and sc.items and sc.items[id]
+  if r and r[1] and r[1] > 0 then ns.AddHistory(id, r[1], r[2] or 0, sc.t) end
 end
 -- точки истории для текущего аукциона (старые точки без пометки - для всех)
 function ns.History(id)

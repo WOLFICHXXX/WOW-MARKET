@@ -159,8 +159,7 @@ local function finishScan()
     local scan = { t = time(), lots = n, char = ns.charKey, realm = ns.realmKey, items = items }
     ns.DB.ahScans[ns.realmKey] = scan
     -- история: отмеченные и всё, что связано с рецептами персонажа
-    local want = ns.RecipeItems()
-    for id in pairs(ns.DB.marked) do want[id] = true end
+    local want = ns.HistWant()
     for id in pairs(want) do local r = items[id]; if r and r[1] > 0 then ns.AddHistory(id, r[1], r[2], scan.t) end end
     busy, processing, ns.progress = false, false, nil
     ns.lastScanEnd = GetTime()
@@ -750,6 +749,7 @@ local function updateBuyDeco()
   buyDeco:SetShown(id ~= nil and not buyDeco.off)
   if not id then return end
   buyDeco.star:Update(id); buyDeco.bell:Update(id)
+  ns.WatchHistory(id)
   local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
   buyDeco.info:SetText("|cfff2c761WolfichMarket|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-")
     .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
@@ -826,6 +826,7 @@ local function updateSellDeco(d)
   d.id = id
   d:SetShown(id ~= nil and sellRoom(d) >= 50)
   if not d:IsShown() then return end
+  ns.WatchHistory(id)
   local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
   d.info:SetText("|cfff2c761WolfichMarket|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-")
     .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r")
