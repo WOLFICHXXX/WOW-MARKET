@@ -22,6 +22,8 @@ local function newObj(kind, name, parent)
   end })
 end
 OBJ_SetScript = function(self, s, fn) self.scripts[s] = fn end
+OBJ_GetObjectType = function(self) return self.kind end
+OBJ_GetID = function(self) return self.id or 0 end
 OBJ_GetScript = function(self, s) return self.scripts[s] end
 OBJ_HookScript = function(self, s, fn) local old = self.scripts[s]; self.scripts[s] = function(...) if old then old(...) end fn(...) end end
 OBJ_RegisterEvent = function(self, e) if not self.events then self.events = {}; frames[#frames + 1] = self end; self.events[e] = true end
@@ -125,8 +127,9 @@ C_AuctionHouse = {
 C_Container = { SortBags = function() end, GetContainerNumSlots = function(b) return b == 0 and 2 or 0 end,
   GetContainerItemInfo = function(b, s) if s == 1 then return { itemID = 2840, stackCount = 12 } end; if s == 2 then return { itemID = 3470, stackCount = 5 } end end }
 local bagBtns = {}
-for s = 1, 2 do local b = newObj("Button"); b.GetBagID = function() return 0 end; b.GetID = function() return s end; b.GetWidth = function() return 37 end; bagBtns[#bagBtns + 1] = b end
+for s = 1, 2 do local b = newObj("Button"); b.bagID = 0; b.GetID = function() return s end; b.GetWidth = function() return 37 end; bagBtns[#bagBtns + 1] = b end
 ContainerFrameCombinedBags = newObj("Frame"); ContainerFrameCombinedBags.EnumerateValidItems = function() local i = 0; return function() i = i + 1; if bagBtns[i] then return i, bagBtns[i] end end end
+ContainerFrameCombinedBags.GetChildren = function() return table.unpack(bagBtns) end
 BAGBTNS = bagBtns
 ItemLocation = { CreateFromBagAndSlot = function(_, b, s) return { b, s } end }
 

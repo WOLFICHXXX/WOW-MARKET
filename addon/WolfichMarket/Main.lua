@@ -1008,7 +1008,7 @@ local function buildSettings(f)
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
   local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Прочее"); b.y = b.y - 72
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
-  chk(b, L"У аукциониста: график, избранное и сигнал в окне покупки", "ahBuyChart", function(v) if ns.SetAHBuyDeco then ns.SetAHBuyDeco(v) end end, true)
+  chk(b, L"У аукциониста: графики в окнах покупки и выставления лота", "ahBuyChart", function(v) if ns.SetAHBuyDeco then ns.SetAHBuyDeco(v) end end, true)
   local jb = UI.Button(f, L"Открыть журнал", 170, 22, function() ns.OpenLog() end, true); jb:SetPoint("TOPLEFT", b.x, b.y - 6)
   jb:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Все сообщения аддона: снимки, общий рынок, сигналы и продажи.", 1, 1, 1, true); GameTooltip:Show() end)
   jb:SetScript("OnLeave", function() GameTooltip:Hide() end)

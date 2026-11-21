@@ -31,14 +31,14 @@ Works alongside Mastercraft and other profession addons: the game's profession w
 ## At the auctioneer
 
 - **Favorites, My crafts, Plan** tabs next to the auction window; the magnifier on any row finds the item in the game's auction window.
-- **Chart in the game's buy window:** under the *Buy* button — the price chart of the item; a Favorites star and an alert bell next to the quantity.
+- **Charts in the game's windows:** under the *Buy* button of the buy window and under *Create Auction* in the posting window; in the buy window also a Favorites star and an alert bell next to the quantity.
 - **Own bag** under the auction window with the reagent bag and badges: click an item to post it on the game's auction house.
 - **Refresh prices** without the 15-minute wait: bags, your recipes, favorites and the plan.
 
 ## Crafting
 
 - **Profit for every recipe** of all your characters on F and N, skill-level groups or one flat list sorted by profit, batch sizes.
-- **Shopping plan:** "Plan" from the recipe card or My crafts, then at the auctioneer — everything to buy, where each material is cheapest, counts and batch profit.
+- **Shopping plan:** "Plan" from the recipe card or My crafts, then at the auctioneer — everything to buy, where each material is cheapest, counts and batch profit; *Buy* on a material buys exactly the needed quantity.
 - **Own materials:** bags and bank counted separately for each character.
 - **Professions you don't have** can be added to track their prices.
 
@@ -92,14 +92,14 @@ Commands: `/wm` main window, `/wm bags` farm window, `/wm money` money window, `
 ## У аукциониста
 
 - Вкладки **Избранное, Мой крафт, План** рядом с окном аукциона; лупа у любой строки находит предмет в окне аукциона игры.
-- **График в окне покупки игры:** под кнопкой «Купить» — график цены товара; рядом с количеством — звезда «Избранное» и колокольчик сигнала.
+- **Графики в окнах игры:** под кнопкой «Купить» в окне покупки и под «Объявить аукцион» в окне выставления; в окне покупки ещё звезда «Избранное» и колокольчик сигнала рядом с количеством.
 - **Своя сумка** под окном аукциона, вместе с сумкой ресурсов и значками: клик по предмету — выставить на аукционе игры.
 - **«Обновить цены»** без 15-минутного ожидания: сумки, ваши рецепты, избранное и план.
 
 ## Крафт
 
 - **Прибыль каждого рецепта** всех ваших персонажей на Ф и Общ, группы по навыку или общий список по прибыли, порции.
-- **План закупок:** «Запланировать» в карточке рецепта или «План» в «Мой крафт», а у аукциониста — всё, что нужно докупить, где материал дешевле, количество и прибыль партии.
+- **План закупок:** «Запланировать» в карточке рецепта или «План» в «Мой крафт», а у аукциониста — всё, что нужно докупить, где материал дешевле, количество и прибыль партии; «Купить» у материала покупает ровно нужное количество.
 - **Учёт своих материалов:** отдельно сумки и банк каждого персонажа.
 - **Профессии, которых у вас нет,** можно добавить и следить за их ценами.
 

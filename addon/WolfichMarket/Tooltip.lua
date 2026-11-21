@@ -18,9 +18,11 @@ local function findRecipe(id)
   for _, c in pairs(ns.DB.chars or {}) do r = look(c, false); if r then return r end end
 end
 
+local done = setmetatable({}, { __mode = "k" }) -- подсказка -> предмет, строки которого уже добавлены (своя таблица, без полей в подсказке игры)
+ns._ttClear = function(tt) done[tt] = nil end -- для автотестов
 local function addLines(tt, id)
-  if not id or not ns.DB or not ns.DB.settings.tooltip or tt.wmDone == id then return end
-  tt.wmDone = id
+  if not id or not ns.DB or not ns.DB.settings.tooltip or done[tt] == id then return end
+  done[tt] = id
   local p, t = ns.RegularPrice(id)
   local v = ns.DB.vendor[id]
   local rec = findRecipe(id)
@@ -67,5 +69,5 @@ if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and
 else
   GameTooltip:HookScript("OnTooltipSetItem", function(tt) local _, link = tt:GetItem(); addLines(tt, ns.idFromLink(link)) end)
 end
-GameTooltip:HookScript("OnTooltipCleared", function(tt) tt.wmDone = nil end)
-if ItemRefTooltip then ItemRefTooltip:HookScript("OnTooltipCleared", function(tt) tt.wmDone = nil end) end
+GameTooltip:HookScript("OnTooltipCleared", function(tt) done[tt] = nil end)
+if ItemRefTooltip then ItemRefTooltip:HookScript("OnTooltipCleared", function(tt) done[tt] = nil end) end

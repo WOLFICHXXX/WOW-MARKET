@@ -56,9 +56,9 @@ check(found, "строка о подорожании меди в журнале 
 ns.SearchAH(2835); check(searched == "Грубый камень", "поиск на аукционе по названию")
 -- подсветка в сумках
 ns.UpdateBagGlow(); advance(1)
-local g1, g2 = BAGBTNS[1].wmSellBadge, BAGBTNS[2].wmSellBadge
+local g1, g2 = ns._bagBadge(BAGBTNS[1]), ns._bagBadge(BAGBTNS[2])
 check(g1 and g1.shown and g2 and g2.shown, "значки на предметах в сумках появились")
-local function bt(g) return g and g.tex or "" end
+local function bt(g) return g and g.tex and g.tex.tex or "" end
 do
   local old = C_Container.GetContainerItemInfo
   C_Container.GetContainerItemInfo = function(b, s) if s == 2 then return { itemID = 2862, stackCount = 1 } end return old(b, s) end
@@ -79,7 +79,7 @@ do
   local ahBefore = ns.AHPrice(2840)
   ns.DB.ntah = ns.DB.ntah or {}
   ns.DB.ntah[ns.realmKey] = { t = time(), lots = 3, items = { [2840] = { p = 50000, q = 1 }, [19019] = { p = 1250000, q = 1 } } }
-  GameTooltip.wmDone = nil
+  ns._ttClear(GameTooltip)
   local t1 = table.concat(tooltip(2840), "\n")
   check(t1:find("Общий аукцион", 1, true) or t1:find("Neutral", 1, true), "подсказка: строка «Общий аукцион»")
   check(not t1:find("Чёрный рынок", 1, true), "чёрного рынка в подсказке больше нет")
@@ -182,7 +182,7 @@ do
   ns.SeenPrice(2840, 7, 1)
   check(ns.RegularPrice(2840) == ahP, "Лесоречье: поиск не меняет цены")
   zone = "Танарис"; reopen()
-  GameTooltip.wmDone = nil
+  ns._ttClear(GameTooltip)
   local tt = table.concat(tooltip(2840), "\n")
   check(tt:find(ns.money(ahP), 1, true) ~= nil and (tt:find("Общий аукцион", 1, true) or tt:find("Neutral", 1, true)), "подсказка: основная цена и строка общего аукциона")
   -- ручной выбор вне известных зон запоминается для аукциониста
@@ -1083,6 +1083,43 @@ do
   -- окно профессии игры: таблицу можно выключить
   W.tabs[2].scripts.OnClick(W.tabs[2])
 end
+-- скан прервали закрытием аукциона до прихода данных - ожидание не засчитывается, скан начнётся при открытии
+do
+  local oldN = C_AuctionHouse.GetNumReplicateItems
+  C_AuctionHouse.GetNumReplicateItems = function() return 0 end
+  ns.ahOpen = true; ns.DB.ahLastReq = 0
+  ns.StartScan()
+  check(ns.ScanBusy(), "скан начат")
+  fire("AUCTION_HOUSE_CLOSED")
+  check(not ns.ScanBusy() and (ns.DB.ahLastReq or 0) == 0, "закрыли аукцион во время скана - скан отменён, 15 минут ждать не нужно")
+  C_AuctionHouse.GetNumReplicateItems = oldN
+  ns.ahOpen = true
+  fire("AUCTION_HOUSE_SHOW"); advance(2)
+  check(ns.ScanBusy() or (ns.DB.ahLastReq or 0) > 0, "при следующем открытии аукциона скан начинается сам")
+  for _ = 1, 15 do advance(1) end
+end
+-- План: покупка нужного количества материала прямо из плана (цена у сервера -> подтверждение)
+do
+  ns.ahOpen = true
+  ns.AHSelectTab(3)
+  local f = ns._ahPages[3]
+  local started, confirmed
+  local oldS, oldC = C_AuctionHouse.StartCommoditiesPurchase, C_AuctionHouse.ConfirmCommoditiesPurchase
+  C_AuctionHouse.StartCommoditiesPurchase = function(id, q) started = { id, q } end
+  C_AuctionHouse.ConfirmCommoditiesPurchase = function(id, q) confirmed = { id, q } end
+  local oldGI = GetItemInfo; GetItemInfo = function(id) return "x", nil, 1, 1, 1, "", "", 20 end
+  local oldCI = C_Item; C_Item = setmetatable({ GetItemInfo = GetItemInfo }, { __index = oldCI or {} })
+  f.startBuy(2840, 7)
+  check(started and started[1] == 2840 and started[2] == 7 and f.buyBar:IsShown(), "План: «Купить» запрашивает цену нужного количества")
+  fire("COMMODITY_PRICE_UPDATED", 100, 700)
+  check(f.buyOk:IsEnabled() ~= false and f.pending and f.pending.quoted, "План: цена получена - кнопка подтверждения")
+  f.buyOk.scripts.OnClick(f.buyOk)
+  check(confirmed and confirmed[2] == 7, "План: подтверждение покупает нужное количество")
+  fire("COMMODITY_PURCHASE_SUCCEEDED")
+  check(not f.buyBar:IsShown() and f.pending == nil, "План: после покупки - снова итоги плана")
+  C_AuctionHouse.StartCommoditiesPurchase, C_AuctionHouse.ConfirmCommoditiesPurchase = oldS, oldC
+  GetItemInfo = oldGI; C_Item = oldCI
+end
 -- трансмутации не участвуют в уведомлении «лучший крафт»
 do
   check(ns.IsTransmute({ name = "Трансмутация: арканит" }) and ns.IsTransmute({ name = "Transmute: Arcanite" }) and ns.IsTransmute({ id = 11479, name = "x" })
@@ -1116,6 +1153,20 @@ do
   ns.SetAHBuyDeco(true); check(d and d:IsShown(), "окно покупки игры: включается обратно")
   cur = nil; ns.UpdateAHBuy(); check(d and not d:IsShown(), "окно покупки игры: без товара - ничего не показываем")
   AuctionHouseFrame.CommoditiesBuyFrame = nil
+  -- окно выставления лота: график под кнопкой «Объявить аукцион»
+  local sf = CreateFrame("Frame"); sf.PostButton = CreateFrame("Button", nil, sf)
+  local loc
+  sf.GetItem = function() return loc end; sf.SetItem = function(self, l) loc = l end
+  AuctionHouseFrame.CommoditiesSellFrame = sf
+  local oldC = C_Item; C_Item = setmetatable({ GetItemID = function(l) return l and l.id end }, { __index = oldC or {} })
+  ns.DecorateAHSell()
+  local sd = ns._ahSellDecos.CommoditiesSellFrame
+  check(sd and not sd:IsShown(), "окно выставления: без предмета графика нет")
+  loc = { id = 2840 }; ns.UpdateAHSell(); advance(1)
+  check(sd and sd:IsShown() and sd.id == 2840 and sd.chart, "окно выставления: график выбранного предмета")
+  ns.SetAHBuyDeco(false); check(not sd:IsShown(), "окно выставления: график выключается в настройках")
+  ns.SetAHBuyDeco(true); check(sd:IsShown(), "окно выставления: включается обратно")
+  C_Item = oldC; AuctionHouseFrame.CommoditiesSellFrame = nil
 end
 -- у аукциониста: своя сумка под окном аукциона, клик - выставить на аукционе игры
 do

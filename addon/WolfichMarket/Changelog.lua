@@ -2,6 +2,17 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.13", d = "21.11.2026",
+    ru = { "Исправлено: предметы в сумках с действием по ПКМ (камень возвращения, спальник и др.) блокировались игрой. Аддон больше не трогает кнопки сумок игры: значки - в своих рамках поверх.",
+           "Скан прервали закрытием аукциона - 15 минут ждать не нужно: при следующем открытии скан начнётся сам.",
+           "План: кнопка «Купить» у материала - нужное количество прямо из плана (цена у сервера, затем подтверждение). Лупа - найти в окне аукциона.",
+           "Окно выставления лота в аукционе игры: график цены под кнопкой «Объявить аукцион».",
+           "Окошки фарма и денег: подсказка больше не закрывает само окошко (под ним, если оно вверху экрана)." },
+    en = { "Fixed: bag items with a right-click action (hearthstone, bedroll etc.) were blocked by the game. The addon no longer touches the game's bag buttons: badges are drawn in its own frames on top.",
+           "A scan interrupted by closing the auction house no longer costs 15 minutes: it starts by itself next time you open the AH.",
+           "Plan: a Buy button on each material - the needed quantity right from the plan (price from the server, then confirm). The magnifier finds it in the auction window.",
+           "The game's posting window: a price chart under the Create Auction button.",
+           "Farm and money windows: the tooltip no longer covers the window itself (below it when the window is at the top of the screen)." } },
   { v = "2.44.12", d = "17.11.2026",
     ru = { "Колокольчик в окне покупки игры - снова размером со звезду." },
     en = { "The bell in the game's buy window is the size of the star again." } },

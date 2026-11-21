@@ -1,6 +1,17 @@
 -- WolfichMarket: банк и сумки каждого персонажа - материалы «из запаса» для крафта
 local _, ns = ...
 local L = ns.L
+-- подсказка маленьких окошек: под окошком, если оно в верхней половине экрана, иначе над ним - чтобы не закрывала само окошко
+function ns.TipBeside(self)
+  local host = (self.GetParent and self:GetParent() ~= UIParent and self:GetParent()) or self
+  if host ~= self and not host.isWMBar then host = self end
+  GameTooltip:SetOwner(self, "ANCHOR_NONE")
+  GameTooltip:ClearAllPoints()
+  local top = host:GetTop() or 0
+  local h = UIParent:GetHeight() or 768
+  if top > h / 2 then GameTooltip:SetPoint("TOPLEFT", host, "BOTTOMLEFT", 0, -6)
+  else GameTooltip:SetPoint("BOTTOMLEFT", host, "TOPLEFT", 0, 6) end
+end
 local safe = ns.safe
 
 -- контейнеры сумок: рюкзак, 4 сумки и сумка реагентов (если есть)
@@ -192,7 +203,7 @@ local function buildBar()
   bar = CreateFrame("Frame", "WolfichMarketBagValue", UIParent)
   bar:SetSize(214, 24); bar:SetFrameStrata("MEDIUM"); bar:SetClampedToScreen(true)
   bar:SetMovable(true); bar:EnableMouse(true); bar:RegisterForDrag("LeftButton")
-  bar:SetScript("OnDragStart", bar.StartMoving)
+  bar:SetScript("OnDragStart", function(self) GameTooltip:Hide(); self:StartMoving() end); bar.isWMBar = true
   bar:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); savePos() end)
   local p = ns.DB.settings.bagPos
   if p then bar:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else bar:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -320, 260) end
@@ -220,15 +231,15 @@ local function buildBar()
   local c2 = UI.Check(menu, L"Валюта (деньги с добычи)", function() return S.farmMoney ~= false end, function(v) S.farmMoney = v; updateBar() end); c2:SetPoint("TOPLEFT", 8, -34)
   bar.menu = menu
   bar.opt:SetScript("OnClick", function() menu:SetShown(not menu:IsShown()) end)
-  bar.opt:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Что считать: предметы и/или валюту", 1, 1, 1); GameTooltip:Show() end)
+  bar.opt:SetScript("OnEnter", function(self) ns.TipBeside(self); GameTooltip:AddLine(L"Что считать: предметы и/или валюту", 1, 1, 1); GameTooltip:Show() end)
   bar.opt:SetScript("OnLeave", function() GameTooltip:Hide() end)
   bar.text = UI.Font(bar, 11, UI.GOLD); bar.text:SetPoint("LEFT", bar.opt, "RIGHT", 4, 0); bar.text:SetPoint("RIGHT", bar.reset, "LEFT", -3, 0)
-  bar.reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сбросить", 1, 0.82, 0); GameTooltip:AddLine(L"Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое (и деньги, поднятые с добычи).", 1, 1, 1, true); GameTooltip:Show() end)
+  bar.reset:SetScript("OnEnter", function(self) ns.TipBeside(self); GameTooltip:AddLine(L"Сбросить", 1, 0.82, 0); GameTooltip:AddLine(L"Перед фармом: то, что уже лежит в сумках, больше не считается - показывается только новое (и деньги, поднятые с добычи).", 1, 1, 1, true); GameTooltip:Show() end)
   bar.reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  bar.full:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Восстановить", 1, 0.82, 0); GameTooltip:AddLine(L"Снова показывать полную стоимость сумок.", 1, 1, 1, true); GameTooltip:Show() end)
+  bar.full:SetScript("OnEnter", function(self) ns.TipBeside(self); GameTooltip:AddLine(L"Восстановить", 1, 0.82, 0); GameTooltip:AddLine(L"Снова показывать полную стоимость сумок.", 1, 1, 1, true); GameTooltip:Show() end)
   bar.full:SetScript("OnLeave", function() GameTooltip:Hide() end)
   bar:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    ns.TipBeside(self)
     GameTooltip:AddLine(L"Стоимость сумок: каждый предмет по лучшей цене - аукцион (минус 5%) или торговец; персональные - только торговцу. Перетащите мышью, чтобы передвинуть.", 1, 1, 1, true)
     if self.farmSince then GameTooltip:AddLine(string.format(L"Фарм считается с %s", date("%H:%M", self.farmSince)), 0.9, 0.7, 0.3) end
     GameTooltip:AddDoubleLine(L"Предметы", ns.money(self.items or 0, true), 0.8, 0.8, 0.8, 1, 1, 1)
@@ -262,7 +273,7 @@ local function buildMoney()
   mbar = CreateFrame("Frame", "WolfichMarketMoneyBar", UIParent)
   mbar:SetSize(150, 24); mbar:SetFrameStrata("MEDIUM"); mbar:SetClampedToScreen(true)
   mbar:SetMovable(true); mbar:EnableMouse(true); mbar:RegisterForDrag("LeftButton")
-  mbar:SetScript("OnDragStart", mbar.StartMoving)
+  mbar:SetScript("OnDragStart", function(self) GameTooltip:Hide(); self:StartMoving() end); mbar.isWMBar = true
   mbar:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local p, _, rp, x, y = self:GetPoint()
@@ -277,7 +288,7 @@ local function buildMoney()
   mbar:SetScript("OnEnter", function(self)
     local m = GetMoney and GetMoney() or 0
     local d = m - (sessionStart or m)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    ns.TipBeside(self)
     GameTooltip:AddLine(L"Деньги персонажа", 1, 0.82, 0)
     GameTooltip:AddDoubleLine(L"Сейчас", ns.coins(m), 0.8, 0.8, 0.8, 1, 1, 1)
     GameTooltip:AddDoubleLine(L"За эту игру", (d >= 0 and "|cff78d98a+" or "|cffff7a66-") .. ns.money(math.abs(d), true) .. "|r", 0.8, 0.8, 0.8, 1, 1, 1)

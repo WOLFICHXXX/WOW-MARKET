@@ -2,6 +2,19 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.13
+
+### 🐞 Fixed
+- **Right-click items in bags** (hearthstone, bedroll and others) were blocked by the game. The addon no longer touches the game's bag buttons — the badges are drawn in its own frames on top.
+- **Interrupted scan:** closing the auction house during a scan no longer costs 15 minutes — the scan starts by itself the next time you open the AH.
+- **Farm and money windows:** the tooltip no longer covers the window itself.
+
+### ✨ New
+- **Buy from the Plan:** a *Buy* button on each material buys exactly the needed quantity (price from the server, then confirm); the magnifier finds the item in the auction window.
+- **Chart in the posting window:** the price chart under the *Create Auction* button of the game's posting window.
+
+---
+
 ## 2.44.12
 
 ### 🎨 Look

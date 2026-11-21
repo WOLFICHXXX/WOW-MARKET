@@ -182,11 +182,7 @@ end
 -- блокируются («доступно только интерфейсу Blizzard»). Поэтому сумки игры только прячем:
 -- прозрачность и мышь - это свойства рамки, они не задевают код игры. Сумки закроет сама игра вместе с аукционом.
 local muted = false
-local function bagFrames()
-  local out = { ContainerFrameCombinedBags }
-  for i = 1, 13 do out[#out + 1] = _G["ContainerFrame" .. i] end
-  return out
-end
+local function bagFrames() return ns.BagFrames() end
 local function muteBags(on)
   if not on and not muted then return end
   muted = on and true or false
@@ -194,14 +190,11 @@ local function muteBags(on)
     if f then
       if f.SetAlpha then pcall(f.SetAlpha, f, on and 0 or 1) end
       if f.EnableMouse then pcall(f.EnableMouse, f, not on) end
-      if f.EnumerateValidItems then
-        local ok, it, st, k = pcall(f.EnumerateValidItems, f)
-        if ok and it then for _, btn in it, st, k do if btn and btn.EnableMouse then pcall(btn.EnableMouse, btn, not on) end end end
-      end
-      if f.GetName and f:GetName() and f:GetName() ~= "ContainerFrameCombinedBags" then
-        for j = 1, 40 do local btn = _G[f:GetName() .. "Item" .. j]; if btn and btn.EnableMouse then pcall(btn.EnableMouse, btn, not on) end end
-      end
     end
+  end
+  -- невидимые кнопки предметов не должны ловить клики (только вызов движка EnableMouse, без своих полей)
+  if not (InCombatLockdown and InCombatLockdown()) then
+    ns.EachBagButton(function(btn) pcall(btn.EnableMouse, btn, not on) end, true)
   end
 end
 ns._muteBags = muteBags -- для автотестов
