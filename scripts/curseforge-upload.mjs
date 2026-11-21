@@ -43,6 +43,16 @@ if (!notes) {
     const esc = VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const m = md.match(new RegExp('^## ' + esc + '\\s*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))', 'm'));
     if (m) notes = `## WolfichMarket ${VERSION}\n\n` + m[1].trim();
+    // SINCE - прошлая версия на CurseForge: заметки всех версий между ней и VERSION (без неё самой)
+    const SINCE = (process.env.SINCE || '').trim();
+    if (m && SINCE) {
+      const start = md.indexOf('## ' + VERSION + '\n');
+      const end = md.indexOf('\n## ' + SINCE + '\n');
+      if (start >= 0 && end > start) {
+        const body = md.slice(start, end).replace(/\n---\s*\n/g, '\n').replace(/^## (\S+)\s*$/gm, '## $1').trim();
+        notes = `# WolfichMarket ${VERSION}\n\n` + body;
+      }
+    }
   } catch (e) { log('Нет docs/CHANGELOG.md'); }
 }
 log(notes ? 'Заметки к выпуску найдены.' : 'Заметок к выпуску нет - будет только номер версии.');

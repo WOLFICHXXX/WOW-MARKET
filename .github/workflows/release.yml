@@ -8,6 +8,9 @@ on:
       version:
         description: 'Версия (например 1.0.1)'
         required: true
+      since:
+        description: 'Прошлая версия на CurseForge (заметки всех версий после неё)'
+        required: false
 
 permissions:
   contents: write
@@ -48,4 +51,5 @@ jobs:
           CF_GAME_VERSION: ${{ vars.CF_GAME_VERSION }}
           FILE: WolfichMarket-${{ steps.v.outputs.version }}.zip
           VERSION: ${{ steps.v.outputs.version }}
+          SINCE: ${{ github.event.inputs.since }}
         run: node scripts/curseforge-upload.mjs
