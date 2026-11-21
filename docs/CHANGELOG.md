@@ -2,6 +2,13 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.15
+
+### 🐞 Fixed
+- **No more "No player named … is currently playing" spam:** when the player who asked for prices goes offline, the addon hides these lines, drops what is left for him and doesn't answer him for 15 minutes.
+
+---
+
 ## 2.44.14
 
 ### 🐞 Fixed

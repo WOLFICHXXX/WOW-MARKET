@@ -2,6 +2,9 @@
 -- При каждом выпуске - новая запись сверху (и тот же текст по-английски в docs/CHANGELOG.md).
 local _, ns = ...
 ns.CHANGELOG = {
+  { v = "2.44.15", d = "21.11.2026",
+    ru = { "Чат больше не засыпает строками «Персонаж по имени ... в игре не найден»: если игрок, попросивший цены, вышел из игры, аддон прячет эти строки, выбрасывает недосланное ему и 15 минут ему не отвечает." },
+    en = { "No more chat spam of \"No player named ... is currently playing\": if the player who asked for prices went offline, the addon hides these lines, drops what is left for him and does not answer him for 15 minutes." } },
   { v = "2.44.14", d = "21.11.2026",
     ru = { "Окно выставления лота: график больше не пропадает у части предметов (игра ещё не успевала разложить окно, и аддон считал, что места нет)." },
     en = { "Posting window: the chart no longer goes missing for some items (the game had not laid out the window yet, and the addon thought there was no room)." } },

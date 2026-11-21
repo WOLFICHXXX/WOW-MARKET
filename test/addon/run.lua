@@ -1120,6 +1120,27 @@ do
   C_AuctionHouse.StartCommoditiesPurchase, C_AuctionHouse.ConfirmCommoditiesPurchase = oldS, oldC
   GetItemInfo = oldGI; C_Item = oldCI
 end
+-- шёпот игроку, которого нет в игре: строки «не найден» прячутся, недосланное ему выбрасывается
+do
+  ERR_CHAT_PLAYER_NOT_FOUND_S = 'Персонаж по имени "%s" в игре не найден.'
+  check(not ns._netNotFound('Персонаж по имени "Чужой" в игре не найден.'), "чужое «не найден» (не наш шёпот) не прячем")
+  local sc = ns.CurrentScan()
+  C_ChatInfo = C_ChatInfo or {}
+  local oldSend = C_ChatInfo.SendAddonMessage
+  local toHim = 0
+  C_ChatInfo.SendAddonMessage = function(_, _, ch, target) if target == "Stanislav Bank" then toHim = toHim + 1 end return 0 end
+  if sc then
+    ns.ShareScan(sc, true, true, "Stanislav Bank")
+    for _ = 1, 10 do advance(1) end
+    check(ns._netNotFound('Персонаж по имени "Stanislav Bank" в игре не найден.'), "«не найден» после нашего шёпота - прячем")
+    check(ns._netUnreachable["stanislav bank"], "игрок помечен как недоступный")
+    local before = toHim
+    ns.ShareScan(sc, true, true, "Stanislav Bank"); for _ = 1, 10 do advance(1) end
+    check(toHim == before, "недоступному игроку 15 минут не отвечаем")
+  else check(false, "нет снимка для проверки") end
+  C_ChatInfo.SendAddonMessage = oldSend
+  for _ = 1, 40 do advance(1) end
+end
 -- трансмутации не участвуют в уведомлении «лучший крафт»
 do
   check(ns.IsTransmute({ name = "Трансмутация: арканит" }) and ns.IsTransmute({ name = "Transmute: Arcanite" }) and ns.IsTransmute({ id = 11479, name = "x" })

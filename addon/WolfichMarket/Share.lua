@@ -107,6 +107,8 @@ ns.NetRoutes = routes
 -- сообщение возвращается в начало очереди и повторяется позже. Через Battle.net - крупными пачками.
 local THROTTLED = { [3] = true, [8] = true }
 local queue, bnQueue, sending = {}, {}, false
+local whispered, unreachable = {}, {} -- кому шептали и когда / кого игра «не нашла» (см. ниже)
+local function nk(name) return name and name:lower() end
 local bnTurn = false
 -- Общий лимит трафика (байт в секунду) на все пути вместе, включая Battle.net. Сервер разрывает связь
 -- (WOW51900319), если аддоны шлют слишком много данных подряд, поэтому держимся заметно ниже его порога
@@ -160,6 +162,11 @@ local function pump()
     local ok = pcall(BNSendGameData, e[3], PREFIX, e[1])
     if ok then ns.netStats.sent = ns.netStats.sent + 1 else ns.netStats.fail = ns.netStats.fail + 1; ns.netStats.lastFail = "BN" end
   elseif C and C.SendAddonMessage then
+    if e[2] == "WHISPER" and e[3] then
+      local u = unreachable[nk(e[3])]
+      if u and u > GetTime() then ns.After(0, pump) return end -- игрока нет в игре - пропускаем
+      whispered[nk(e[3])] = GetTime()
+    end
     local ok, res = pcall(C.SendAddonMessage, p, e[1], e[2], e[3])
     nextOk[p] = GetTime() + 1.05
     if ok and type(res) == "number" and THROTTLED[res] then
@@ -178,6 +185,34 @@ end
 -- rest - «остальной аукцион»: только через канал аддона и Battle.net, без копий в гильдию, группу и шёпотом друзьям
 -- sendTarget - ответ одному игроку (тому, кто спросил цены): только ему, через Battle.net или шёпотом
 local sendTarget
+-- шёпот игроку, которого нет в игре (вышел или имя не подходит для шёпота): игра пишет в чат
+-- «Персонаж по имени ... в игре не найден» на каждую часть посылки. Такие строки прячем,
+-- недосланное этому игроку выбрасываем и 15 минут ему больше не отвечаем.
+ns._netUnreachable = unreachable
+local function notFoundPattern()
+  local f = ERR_CHAT_PLAYER_NOT_FOUND_S
+  if type(f) ~= "string" or not f:find("%%s") then return nil end
+  local a, b = f:find("%%s", 1, false)
+  local function esc(x) return (x:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")) end
+  return "^" .. esc(f:sub(1, a - 1)) .. "(.+)" .. esc(f:sub(b + 1)) .. "$"
+end
+local function dropTarget(name)
+  local key = nk(name)
+  for i = #queue, 1, -1 do local e = queue[i]; if e[2] == "WHISPER" and nk(e[3]) == key then table.remove(queue, i) end end
+end
+function ns._netNotFound(msg)
+  local pat = notFoundPattern(); if not pat or type(msg) ~= "string" then return false end
+  local name = msg:match(pat); if not name then return false end
+  local key = nk(name)
+  local t = whispered[key]
+  if not t or GetTime() - t > 60 then return false end -- не наш шёпот - сообщение игры не трогаем
+  unreachable[key] = GetTime() + 900
+  dropTarget(name)
+  return true
+end
+if ChatFrame_AddMessageEventFilter then
+  pcall(ChatFrame_AddMessageEventFilter, "CHAT_MSG_SYSTEM", function(_, _, msg) if ns._netNotFound(msg) then return true end end)
+end
 local function send(msg, big, onlyBig, t, rest)
   if sendTarget then
     local who = short(sendTarget)
@@ -300,7 +335,11 @@ function ns.ShareScan(scan, full, again, to)
   if not scan or not scan.items or S().netSend == false or not ns.realmKey then return end
   local rk = RK()
   local last = lastSent[rk]
-  if to then full, again = "force", true end
+  if to then
+    local u = unreachable[nk(to)]
+    if u and u > GetTime() then return end -- этот игрок недавно был «не найден» - не отвечаем ему 15 минут
+    full, again = "force", true
+  end
   if not to and last and last.t and scan.t < last.t then return end -- уже разослан более свежий снимок
   local net = ns.DB.net and ns.DB.net[ns.realmKey]
   if not full and net and net.t and net.t >= scan.t then return end -- в сети уже есть снимок не хуже
