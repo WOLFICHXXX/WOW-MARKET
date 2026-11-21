@@ -2,6 +2,13 @@
 
 Each release takes its notes from the matching "## version" section below; they appear on CurseForge as the file's changelog.
 
+## 2.44.14
+
+### 🐞 Fixed
+- **Posting window chart** no longer goes missing for some items.
+
+---
+
 ## 2.44.13
 
 ### 🐞 Fixed

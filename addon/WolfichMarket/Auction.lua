@@ -809,11 +809,22 @@ local function sellItem(sf)
   local ok2, id = pcall(C_Item.GetItemID, loc)
   return ok2 and id or nil
 end
+-- место под график: от кнопки «Объявить аукцион» до низа окна. Пока игра не разложила рамки,
+-- высота бывает 0 - тогда не прячем (раньше из-за этого график пропадал у части предметов)
+local function sellRoom(d)
+  local h = d.box:GetHeight() or 0
+  if h > 0 then return h end
+  local pb, sf = d.sf.PostButton, d.sf
+  local a = type(pb) == "table" and pb.GetBottom and pb:GetBottom()
+  local b = sf.GetBottom and sf:GetBottom()
+  if a and b and a > b then return a - b end
+  return 999
+end
 local function updateSellDeco(d)
   if not d then return end
   local id = d.off == nil and ns.DB.settings.ahBuyChart ~= false and sellItem(d.sf) or nil
   d.id = id
-  d:SetShown(id ~= nil and (d.box:GetHeight() or 0) >= 70)
+  d:SetShown(id ~= nil and sellRoom(d) >= 50)
   if not d:IsShown() then return end
   local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
   d.info:SetText("|cfff2c761WolfichMarket|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-")
@@ -840,8 +851,16 @@ function ns.DecorateAHSell()
       d.chart:SetPoint("TOPLEFT", 0, -14); d.chart:SetPoint("BOTTOMRIGHT", 0, 0)
       d.chart.onClick = function() if d.id then ns.ShowChartDialog(d.id) end end
       sellDecos[key] = d
-      local function later() ns.After(0, function() updateSellDeco(d) end) end
+      -- обновить сразу и ещё раз чуть позже, когда игра закончит раскладку окна
+      local function later() for _, t in ipairs({ 0, 0.3 }) do ns.After(t, function() updateSellDeco(d) end) end end
       if type(sf.SetItem) == "function" then hooksecurefunc(sf, "SetItem", later) end
+      -- страховка: предмет в окне сменился другим путём - раз в полсекунды сверяем (рамка видна только вместе с окном)
+      local acc = 0
+      box:SetScript("OnUpdate", function(_, el)
+        acc = acc + (el or 0); if acc < 0.5 then return end; acc = 0
+        local id = ns.DB.settings.ahBuyChart ~= false and sellItem(sf) or nil
+        if id ~= d.id or (id and not d:IsShown() and sellRoom(d) >= 50) then updateSellDeco(d) end
+      end)
       if sf.HookScript then sf:HookScript("OnShow", later) end
       updateSellDeco(d)
     end
