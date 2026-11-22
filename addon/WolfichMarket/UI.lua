@@ -235,51 +235,72 @@ function UI.OrnatePanel(frame, alpha, cap)
   -- Lower relief contrast keeps item text and graphs readable at game scale.
   UI.StoneTile(center, frame, alpha * 0.53)
 end
--- A luxury three-slice gilded heading band, used on all tab panels.
--- No baked text; the existing FontStrings stay live and translated.
-function UI.FantasyHeader(frame, inset, top, height, alpha)
-  inset, top, height, alpha = inset or 10, top or -9, height or 31, alpha or 0.86
-  local left = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
-  local mid = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
-  local right = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
-  for _, tex in ipairs({ left, right }) do
-    UI.WolfTex(tex, "ref-button-gold")
-    tex:SetAlpha(alpha)
-    tex:SetVertexColor(0.82, 0.73, 0.57)
-  end
-  -- A carved navy middle avoids the overbright copper-plank effect.
-  UI.WolfTex(mid, "ref-header-wolves")
-  mid:SetVertexColor(0.80, 0.90, 1)
-  mid:SetAlpha(math.min(1, alpha + 0.09))
-  left:SetTexCoord(0, 0.14, 0, 1)
-  left:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, top)
-  left:SetSize(25, height)
-  right:SetTexCoord(0.86, 1, 0, 1)
-  right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, top)
-  right:SetSize(25, height)
-  mid:SetTexCoord(0.34, 0.66, 0.29, 0.71)
-  mid:SetPoint("TOPLEFT", left, "TOPRIGHT")
-  mid:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT")
-  local gild = frame:CreateTexture(nil, "BORDER", nil, 1)
-  gild:SetPoint("TOPLEFT", frame, "TOPLEFT", inset + 21, top - 1)
-  gild:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset - 21, top - 1)
-  gild:SetHeight(1)
-  gild:SetColorTexture(0.90, 0.71, 0.38, alpha * 0.65)
-  local lower = frame:CreateTexture(nil, "BORDER", nil, 1)
-  lower:SetPoint("TOPLEFT", frame, "TOPLEFT", inset + 21, top - height + 1)
-  lower:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset - 21, top - height + 1)
-  lower:SetHeight(1)
-  lower:SetColorTexture(0.69, 0.48, 0.26, alpha * 0.60)
-  return left, mid, right
-end
--- Interior panel keeps the authored stone and the ornamental nine-slice.
-function UI.Box(f, alpha)
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6)
+-- The reference uses ONE thin, clean gold outline for every inner window.
+-- Only the outer application shell retains the heavy corner ornaments.
+-- A quiet tiled interior makes lists/graphs legible and avoids atlas stripes.
+function UI.InnerPanel(f, alpha)
+  alpha = alpha or 0.92
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
   bg:SetAllPoints()
-  bg:SetColorTexture(0.025, 0.043, 0.071, alpha or 0.93)
-  UI.OrnatePanel(f, 0.96, 19)
+  bg:SetColorTexture(0.021, 0.043, 0.070, 0.98)
+  local relief = f:CreateTexture(nil, "BACKGROUND", nil, -7)
+  relief:SetPoint("TOPLEFT", f, "TOPLEFT", 2, -2)
+  relief:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 2)
+  UI.StoneTile(relief, f, alpha * 0.21)
+  local function line(a, b, x1, y1, x2, y2, horizontal, opacity)
+    local t = f:CreateTexture(nil, "BORDER", nil, 1)
+    t:SetColorTexture(0.87, 0.65, 0.31, opacity or 0.82)
+    if horizontal then t:SetHeight(1) else t:SetWidth(1) end
+    t:SetPoint(a, f, a, x1, y1)
+    t:SetPoint(b, f, b, x2, y2)
+    return t
+  end
+  line("TOPLEFT", "TOPRIGHT", 8, -1, -8, -1, true, 0.91)
+  line("BOTTOMLEFT", "BOTTOMRIGHT", 8, 1, -8, 1, true, 0.91)
+  line("TOPLEFT", "BOTTOMLEFT", 1, -8, 1, 8, false, 0.82)
+  line("TOPRIGHT", "BOTTOMRIGHT", -1, -8, -1, 8, false, 0.82)
+  -- Small diagonal corners provide a forged finish without ornate repetition.
+  for _, corner in ipairs({
+    { "TOPLEFT", 2, -2 }, { "TOPRIGHT", -2, -2 },
+    { "BOTTOMLEFT", 2, 2 }, { "BOTTOMRIGHT", -2, 2 },
+  }) do
+    local gem = f:CreateTexture(nil, "BORDER", nil, 2)
+    gem:SetSize(5, 5)
+    gem:SetPoint(corner[1], f, corner[1], corner[2], corner[3])
+    gem:SetColorTexture(0.93, 0.72, 0.37, 0.73)
+  end
   f.wmBox = true
   return f
+end
+
+-- Slim inset title bar: one matte navy band and one engraved bottom edge.
+-- No stretched gold button pieces and no black bars at its ends.
+function UI.FantasyHeader(frame, inset, top, height, alpha, warm)
+  inset, top, height, alpha = inset or 9, top or -9, height or 29, alpha or 0.86
+  local plate = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
+  plate:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, top)
+  plate:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, top)
+  plate:SetHeight(height)
+  if warm then
+    plate:SetColorTexture(0.23, 0.143, 0.056, alpha)
+  else
+    plate:SetColorTexture(0.045, 0.100, 0.160, alpha)
+  end
+  local upper = frame:CreateTexture(nil, "BORDER", nil, 1)
+  upper:SetPoint("TOPLEFT", frame, "TOPLEFT", inset + 2, top)
+  upper:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset - 2, top)
+  upper:SetHeight(1)
+  upper:SetColorTexture(0.84, 0.62, 0.29, alpha * 0.60)
+  local lower = frame:CreateTexture(nil, "BORDER", nil, 1)
+  lower:SetPoint("TOPLEFT", frame, "TOPLEFT", inset + 2, top - height)
+  lower:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset - 2, top - height)
+  lower:SetHeight(1)
+  lower:SetColorTexture(0.89, 0.66, 0.32, alpha * 0.87)
+  return plate, upper, lower
+end
+
+function UI.Box(f, alpha)
+  return UI.InnerPanel(f, alpha)
 end
 
 -- рамка из 9 частей: UI.Skin(f, { theme = "main" | "ah" | "mcard" | "acard", scale = ... })
@@ -1143,6 +1164,7 @@ function UI.FlatSkin(f, opts)
   bg:SetColorTexture(0.035, 0.055, 0.075, 1)
   -- Same authored corners as the main window, with thin bronze joins.
   UI.OrnatePanel(f, 0.95, 20)
+  -- The full-screen modal is an outer window and keeps ornate corners.
   edge(f, 0.47, 0.40, 0.25, 0.9)
   local head = opts.head or 40
   local band = f:CreateTexture(nil, "BACKGROUND", nil, -3)
