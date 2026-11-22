@@ -293,6 +293,14 @@ function UI.FantasyHeader(frame, inset, top, height, alpha, warm)
     etch:SetAlpha(0.22)
   else
     plate:SetColorTexture(0.045, 0.100, 0.160, alpha)
+    -- Fine natural slate texture from the seamless reference stone, without
+    -- the stretched wolf-head graphics that previously produced black stripes.
+    local relief = frame:CreateTexture(nil, "BACKGROUND", nil, -2)
+    UI.WolfTex(relief, "ref-stone")
+    relief:SetTexCoord(0.12, 0.84, 0.28, 0.64)
+    relief:SetAllPoints(plate)
+    relief:SetAlpha(0.24)
+    relief:SetVertexColor(0.62, 0.79, 1.00)
   end
   local upper = frame:CreateTexture(nil, "BORDER", nil, 1)
   upper:SetPoint("TOPLEFT", frame, "TOPLEFT", inset + 2, top)
