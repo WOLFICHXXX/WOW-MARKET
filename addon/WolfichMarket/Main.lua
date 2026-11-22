@@ -1119,12 +1119,27 @@ local function buildHome(f)
   local sub = UI.Font(hero, 11, UI.DIM)
   sub:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 22, 17)
   sub:SetText("WOLFICHMARKET  /  WOW FOREVER")
-  local price = panel(0, -151, 598, 379, L"Цены из снимка аукциона")
+  local price = panel(0, -151, 598, 379, L"Выгодный крафт")
+  local heads = UI.Font(price, 10, UI.DIM)
+  heads:SetPoint("TOPLEFT", price, "TOPLEFT", 53, -39)
+  heads:SetText(L"Рецепт")
+  local costHead = UI.Font(price, 10, UI.DIM)
+  costHead:SetPoint("TOPRIGHT", price, "TOPRIGHT", -174, -39)
+  costHead:SetJustifyH("RIGHT")
+  costHead:SetText(L"Затраты")
+  local revHead = UI.Font(price, 10, UI.DIM)
+  revHead:SetPoint("TOPRIGHT", price, "TOPRIGHT", -89, -39)
+  revHead:SetJustifyH("RIGHT")
+  revHead:SetText(L"Доход")
+  local profitHead = UI.Font(price, 10, UI.DIM)
+  profitHead:SetPoint("TOPRIGHT", price, "TOPRIGHT", -9, -39)
+  profitHead:SetJustifyH("RIGHT")
+  profitHead:SetText(L"Прибыль")
   home.prices = {}
   for i = 1, 6 do
     local row = CreateFrame("Frame", nil, price)
     row:SetHeight(43)
-    row:SetPoint("TOPLEFT", price, "TOPLEFT", 14, -52 - (i - 1) * 46)
+    row:SetPoint("TOPLEFT", price, "TOPLEFT", 14, -57 - (i - 1) * 46)
     row:SetPoint("RIGHT", price, "RIGHT", -14, 0)
     local shade = row:CreateTexture(nil, "BACKGROUND")
     shade:SetAllPoints()
@@ -1133,16 +1148,22 @@ local function buildHome(f)
     row.icon:SetSize(30, 30); row.icon:SetPoint("LEFT", 5, 0)
     row.name = UI.Font(row, 12, UI.TEXT)
     row.name:SetPoint("LEFT", row.icon, "RIGHT", 9, 0)
-    row.name:SetPoint("RIGHT", row, "RIGHT", -125, 0)
-    row.price = UI.Font(row, 12, UI.GOLD)
-    row.price:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-    row.price:SetJustifyH("RIGHT")
+    row.name:SetPoint("RIGHT", row, "RIGHT", -277, 0)
+    row.cost = UI.Font(row, 11, UI.DIM)
+    row.cost:SetPoint("RIGHT", row, "RIGHT", -160, 0)
+    row.cost:SetWidth(88); row.cost:SetJustifyH("RIGHT")
+    row.revenue = UI.Font(row, 11, UI.TEXT)
+    row.revenue:SetPoint("RIGHT", row, "RIGHT", -74, 0)
+    row.revenue:SetWidth(80); row.revenue:SetJustifyH("RIGHT")
+    row.price = UI.Font(row, 11, { 0.45, 0.91, 0.54 })
+    row.price:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+    row.price:SetWidth(68); row.price:SetJustifyH("RIGHT")
     row:Hide()
     home.prices[i] = row
   end
   home.priceEmpty = UI.Font(price, 12, UI.DIM)
   home.priceEmpty:SetPoint("CENTER", price, "CENTER")
-  home.priceEmpty:SetText(L"Снимка пока нет. Откройте аукцион для сбора цен.")
+  home.priceEmpty:SetText(L"Нет рассчитанных прибыльных рецептов.\nОткройте профессии и обновите цены аукциона.")
   local net = panel(611, -151, 350, 171, L"Сеть WolfichMarket")
   home.network = UI.Font(net, 15, UI.TEXT)
   home.network:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -56)
@@ -1155,19 +1176,25 @@ local function buildHome(f)
   last:SetWidth(319)
   home.lastReceived = last
   local actions = panel(611, -335, 350, 195, L"Быстрые действия")
-  local auction = UI.Button(actions, L"Открыть аукцион", 310, 40, function() ns.ToggleMain(3) end, true)
-  auction:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -49)
-  local craft = UI.Button(actions, L"Профессии и рецепты", 310, 40, function() ns.ToggleMain(2) end)
-  craft:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -105)
-  local history = UI.Button(f, L"История обновлений", 165, 24, function()
+  local auction = UI.Button(actions, L"Открыть аукцион", 310, 34, function() ns.ToggleMain(3) end, true)
+  auction:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -43)
+  local craft = UI.Button(actions, L"Профессии и рецепты", 310, 34, function() ns.ToggleMain(2) end)
+  craft:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -90)
+  local history = UI.Button(f, L"История обновлений", 310, 24, function()
     home.historyShown = not home.historyShown
     for _, w in ipairs(home.widgets) do w:SetShown(not home.historyShown) end
     home.historyScroll:SetShown(home.historyShown)
     home.historyTitle:SetShown(home.historyShown)
     home.historyButton:SetLabel(home.historyShown and L"Назад к обзору" or L"История обновлений")
-    if home.historyShown then home.refreshHistory() end
+    home.historyButton:ClearAllPoints()
+    if home.historyShown then
+      home.historyButton:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -10, 3)
+      home.refreshHistory()
+    else
+      home.historyButton:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -139)
+    end
   end)
-  history:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 2)
+  history:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -139)
   home.historyButton = history
   local htitle = UI.Font(f, 17, UI.GOLD)
   htitle:SetPoint("TOPLEFT", 3, -7)
@@ -1225,34 +1252,33 @@ local function buildHome(f)
 end
 local function refreshHome()
   if not home.hero then return end
-  local scan = ns.CurrentScan and ns.CurrentScan()
-  local ids = {}
-  if scan and scan.items then
-    local marked = ns.DB and ns.DB.marked or {}
-    for id in pairs(marked) do if scan.items[id] then ids[#ids+1] = id end end
-    table.sort(ids)
-    if #ids < 6 then
-      local all = {}
-      for id in pairs(scan.items) do all[#all+1] = id end
-      table.sort(all)
-      for _, id in ipairs(all) do
-        if #ids >= 6 then break end
-        if not marked[id] then ids[#ids+1] = id end
-      end
+  -- The home dashboard ranks actual, learned recipes using the same profit
+  -- calculation as the Professions tab. Missing costs never count as profit.
+  -- No scan-only item sorting: we show recipes, not arbitrary item IDs.
+  local calculated = ns.AllRecipeProfits and ns.AllRecipeProfits(nil, false) or {}
+  local profitable = {}
+  for _, pr in ipairs(calculated) do
+    if pr.rec and pr.rec.out and pr.profit and pr.profit > 0
+       and (pr.missing or 0) == 0 and ns.IsLearned(pr.rec) then
+      profitable[#profitable + 1] = pr
     end
   end
+  table.sort(profitable, function(a, b)
+    if a.profit == b.profit then return (a.rec.id or 0) < (b.rec.id or 0) end
+    return a.profit > b.profit
+  end)
   for i, row in ipairs(home.prices or {}) do
-    local id = ids[i]
-    if id then
-      local record = scan.items[id]
-      local price = ns.RegularPrice(id)
-      row.icon:SetTexture(ns.itemIcon(id))
-      row.name:SetText(ns.itemLinkText(id))
-      row.price:SetText(price and ns.money(price, true) or "—")
+    local pr = profitable[i]
+    if pr then
+      row.icon:SetTexture(ns.itemIcon(pr.rec.out))
+      row.name:SetText(ns.itemLinkText(pr.rec.out))
+      row.cost:SetText(ns.money(pr.cost, true))
+      row.revenue:SetText(pr.revenue and ns.money(pr.revenue, true) or "—")
+      row.price:SetText("+" .. ns.money(pr.profit, true))
       row:Show()
     else row:Hide() end
   end
-  home.priceEmpty:SetShown(#ids == 0)
+  home.priceEmpty:SetShown(#profitable == 0)
   local settings = ns.DB and ns.DB.settings or {}
   local enabled = settings.netSend ~= false or settings.netRecv ~= false
   home.network:SetText(enabled and ("|cff70dc90" .. L"Обмен включён" .. "|r") or ("|cff999999" .. L"Обмен отключён" .. "|r"))
