@@ -935,7 +935,54 @@ local CONTENT_W, CONTENT_H = 961, 546
 local RAIL, PAD, HEAD = 62, 16, 42
 UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
 -- свои простые значки разделов (белые линии, красятся цветом): media\\win\\nav-*.tga, исходник - tools\\icons
-local NAV_ICONS = { "INV_Misc_Book_09", "Trade_Alchemy", "INV_Hammer_20", "INV_Gizmo_02" }
+-- Minimal navigation: draw four recognizable line icons directly with WoW textures.
+-- No external icon files, loot/item art, or texture packs required.
+local NAV_ICONS = { "home", "flask", "hammer", "gear" }
+local function navGlyph(parent, kind)
+  local pieces = {}
+  local function stroke(x1, y1, x2, y2, width)
+    local dx, dy = x2 - x1, y2 - y1
+    local t = parent:CreateTexture(nil, "ARTWORK")
+    t:SetColorTexture(1, 1, 1, 1)
+    t:SetSize(math.sqrt(dx * dx + dy * dy), width or 2.1)
+    t:SetPoint("CENTER", parent, "CENTER", (x1 + x2) * 0.5, (y1 + y2) * 0.5)
+    if t.SetRotation then t:SetRotation(math.atan2(dy, dx)) end
+    pieces[#pieces + 1] = t
+    return t
+  end
+  if kind == "home" then
+    stroke(-12, 1, 0, 12); stroke(0, 12, 12, 1)
+    stroke(-9, 3, -9, -11); stroke(-9, -11, 9, -11); stroke(9, -11, 9, 3)
+    stroke(-3, -11, -3, -3); stroke(3, -11, 3, -3); stroke(-3, -3, 3, -3)
+  elseif kind == "flask" then
+    stroke(-4, 12, 4, 12); stroke(-3, 12, -3, 4); stroke(3, 12, 3, 4)
+    stroke(-3, 4, -11, -8); stroke(3, 4, 11, -8)
+    stroke(-11, -8, -9, -12); stroke(11, -8, 9, -12)
+    stroke(-9, -12, 9, -12); stroke(-7, -5, 7, -5, 1.6)
+  elseif kind == "hammer" then
+    stroke(-8, 10, 1, 1, 3); stroke(1, 1, 11, -9, 3)
+    stroke(-12, 8, -8, 12, 2.8); stroke(-8, 12, 0, 4, 2.8)
+    stroke(0, 4, -4, 0, 2.8); stroke(-4, 0, -12, 8, 2.8)
+    stroke(8, -12, 12, -8, 2.6)
+  elseif kind == "gear" then
+    local segments = 10
+    for i = 0, segments - 1 do
+      local a1, a2 = (i / segments) * math.pi * 2, ((i + 1) / segments) * math.pi * 2
+      stroke(math.cos(a1) * 8, math.sin(a1) * 8, math.cos(a2) * 8, math.sin(a2) * 8, 2)
+    end
+    for i = 0, 7 do
+      local a = (i / 8) * math.pi * 2
+      stroke(math.cos(a) * 9, math.sin(a) * 9, math.cos(a) * 13, math.sin(a) * 13, 3.2)
+    end
+    for i = 0, 7 do
+      local a1, a2 = (i / 8) * math.pi * 2, ((i + 1) / 8) * math.pi * 2
+      stroke(math.cos(a1) * 3.1, math.sin(a1) * 3.1, math.cos(a2) * 3.1, math.sin(a2) * 3.1, 1.8)
+    end
+  end
+  return function(color)
+    for _, t in ipairs(pieces) do t:SetVertexColor(color[1], color[2], color[3]) end
+  end
+end
 local IC_DIM, IC_HOVER, IC_ON = { 0.62, 0.56, 0.44 }, { 0.92, 0.84, 0.66 }, { 0.95, 0.78, 0.38 }
 local function edge(f, r, g, b, a, layer)
   local L = {}
@@ -989,11 +1036,10 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnLeave", function() cx:SetTextColor(UI.DIM[1], UI.DIM[2], UI.DIM[3]) end)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
-  -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK")
-  logo:SetSize(29, 29); logo:SetPoint("TOP", rail, "TOP", 0, -12)
-  logo:SetTexture("Interface\\Icons\\Ability_Hunter_Pet_Wolf")
-  logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  -- Сдержанная текстовая монограмма бренда, не предмет из сумки.
+  local logo = UI.Font(rail, 22, UI.GOLD)
+  logo:SetPoint("TOP", rail, "TOP", 0, -14)
+  logo:SetText("W")
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.43, 0.33, 0.16, 0.6); sep:SetSize(34, 1); sep:SetPoint("TOP", 0, -54)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
@@ -1003,11 +1049,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
     -- подложка выбранного раздела и золотая черта у левого края полосы
     b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.22, 0.36, 0.42, 0.65); b.bg:Hide()
     b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
-    b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetSize(27, 27); b.icon:SetPoint("CENTER")
-    b.icon:SetTexture("Interface\\Icons\\" .. c)
-    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
+    local tint = navGlyph(b, c)
     tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
