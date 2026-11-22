@@ -845,7 +845,7 @@ local function buildAuc(f)
   aucp.kind = {}
   local x = 0
   for _, k in ipairs(KIND_LIST) do
-    local b = UI.Button(f, KIND_TAB[k], 80, 26, function() S.aucMode = k; S.aucView = "all"; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+    local b = UI.Button(f, KIND_TAB[k], 80, 24, function() S.aucMode = k; S.aucView = "all"; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
     local w = b:FitWidth(80, 170)
     b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.kind[k] = b
@@ -854,12 +854,12 @@ local function buildAuc(f)
   aucp.views = {}
   x = x + 10
   for _, v in ipairs({ { "all", L"Весь аукцион", 104 }, { "signals", L"Сигналы", 84 } }) do
-    local b = UI.Button(f, v[2], v[3], 26, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+    local b = UI.Button(f, v[2], v[3], 24, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
     local w = b:FitWidth(v[3], 200)
     b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.views[v[1]] = b
   end
-  aucp.cat = UI.Button(f, L"Все категории", 160, 26, function(self) aucp.openCats(self) end)
+  aucp.cat = UI.Button(f, L"Все категории", 160, 24, function(self) aucp.openCats(self) end)
   aucp.cat:SetPoint("TOPRIGHT", 0, 0)
   aucp.search = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); aucp.search:SetHeight(20)
   aucp.search:SetPoint("LEFT", aucp.views.signals, "RIGHT", 10, 0); aucp.search:SetPoint("RIGHT", aucp.cat, "LEFT", -8, 0); aucp.search:SetAutoFocus(false)
@@ -930,10 +930,22 @@ local function buildAuc(f)
   UI.Skin(all, { theme = "acard", scale = 0.25 })
   aucp.all = all
   local COLS = { { "name", 50, nil }, { "p", -210, 110 }, { "q", -130, 70 }, { "chg", -44, 76 } }
+  -- Clean slate-blue column strip, with a hairline bronze divider;
+  -- drawn behind the controls, not above the data or item icons.
+  local headerBg = all:CreateTexture(nil, "BACKGROUND", nil, -2)
+  headerBg:SetPoint("TOPLEFT", all, "TOPLEFT", 10, -11)
+  headerBg:SetPoint("TOPRIGHT", all, "TOPRIGHT", -10, -11)
+  headerBg:SetHeight(24)
+  headerBg:SetColorTexture(0.065, 0.098, 0.124, 0.95)
+  local headerRule = all:CreateTexture(nil, "BORDER", nil, 1)
+  headerRule:SetPoint("TOPLEFT", all, "TOPLEFT", 10, -35)
+  headerRule:SetPoint("TOPRIGHT", all, "TOPRIGHT", -10, -35)
+  headerRule:SetHeight(1)
+  headerRule:SetColorTexture(0.66, 0.48, 0.27, 0.65)
   all.heads = {}
   for _, c in ipairs(COLS) do
-    local h = CreateFrame("Button", nil, all); h:SetHeight(18)
-    if c[1] == "name" then h:SetPoint("TOPLEFT", c[2], -8); h:SetWidth(220) else h:SetPoint("TOPRIGHT", all, "TOPRIGHT", c[2], -8); h:SetWidth(c[3]) end
+    local h = CreateFrame("Button", nil, all); h:SetHeight(20)
+    if c[1] == "name" then h:SetPoint("TOPLEFT", c[2], -13); h:SetWidth(220) else h:SetPoint("TOPRIGHT", all, "TOPRIGHT", c[2], -13); h:SetWidth(c[3]) end
     h.fs = UI.Font(h, 11, UI.GOLD); h.fs:SetAllPoints(); h.fs:SetJustifyH(c[1] == "name" and "LEFT" or "RIGHT")
     h:SetScript("OnClick", function()
       if S.aucSort == c[1] then S.aucDesc = not S.aucDesc else S.aucSort = c[1]; S.aucDesc = c[1] ~= "name" end
@@ -956,7 +968,7 @@ local function buildAuc(f)
     if x.chg == nil then local a = ns.AvgPrice(x.id, 24); x.chg = a and a > 0 and (x.p - a) / a * 100 or false end
     r.chg:SetText(x.chg and ns.pct(x.chg) or "|cff555555-|r")
   end)
-  all.list:SetPoint("TOPLEFT", 4, -28); all.list:SetPoint("BOTTOMRIGHT", -4, 6)
+  all.list:SetPoint("TOPLEFT", 6, -40); all.list:SetPoint("BOTTOMRIGHT", -6, 8)
   detail(all.list, 7)
   -- ОБЩИЙ: две колонки - что лучше купить здесь и что лучше продать здесь
   local function panel(left)
@@ -964,7 +976,17 @@ local function buildAuc(f)
     if left then p:SetPoint("TOPLEFT", 0, -50); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
     else p:SetPoint("TOPLEFT", f, "TOP", 6, -50); p:SetPoint("BOTTOMRIGHT", 0, 0) end
     UI.Skin(p, { theme = "acard", scale = 0.25 })
-    p.title = UI.Font(p, 13, UI.GOLD); p.title:SetPoint("TOPLEFT", 12, -10); p.title:SetPoint("RIGHT", -12, 0)
+    local headingBg = p:CreateTexture(nil, "BACKGROUND", nil, -2)
+    headingBg:SetPoint("TOPLEFT", p, "TOPLEFT", 12, -12)
+    headingBg:SetPoint("TOPRIGHT", p, "TOPRIGHT", -12, -12)
+    headingBg:SetHeight(25)
+    headingBg:SetColorTexture(0.065, 0.098, 0.124, 0.95)
+    local headingRule = p:CreateTexture(nil, "BORDER", nil, 1)
+    headingRule:SetPoint("TOPLEFT", p, "TOPLEFT", 13, -37)
+    headingRule:SetPoint("TOPRIGHT", p, "TOPRIGHT", -13, -37)
+    headingRule:SetHeight(1)
+    headingRule:SetColorTexture(0.66, 0.48, 0.27, 0.65)
+    p.title = UI.Font(p, 12, UI.GOLD); p.title:SetPoint("TOPLEFT", 18, -18); p.title:SetPoint("RIGHT", -18, 0)
     p.list = UI.List(p, 36, function(r)
       r.star = UI.Star(r, 14, function() local d = r.data; return d and d.id end); r.star:SetPoint("LEFT", 4, 0)
       r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(24, 24); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
