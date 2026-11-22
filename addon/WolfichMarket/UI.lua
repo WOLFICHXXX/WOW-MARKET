@@ -207,6 +207,28 @@ function UI.OrnatePanel(frame, alpha, cap)
   edgeTex("BOTTOM", true, 0.24, 0.39, 0.875, 0.955)
   edgeTex("LEFT", false, 0.025, 0.075, 0.29, 0.41)
   edgeTex("RIGHT", false, 0.925, 0.975, 0.29, 0.41)
+  -- Recessed hairlines frame the content without covering decorative corners.
+  local function emboss(horizontal, top)
+    local line = frame:CreateTexture(nil, "BORDER", nil, 0)
+    line:SetColorTexture(0.92, 0.71, 0.39, alpha * (top and 0.34 or 0.22))
+    if horizontal then
+      line:SetHeight(1)
+      local side = top and "TOP" or "BOTTOM"
+      local y = top and -7 or 7
+      line:SetPoint(side .. "LEFT", frame, side .. "LEFT", cap, y)
+      line:SetPoint(side .. "RIGHT", frame, side .. "RIGHT", -cap, y)
+    else
+      line:SetWidth(1)
+      local side = top and "LEFT" or "RIGHT"
+      local x = top and 7 or -7
+      line:SetPoint("TOP" .. side, frame, "TOP" .. side, x, -cap)
+      line:SetPoint("BOTTOM" .. side, frame, "BOTTOM" .. side, x, cap)
+    end
+  end
+  emboss(true, true)
+  emboss(true, false)
+  emboss(false, true)
+  emboss(false, false)
   local center = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
   center:SetPoint("TOPLEFT", frame, "TOPLEFT", cap - 4, -(cap - 4))
   center:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(cap - 4), cap - 4)
@@ -687,7 +709,7 @@ function UI.Chart(parent)
   local plot = CreateFrame("Frame", nil, f)
   f.plot = plot
   f.lines, f.bars, f.labels, f.grid, f.vgrid, f.slines, f.slabels, f.fill, f.refl, f.reflbl = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
-  local bg = plot:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.32)
+  local bg = plot:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.005, 0.017, 0.029, 0.56)
   UI.Edge(plot, P.brassDark[1], P.brassDark[2], P.brassDark[3], 0.8, "BORDER")
   -- легенда и строка цифр над графиком
   f.legend = UI.Font(f, 10, UI.DIM, "OVERLAY")
@@ -697,7 +719,7 @@ function UI.Chart(parent)
   -- кнопки периода
   f.periodBtns = {}
   for i, pd in ipairs(PERIODS) do
-    local b = UI.Button(f, L(pd[2]), 46, 16, function() ns.DB.settings.chartRange = pd[1]; f:SetPoints(f.allPts) end)
+    local b = UI.Button(f, L(pd[2]), 46, 18, function() ns.DB.settings.chartRange = pd[1]; f:SetPoints(f.allPts) end)
     f.periodBtns[i] = b; b.hours = pd[1]
   end
   local function layout()
