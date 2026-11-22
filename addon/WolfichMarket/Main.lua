@@ -71,6 +71,17 @@ local function refreshProfs()
 end
 local function fillCard(rec)
   sel = rec
+  -- Keep the selected recipe visually anchored while its card is open.
+  -- The rows are recycled by UI.List, so the highlight must also be reset
+  -- in fillRow, not just when the user clicks.
+  if craft.list and craft.list.rows then
+    for _, row in ipairs(craft.list.rows) do
+      local d = row.data
+      if row.selectedLine then
+        row.selectedLine:SetShown(rec ~= nil and d ~= nil and d.rec == rec)
+      end
+    end
+  end
   local card = craft.card
   if card.fade then ns.After(0, card.fade) end -- после раскладки: диапазон прокрутки и растушёвка
   for _, r in ipairs(card.rows) do r:Hide() end
@@ -345,6 +356,17 @@ local function buildCraft(f)
   c4:HookScript("OnLeave", function() GameTooltip:Hide() end)
   craft.flat = c4
   craft.listBox = CreateFrame("Frame", nil, f); UI.Box(craft.listBox)
+  -- A reserved bronze heading band sits behind the existing column labels.
+  local listHead = craft.listBox:CreateTexture(nil, "BACKGROUND", nil, -3)
+  listHead:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 1, -1)
+  listHead:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -1, -1)
+  listHead:SetHeight(19)
+  listHead:SetColorTexture(0.105, 0.136, 0.144, 0.93)
+  local listHeadRule = craft.listBox:CreateTexture(nil, "BORDER")
+  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -19)
+  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -19)
+  listHeadRule:SetHeight(1)
+  listHeadRule:SetColorTexture(0.72, 0.52, 0.25, 0.89)
   -- шапка списка: столбики Ф и Общ
   local lh = CreateFrame("Frame", nil, f); lh:SetHeight(14)
   local lh1 = UI.Font(lh, 10, UI.DIM); lh1:SetPoint("LEFT", 26, 0); lh1:SetText(L"Рецепт")
@@ -354,6 +376,13 @@ local function buildCraft(f)
     -- заголовок группы по требуемому навыку (клик - свернуть/развернуть)
     r.hdr = UI.Font(r, 12, UI.GOLD); r.hdr:SetPoint("LEFT", 6, 0); r.hdr:SetPoint("RIGHT", -6, 0)
     r.hdrBg = r:CreateTexture(nil, "BACKGROUND", nil, 1); r.hdrBg:SetAllPoints(); r.hdrBg:SetColorTexture(0.85, 0.62, 0.25, 0.14)
+    -- Active recipe bar (not an icon replacement); follows row recycling.
+    r.selectedLine = r:CreateTexture(nil, "OVERLAY", nil, 1)
+    r.selectedLine:SetPoint("TOPLEFT", r, "TOPLEFT", 0, -2)
+    r.selectedLine:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 0, 2)
+    r.selectedLine:SetWidth(3)
+    r.selectedLine:SetColorTexture(0.97, 0.77, 0.39, 0.95)
+    r.selectedLine:Hide()
     r.star = UI.Icon(r, "star-off", 14, L"Избранное", function(self) local d = self:GetParent().data; if d and d.rec and d.rec.out then ns.ToggleMark(d.rec.out) end end); r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
     r.bell = UI.Bell(r, 15, function(self) local d = self:GetParent().data; return d and d.rec and d.rec.out end); r.bell:SetPoint("RIGHT", -3, 0)
@@ -368,6 +397,7 @@ local function buildCraft(f)
     end)
   end, function(r, d)
     local h = d.header ~= nil
+    r.selectedLine:SetShown(not h and sel ~= nil and d.rec == sel)
     r.hdr:SetShown(h); r.hdrBg:SetShown(h); r.icon:SetShown(not h); r.name:SetShown(not h); r.val:SetShown(not h); r.vO:SetShown(not h); r.bell:SetShown(not h and d.rec and d.rec.out ~= nil)
     if h then
       r.star:Hide()
@@ -411,6 +441,12 @@ local function buildCraft(f)
   cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
   cardHeader:SetHeight(34)
   cardHeader:SetColorTexture(0.095, 0.135, 0.16, 0.90)
+  -- Highlight the recipe detail rather than covering any item icons.
+  local cardAccent = card:CreateTexture(nil, "BORDER", nil, 1)
+  cardAccent:SetPoint("TOPLEFT", card, "TOPLEFT", 3, -4)
+  cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -30)
+  cardAccent:SetWidth(3)
+  cardAccent:SetColorTexture(0.89, 0.67, 0.30, 0.93)
   local cardRule = card:CreateTexture(nil, "BORDER")
   cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -34)
   cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
@@ -434,6 +470,9 @@ local function buildCraft(f)
     r.price = UI.Font(r, 12); r.price:SetPoint("RIGHT", r.star, "LEFT", -10, 0); r.price:SetJustifyH("RIGHT")
     r.name = UI.Font(r, 12); r.name:SetPoint("LEFT", r.icon, "RIGHT", 7, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
     r:EnableMouse(true)
+    local hover = r:CreateTexture(nil, "HIGHLIGHT")
+    hover:SetAllPoints()
+    hover:SetColorTexture(0.74, 0.57, 0.28, 0.12)
     r:SetScript("OnEnter", function(self)
       if not self.id then return end
       GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id)
