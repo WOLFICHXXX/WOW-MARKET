@@ -1055,7 +1055,9 @@ function UI.FlatSkin(f, opts)
   opts = opts or {}
   f.wmTheme, f.wmScale = "flat", 1
   local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); bg:SetColorTexture(0.035, 0.055, 0.075, 1)
-  UI.PawsBG(f)
+  -- Use the same newly painted navy/gold material as the main window.
+  -- Do not add the outdated floating paw pattern behind charts.
+  UI.OrnatePanel(f, 0.68, 12)
   edge(f, 0.47, 0.40, 0.25, 1)
   local head = opts.head or 40
   local hl = f:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.39, 0.33, 0.20, 1); hl:SetHeight(1)
