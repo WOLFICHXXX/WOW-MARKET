@@ -71,26 +71,13 @@ local function refreshProfs()
 end
 local function fillCard(rec)
   sel = rec
-  -- Keep the selected recipe visually anchored while its card is open.
-  -- The rows are recycled by UI.List, so the highlight must also be reset
-  -- in fillRow, not just when the user clicks.
-  if craft.list and craft.list.rows then
-    for _, row in ipairs(craft.list.rows) do
-      local d = row.data
-      if row.selectedLine then
-        row.selectedLine:SetShown(rec ~= nil and d ~= nil and d.rec == rec)
-      end
-    end
-  end
   local card = craft.card
   if card.fade then ns.After(0, card.fade) end -- после раскладки: диапазон прокрутки и растушёвка
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
     card.title:SetText(L"Выберите рецепт"); card.level:SetText(""); card.total:SetText(""); card.onAH:Hide(); card.craft:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide(); card.chartBox:Hide()
-    if card.emptyState then card.emptyState:Show() end
     return
   end
-  if card.emptyState then card.emptyState:Hide() end
   card.craft:Show(); card.onAH:Show(); card.chart:Show(); card.chartBox:Show(); card.portRow:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
@@ -144,7 +131,7 @@ local function fillCard(rec)
   card.total:SetText(table.concat(lines, "\n"))
   -- «Крафт» и «Поставить сигнал» — сразу под последней строкой рецепта
   local n = math.min(#items, #card.rows)
-  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -45 - n * 24 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -38 - n * 24 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -12, 0)
   craft.drawChart()
 end
 -- график цены выбранного предмета (по умолчанию — результат рецепта)
@@ -156,9 +143,7 @@ function craft.drawChart()
   card.chartId = id
   -- заголовок вместо легенды: цвет слов = цвет линий
   local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
-  -- Compact chart heading: item name and detailed quantities remain in the
-  -- recipe rows / full chart; keep this single line within the framed panel.
-  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. "|r")
+  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r   |cff8a8070" .. ns.itemName(id) .. "|r")
   local h = ns.History(id)
   ns.After(0, function() card.chart:SetPoints(h) end)
 end
@@ -288,8 +273,7 @@ local function buildCraft(f)
     for i, ck in ipairs(l) do if ck == charKey then setChar(l[(i - 1 + d) % #l + 1]); return end end
     if l[1] then setChar(l[1]) end
   end
-  -- Footer has its own clear band below the two bordered panels.
-  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("BOTTOMLEFT", 8, 7); craft.status:SetPoint("RIGHT", -8, 0)
+  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("BOTTOMLEFT", 2, 0); craft.status:SetPoint("RIGHT", -2, 0)
   -- сортировка по прибыли: на фракционном (по умолчанию), на общем или по марже - одна галочка всегда стоит
   local sortChecks = {}
   local function setSort(k) S.craftSort = k; for kk, c in pairs(sortChecks) do c:SetChecked(kk == k) end; refreshCraft() end
@@ -361,8 +345,6 @@ local function buildCraft(f)
   c4:HookScript("OnLeave", function() GameTooltip:Hide() end)
   craft.flat = c4
   craft.listBox = CreateFrame("Frame", nil, f); UI.Box(craft.listBox)
-  -- One recessed title, one thin outline: no doubled frame or heavy caps.
-  UI.FantasyHeader(craft.listBox, 9, -9, 29, 0.86)
   -- шапка списка: столбики Ф и Общ
   local lh = CreateFrame("Frame", nil, f); lh:SetHeight(14)
   local lh1 = UI.Font(lh, 10, UI.DIM); lh1:SetPoint("LEFT", 26, 0); lh1:SetText(L"Рецепт")
@@ -372,13 +354,6 @@ local function buildCraft(f)
     -- заголовок группы по требуемому навыку (клик - свернуть/развернуть)
     r.hdr = UI.Font(r, 12, UI.GOLD); r.hdr:SetPoint("LEFT", 6, 0); r.hdr:SetPoint("RIGHT", -6, 0)
     r.hdrBg = r:CreateTexture(nil, "BACKGROUND", nil, 1); r.hdrBg:SetAllPoints(); r.hdrBg:SetColorTexture(0.85, 0.62, 0.25, 0.14)
-    -- Active recipe bar (not an icon replacement); follows row recycling.
-    r.selectedLine = r:CreateTexture(nil, "OVERLAY", nil, 1)
-    r.selectedLine:SetPoint("TOPLEFT", r, "TOPLEFT", 0, -2)
-    r.selectedLine:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 0, 2)
-    r.selectedLine:SetWidth(3)
-    r.selectedLine:SetColorTexture(0.97, 0.77, 0.39, 0.95)
-    r.selectedLine:Hide()
     r.star = UI.Icon(r, "star-off", 14, L"Избранное", function(self) local d = self:GetParent().data; if d and d.rec and d.rec.out then ns.ToggleMark(d.rec.out) end end); r.star:SetPoint("LEFT", 4, 0)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
     r.bell = UI.Bell(r, 15, function(self) local d = self:GetParent().data; return d and d.rec and d.rec.out end); r.bell:SetPoint("RIGHT", -3, 0)
@@ -393,7 +368,6 @@ local function buildCraft(f)
     end)
   end, function(r, d)
     local h = d.header ~= nil
-    r.selectedLine:SetShown(not h and sel ~= nil and d.rec == sel)
     r.hdr:SetShown(h); r.hdrBg:SetShown(h); r.icon:SetShown(not h); r.name:SetShown(not h); r.val:SetShown(not h); r.vO:SetShown(not h); r.bell:SetShown(not h and d.rec and d.rec.out ~= nil)
     if h then
       r.star:Hide()
@@ -425,63 +399,29 @@ local function buildCraft(f)
     sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 394, -60 - dy)
     sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 655, -60 - dy)
     -- список и карточка - две панели одной высоты, сверху и снизу на одной линии
-    craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 33)
-    -- The ornate top rim occupies ~12px; labels get a separate band,
-    -- and the first recipe starts after the band rather than behind it.
-    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 15, -17); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -18, 0)
-    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 9, -42); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -9, 15)
-    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 33)
+    craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 18)
+    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 6, -4); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 4, -20); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -4, 4)
+    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
   end
   craft.setTop(0)
-  UI.FantasyHeader(card, 9, -9, 29, 0.88)
-  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -21, -18); card.level:SetJustifyH("RIGHT")
-  card.title = UI.Font(card, 16, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.TITLE_FONT, 16, ""); card.title:SetPoint("TOPLEFT", 19, -17); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
-  -- An opaque, raised empty state hides all chart internals (including any
-  -- stray slider/marker texture) until a recipe is actually selected.
-  local empty = CreateFrame("Frame", nil, card)
-  empty:SetPoint("TOPLEFT", card, "TOPLEFT", 9, -39)
-  empty:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -9, 9)
-  empty:SetFrameLevel(card:GetFrameLevel() + 15)
-  empty:EnableMouse(false)
-  local emptyBg = empty:CreateTexture(nil, "BACKGROUND", nil, -8)
-  emptyBg:SetAllPoints()
-  emptyBg:SetColorTexture(0.018, 0.034, 0.059, 1)
-  -- The empty state belongs to this card; do not draw a second frame.
-  local emptyRelief = empty:CreateTexture(nil, "BACKGROUND", nil, -7)
-  emptyRelief:SetAllPoints()
-  UI.StoneTile(emptyRelief, empty, 0.15)
-  local emptyLogo = empty:CreateTexture(nil, "ARTWORK")
-  emptyLogo:SetSize(112, 112)
-  emptyLogo:SetPoint("CENTER", empty, "CENTER", 0, 64)
-  UI.WolfTex(emptyLogo, "ref-flask")
-  emptyLogo:SetVertexColor(1, 1, 1)
-  emptyLogo:SetAlpha(0.98)
-  local emptyHeading = UI.Font(empty, 20, UI.GOLD)
-  UI.SetFont(emptyHeading, UI.TITLE_FONT, 22, "")
-  emptyHeading:SetPoint("TOP", emptyLogo, "BOTTOM", 0, -13)
-  emptyHeading:SetText(L"Выберите рецепт")
-  local emptyTip = UI.Font(empty, 12, UI.DIM)
-  emptyTip:SetPoint("TOP", emptyHeading, "BOTTOM", 0, -12)
-  emptyTip:SetWidth(350)
-  emptyTip:SetWordWrap(true)
-  emptyTip:SetJustifyH("CENTER")
-  emptyTip:SetJustifyV("TOP")
-  emptyTip:SetText(L"Нажмите на рецепт слева, чтобы увидеть материалы, себестоимость, прибыль и график цен.")
-  local emptyRule = empty:CreateTexture(nil, "BORDER")
-  emptyRule:SetHeight(1)
-  emptyRule:SetWidth(230)
-  emptyRule:SetPoint("TOP", emptyTip, "BOTTOM", 0, -20)
-  emptyRule:SetColorTexture(0.84, 0.63, 0.31, 0.78)
-  local diamond = empty:CreateTexture(nil, "OVERLAY")
-  diamond:SetSize(15, 15)
-  diamond:SetPoint("CENTER", emptyRule, "CENTER", 0, 0)
-  UI.WolfTex(diamond, "approved-nav-paw")
-  diamond:SetAlpha(0.82)
-  card.emptyState = empty
+  -- Recipe header remains fixed when switching items; never redraw item icons.
+  local cardHeader = card:CreateTexture(nil, "BACKGROUND", nil, -3)
+  cardHeader:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
+  cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
+  cardHeader:SetHeight(34)
+  cardHeader:SetColorTexture(0.095, 0.135, 0.16, 0.90)
+  local cardRule = card:CreateTexture(nil, "BORDER")
+  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -34)
+  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
+  cardRule:SetHeight(1)
+  cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
+  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -12, -12); card.level:SetJustifyH("RIGHT")
+  card.title = UI.Font(card, 15, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 15, ""); card.title:SetPoint("TOPLEFT", 14, -10); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(22)
-    r:SetPoint("TOPLEFT", 10, -45 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
+    r:SetPoint("TOPLEFT", 10, -38 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
     if i % 2 == 0 then
       local stripe = r:CreateTexture(nil, "BACKGROUND")
       stripe:SetAllPoints()
@@ -494,9 +434,6 @@ local function buildCraft(f)
     r.price = UI.Font(r, 12); r.price:SetPoint("RIGHT", r.star, "LEFT", -10, 0); r.price:SetJustifyH("RIGHT")
     r.name = UI.Font(r, 12); r.name:SetPoint("LEFT", r.icon, "RIGHT", 7, 0); r.name:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
     r:EnableMouse(true)
-    local hover = r:CreateTexture(nil, "HIGHLIGHT")
-    hover:SetAllPoints()
-    hover:SetColorTexture(0.74, 0.57, 0.28, 0.12)
     r:SetScript("OnEnter", function(self)
       if not self.id then return end
       GameTooltip:SetOwner(self, "ANCHOR_LEFT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id)
@@ -510,7 +447,7 @@ local function buildCraft(f)
     r:Hide(); card.rows[i] = r
   end
   -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
-  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(29); card.portRow = prow
+  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(34); card.portRow = prow
   local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 2, 0); pl:SetText(L"Порций:")
   local function setN(v)
     if not sel then return end
@@ -519,27 +456,27 @@ local function buildCraft(f)
     fillCard(sel)
   end
   local function cur() return sel and craft.portions and craft.portions[sel.id] or 1 end
-  local minus = UI.Button(prow, "-", 26, 23, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
+  local minus = UI.Button(prow, "-", 28, 26, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
   card.portion = CreateFrame("EditBox", nil, prow, "InputBoxTemplate"); card.portion:SetSize(40, 22); card.portion:SetPoint("LEFT", minus, "RIGHT", 8, 0)
   card.portion:SetAutoFocus(false); card.portion:SetNumeric(true); card.portion:SetMaxLetters(3); card.portion:SetJustifyH("CENTER")
   if card.portion.SetFont then UI.SetFont(card.portion, UI.FONT, 13, "") end
   card.portion:SetScript("OnEnterPressed", function(self) self:ClearFocus(); setN(self:GetText()) end)
   card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
-  local plus = UI.Button(prow, "+", 26, 23, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
-  local p5 = UI.Button(prow, "+5", 34, 23, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
-  card.plan = UI.Button(prow, L"Запланировать", 136, 23, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
+  local plus = UI.Button(prow, "+", 28, 26, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
+  local p5 = UI.Button(prow, "+5", 38, 26, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
+  card.plan = UI.Button(prow, L"Запланировать", 150, 26, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
   card.plan:SetPoint("RIGHT", 0, 0)
   card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
   card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- кнопки: Крафт / На аукционе - на всю ширину карточки, поровну
-  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(27)
+  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(34)
   brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)
-  card.craft = UI.Button(brow, L"Крафт", 100, 25, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
+  card.craft = UI.Button(brow, L"Крафт", 100, 28, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- «Где взять»: тренер, продавцы, добыча, задания, репутация и карта зоны
   -- «На аукционе»: найти результат у аукциониста и обновить цены всего рецепта
-  card.onAH = UI.Button(brow, L"На аукционе", 100, 25, function()
+  card.onAH = UI.Button(brow, L"На аукционе", 100, 28, function()
     if not sel then return end
     if not ns.AHIsOpen() then ns.say(L"цены обновляются у аукциониста - откройте аукцион.") return end
     ns.QuickRefresh(ns.RecipePriceIDs(sel))
@@ -550,8 +487,8 @@ local function buildCraft(f)
   card.prices, card.alarm = card.onAH, card.onAH
   local function layoutBtns()
     local w = (brow:GetWidth() or 0); if w < 60 then w = 380 end
-    local bw = math.floor((w - 50) / 2)
-    for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", 25 + (i - 1) * (bw + 8), 0) end
+    local bw = math.floor((w - 6) / 2)
+    for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
   end
   brow:SetScript("OnSizeChanged", layoutBtns); layoutBtns()
   card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 8, -10); card.total:SetPoint("RIGHT", -14, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
@@ -559,23 +496,19 @@ local function buildCraft(f)
   local totalShade = card:CreateTexture(nil, "BACKGROUND", nil, -2)
   totalShade:SetPoint("TOPLEFT", card.total, "TOPLEFT", -7, 5)
   totalShade:SetPoint("BOTTOMRIGHT", card.total, "BOTTOMRIGHT", 7, -5)
-  totalShade:SetColorTexture(0.048, 0.090, 0.119, 0.81)
+  totalShade:SetColorTexture(0.08, 0.12, 0.14, 0.85)
   local totalAccent = card:CreateTexture(nil, "BORDER")
   totalAccent:SetPoint("TOPLEFT", totalShade, "TOPLEFT")
   totalAccent:SetPoint("BOTTOMLEFT", totalShade, "BOTTOMLEFT")
-  totalAccent:SetWidth(1)
-  totalAccent:SetColorTexture(0.72, 0.56, 0.31, 0.71)
+  totalAccent:SetWidth(2)
+  totalAccent:SetColorTexture(0.72, 0.56, 0.31, 0.9)
   -- график - в своей панели до низа карточки
   local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
   cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -8, -14); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
-  card.chartTitle = UI.Font(cbox, 10, UI.GOLD)
-  card.chartTitle:SetPoint("TOPLEFT", 18, -14)
-  card.chartTitle:SetPoint("RIGHT", -18, 0)
-  card.chartTitle:SetWordWrap(false)
+  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0); card.chartTitle:SetWordWrap(false)
   card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
   card.chart.onClick = function() if card.chartId then ns.ShowChartDialog(card.chartId) end end -- клик - большой график
-  card.chart:SetPoint("TOPLEFT", 2, -19)
-  card.chart:SetPoint("BOTTOMRIGHT", -2, 2)
+  card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
   card.chartBox = cbox
   craft.card = card
 end
@@ -612,21 +545,13 @@ function ns.ShowChartDialog(id)
     UI.Skin(chartDlg, { theme = "main", scale = 0.6 })
     UI.Title(chartDlg, L"График цены")
     UI.Close(chartDlg)
-    -- The item summary occupies its own inset row below the popup title.
-    chartDlg.icon = chartDlg:CreateTexture(nil, "ARTWORK")
-    chartDlg.icon:SetSize(30, 30)
-    chartDlg.icon:SetPoint("TOPLEFT", 24, -56)
-    chartDlg.name = UI.Font(chartDlg, 14, UI.GOLD)
-    UI.SetFont(chartDlg.name, UI.BOLD, 14, "")
-    chartDlg.name:SetPoint("TOPLEFT", chartDlg.icon, "TOPRIGHT", 10, -1)
+    chartDlg.icon = chartDlg:CreateTexture(nil, "ARTWORK"); chartDlg.icon:SetSize(34, 34); chartDlg.icon:SetPoint("TOPLEFT", 22, -52)
+    chartDlg.name = UI.Font(chartDlg, 15, UI.GOLD); UI.SetFont(chartDlg.name, UI.BOLD, 15, ""); chartDlg.name:SetPoint("TOPLEFT", chartDlg.icon, "TOPRIGHT", 10, -1)
     chartDlg.star = UI.Star(chartDlg, 16, function() return chartDlg.id end); chartDlg.star:SetPoint("LEFT", chartDlg.name, "RIGHT", 8, 0)
     chartDlg.bell = UI.Bell(chartDlg, 16, function() return chartDlg.id end); chartDlg.bell:SetPoint("LEFT", chartDlg.star, "RIGHT", 6, 0)
-    chartDlg.info = UI.Font(chartDlg, 11, UI.DIM)
-    chartDlg.info:SetPoint("TOPLEFT", chartDlg.name, "BOTTOMLEFT", 0, -4)
-    chartDlg.info:SetPoint("RIGHT", -26, 0)
+    chartDlg.info = UI.Font(chartDlg, 11, UI.DIM); chartDlg.info:SetPoint("TOPLEFT", chartDlg.name, "BOTTOMLEFT", 0, -3); chartDlg.info:SetPoint("RIGHT", -20, 0)
     chartDlg.chart = UI.Chart(chartDlg)
-    chartDlg.chart:SetPoint("TOPLEFT", 24, -110)
-    chartDlg.chart:SetPoint("BOTTOMRIGHT", -26, 30)
+    chartDlg.chart:SetPoint("TOPLEFT", 18, -96); chartDlg.chart:SetPoint("BOTTOMRIGHT", -22, 22)
   end
   chartDlg.id = id
   chartDlg.icon:SetTexture(ns.itemIcon(id))
@@ -834,7 +759,7 @@ local function buildAuc(f)
   aucp.kind = {}
   local x = 0
   for _, k in ipairs(KIND_LIST) do
-    local b = UI.Button(f, KIND_TAB[k], 80, 24, function() S.aucMode = k; S.aucView = "all"; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+    local b = UI.Button(f, KIND_TAB[k], 80, 26, function() S.aucMode = k; S.aucView = "all"; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
     local w = b:FitWidth(80, 170)
     b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.kind[k] = b
@@ -843,32 +768,16 @@ local function buildAuc(f)
   aucp.views = {}
   x = x + 10
   for _, v in ipairs({ { "all", L"Весь аукцион", 104 }, { "signals", L"Сигналы", 84 } }) do
-    local b = UI.Button(f, v[2], v[3], 24, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
+    local b = UI.Button(f, v[2], v[3], 26, function() S.aucView = v[1]; if aucp.menu then aucp.menu:Hide() end; refreshAuc() end)
     local w = b:FitWidth(v[3], 200)
     b:SetPoint("TOPLEFT", x, 0); x = x + w + 6
     aucp.views[v[1]] = b
   end
-  aucp.cat = UI.Button(f, L"Все категории", 160, 24, function(self) aucp.openCats(self) end)
+  aucp.cat = UI.Button(f, L"Все категории", 160, 26, function(self) aucp.openCats(self) end)
   aucp.cat:SetPoint("TOPRIGHT", 0, 0)
   aucp.search = CreateFrame("EditBox", nil, f, "InputBoxTemplate"); aucp.search:SetHeight(20)
   aucp.search:SetPoint("LEFT", aucp.views.signals, "RIGHT", 10, 0); aucp.search:SetPoint("RIGHT", aucp.cat, "LEFT", -8, 0); aucp.search:SetAutoFocus(false)
-  -- Make the native game edit box part of the navy/brass toolbar, rather than
-  -- letting its default gray outline break the fantasy style.
-  local inputShade = aucp.search:CreateTexture(nil, "BACKGROUND", nil, -3)
-  inputShade:SetPoint("TOPLEFT", aucp.search, "TOPLEFT", -5, 5)
-  inputShade:SetPoint("BOTTOMRIGHT", aucp.search, "BOTTOMRIGHT", 5, -5)
-  inputShade:SetColorTexture(0.020, 0.041, 0.063, 0.94)
-  local inputTop = aucp.search:CreateTexture(nil, "BORDER", nil, 0)
-  inputTop:SetPoint("TOPLEFT", aucp.search, "TOPLEFT", -5, 5)
-  inputTop:SetPoint("TOPRIGHT", aucp.search, "TOPRIGHT", 5, 5)
-  inputTop:SetHeight(1)
-  inputTop:SetColorTexture(0.79, 0.57, 0.30, 0.78)
-  local inputBottom = aucp.search:CreateTexture(nil, "BORDER", nil, 0)
-  inputBottom:SetPoint("BOTTOMLEFT", aucp.search, "BOTTOMLEFT", -5, -5)
-  inputBottom:SetPoint("BOTTOMRIGHT", aucp.search, "BOTTOMRIGHT", 5, -5)
-  inputBottom:SetHeight(1)
-  inputBottom:SetColorTexture(0.53, 0.43, 0.30, 0.68)
-  aucp.hint = UI.Font(aucp.search, 10, UI.DIM); aucp.hint:SetPoint("LEFT", 3, 0); aucp.hint:SetText(L"поиск по названию...")
+  aucp.hint = UI.Font(aucp.search, 10, UI.DIM); aucp.hint:SetPoint("LEFT", 2, 0); aucp.hint:SetText(L"поиск по названию...")
   aucp.search:SetScript("OnTextChanged", function(self) aucp.hint:SetShown(self:GetText() == ""); refreshAuc() end)
   aucp.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
   aucp.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
@@ -922,10 +831,7 @@ local function buildAuc(f)
     m:SetSize(12 + 2 * 204 + 4, 42 + math.max(rows1, rows2) * 24)
     m:ClearAllPoints(); m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -4); m:Show()
   end
-  aucp.status = UI.Font(f, 11, UI.DIM)
-  aucp.status:SetPoint("TOPLEFT", 8, -31)
-  aucp.status:SetPoint("RIGHT", -8, 0)
-  aucp.status:SetWordWrap(true)
+  aucp.status = UI.Font(f, 11, UI.DIM); aucp.status:SetPoint("TOPLEFT", 4, -30); aucp.status:SetPoint("RIGHT", -4, 0); aucp.status:SetWordWrap(true)
   -- клик по строке - раскрыть подробности (себестоимость, прибыль, график) под ней
   local function openRow(r)
     r:SetScript("OnClick", function(self) if self.data and self.box then self.box:Toggle(self.data) end end)
@@ -938,13 +844,10 @@ local function buildAuc(f)
   UI.Skin(all, { theme = "acard", scale = 0.25 })
   aucp.all = all
   local COLS = { { "name", 50, nil }, { "p", -210, 110 }, { "q", -130, 70 }, { "chg", -44, 76 } }
-  -- Clean slate-blue column strip, with a hairline bronze divider;
-  -- drawn behind the controls, not above the data or item icons.
-  UI.FantasyHeader(all, 9, -9, 28, 0.90)
   all.heads = {}
   for _, c in ipairs(COLS) do
-    local h = CreateFrame("Button", nil, all); h:SetHeight(20)
-    if c[1] == "name" then h:SetPoint("TOPLEFT", c[2], -13); h:SetWidth(220) else h:SetPoint("TOPRIGHT", all, "TOPRIGHT", c[2], -13); h:SetWidth(c[3]) end
+    local h = CreateFrame("Button", nil, all); h:SetHeight(18)
+    if c[1] == "name" then h:SetPoint("TOPLEFT", c[2], -8); h:SetWidth(220) else h:SetPoint("TOPRIGHT", all, "TOPRIGHT", c[2], -8); h:SetWidth(c[3]) end
     h.fs = UI.Font(h, 11, UI.GOLD); h.fs:SetAllPoints(); h.fs:SetJustifyH(c[1] == "name" and "LEFT" or "RIGHT")
     h:SetScript("OnClick", function()
       if S.aucSort == c[1] then S.aucDesc = not S.aucDesc else S.aucSort = c[1]; S.aucDesc = c[1] ~= "name" end
@@ -967,7 +870,7 @@ local function buildAuc(f)
     if x.chg == nil then local a = ns.AvgPrice(x.id, 24); x.chg = a and a > 0 and (x.p - a) / a * 100 or false end
     r.chg:SetText(x.chg and ns.pct(x.chg) or "|cff555555-|r")
   end)
-  all.list:SetPoint("TOPLEFT", 9, -42); all.list:SetPoint("BOTTOMRIGHT", -9, 10)
+  all.list:SetPoint("TOPLEFT", 4, -28); all.list:SetPoint("BOTTOMRIGHT", -4, 6)
   detail(all.list, 7)
   -- ОБЩИЙ: две колонки - что лучше купить здесь и что лучше продать здесь
   local function panel(left)
@@ -975,8 +878,7 @@ local function buildAuc(f)
     if left then p:SetPoint("TOPLEFT", 0, -50); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
     else p:SetPoint("TOPLEFT", f, "TOP", 6, -50); p:SetPoint("BOTTOMRIGHT", 0, 0) end
     UI.Skin(p, { theme = "acard", scale = 0.25 })
-    UI.FantasyHeader(p, 9, -9, 28, 0.90)
-    p.title = UI.Font(p, 12, UI.GOLD); UI.SetFont(p.title, UI.TITLE_FONT, 15, ""); p.title:SetPoint("TOPLEFT", 18, -18); p.title:SetPoint("RIGHT", -18, 0)
+    p.title = UI.Font(p, 13, UI.GOLD); p.title:SetPoint("TOPLEFT", 12, -10); p.title:SetPoint("RIGHT", -12, 0)
     p.list = UI.List(p, 36, function(r)
       r.star = UI.Star(r, 14, function() local d = r.data; return d and d.id end); r.star:SetPoint("LEFT", 4, 0)
       r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(24, 24); r.icon:SetPoint("LEFT", r.star, "RIGHT", 4, 0)
@@ -990,7 +892,7 @@ local function buildAuc(f)
       r.gain:SetText("|cff78d98a+" .. ns.money(x.gain, true) .. "|r")
       r.sub:SetText(L"здесь" .. " " .. ns.money(x.here, true) .. "   |cff888888" .. L"фракционный" .. "|r " .. ns.money(x.there, true))
     end)
-    p.list:SetPoint("TOPLEFT", 10, -43); p.list:SetPoint("BOTTOMRIGHT", -10, 10)
+    p.list:SetPoint("TOPLEFT", 8, -30); p.list:SetPoint("BOTTOMRIGHT", -8, 8)
     p.list:EnableDetail(5, function(det) UI.ItemDetail(det, { leftW = 130, compact = true }) end, function(det, d) det:Set(d.id) end)
     return p
   end
@@ -1070,8 +972,7 @@ local logp = {}
 local function buildLog(f)
   local t = UI.Font(f, 11, UI.DIM); t:SetPoint("TOPLEFT", 4, 0); t:SetPoint("RIGHT", -150, 0); t:SetWordWrap(true)
   t:SetText(L"Сообщения аддона (снимки, общий рынок, сигналы) - здесь, а не в чате. Сигналы о ценах дополнительно всплывают уведомлением.")
-  logp.clear = UI.Button(f, L"Очистить", 92, 21, function() wipe(ns.log); logp.list:SetData(ns.log) end)
-  logp.clear:SetPoint("TOPRIGHT", -4, -1)
+  logp.clear = UI.Button(f, L"Очистить", 100, 22, function() wipe(ns.log); logp.list:SetData(ns.log) end); logp.clear:SetPoint("TOPRIGHT", 0, 0)
   logp.list = UI.List(f, 20, function(r)
     r.time = UI.Font(r, 10, UI.DIM); r.time:SetPoint("LEFT", 4, 0); r.time:SetWidth(44)
     r.msg = UI.Font(r, 11); r.msg:SetPoint("LEFT", r.time, "RIGHT", 6, 0); r.msg:SetPoint("RIGHT", -4, 0)
@@ -1080,14 +981,7 @@ local function buildLog(f)
   end, function(r, d)
     r.time:SetText(date("%H:%M", d.t)); r.msg:SetText((d.imp and "|cffffd100" or "") .. d.msg .. (d.imp and "|r" or ""))
   end)
-  -- Thin separator beneath the journal caption, away from scrolling rows.
-  local journalRule = f:CreateTexture(nil, "BORDER")
-  journalRule:SetHeight(1)
-  journalRule:SetPoint("TOPLEFT", f, "TOPLEFT", 3, -32)
-  journalRule:SetPoint("TOPRIGHT", f, "TOPRIGHT", -3, -32)
-  journalRule:SetColorTexture(0.61, 0.46, 0.28, 0.52)
-  logp.list:SetPoint("TOPLEFT", 3, -39)
-  logp.list:SetPoint("BOTTOMRIGHT", -3, 3)
+  logp.list:SetPoint("TOPLEFT", 0, -34); logp.list:SetPoint("BOTTOMRIGHT")
   logp.list.empty:SetText(L"Сообщений пока нет.")
 end
 local function refreshLog() if logp.list then logp.list:SetData(ns.log) end end
@@ -1100,31 +994,22 @@ local function buildSettings(f)
   -- Distinct group backgrounds, all on the parent's background layer so they
   -- cannot intercept mouse input or cover interactive options.
   local function sectionBackdrop(x, top, width, height)
-    -- Each settings group is a real ornamental panel, not a large stretched
-    -- black atlas strip. Keep it at the page's own frame level so checkboxes
-    -- and interactive buttons (created afterwards) render above it.
-    local group = CreateFrame("Frame", nil, f)
-    group:SetFrameLevel(f:GetFrameLevel())
-    group:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
-    group:SetSize(width, height)
-    group:EnableMouse(false)
-    local bg = group:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetAllPoints()
-    bg:SetColorTexture(0.025, 0.044, 0.068, 0.98)
-    UI.InnerPanel(group, 0.94)
-    UI.FantasyHeader(group, 9, -8, 28, 0.88)
-    return group
+    local panel = f:CreateTexture(nil, "BACKGROUND", nil, -5)
+    panel:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    panel:SetSize(width, height)
+    panel:SetColorTexture(0.070, 0.095, 0.115, 0.83)
+    local stripe = f:CreateTexture(nil, "BACKGROUND", nil, -4)
+    stripe:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    stripe:SetSize(3, height)
+    stripe:SetColorTexture(0.72, 0.54, 0.28, 0.75)
   end
   sectionBackdrop(0, 4, 394, 212)
   sectionBackdrop(0, -219, 394, 164)
   sectionBackdrop(411, 4, 548, 239)
   sectionBackdrop(411, -241, 548, 185)
   local function column(x, title)
-    local t = UI.Font(f, 13, UI.GOLD)
-    UI.SetFont(t, UI.TITLE_FONT, 15, "")
-    t:SetPoint("TOPLEFT", x + 23, -15)
-    t:SetText(title)
-    return { x = x + 19, y = -40 }
+    local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x + 10, -7); t:SetText(title)
+    return { x = x + 10, y = -31 }
   end
   local function chk(col, text, key, after, inverted)
     local c = UI.Check(f, text, function() if inverted then return S[key] ~= false end return S[key] end, function(v) S[key] = v; if after then after(v) end end)
@@ -1149,12 +1034,7 @@ local function buildSettings(f)
   chk(a, L"Цена и прибыль в подсказке предмета", "tooltip")
   chk(a, L"Снимать аукцион автоматически, пока он открыт", "autoScan")
   local rAuto = buttons(a, L"Автоснимок раз в:", { { 15, "15 " .. L"мин", 64 }, { 30, "30 " .. L"мин", 64 }, { 60, "60 " .. L"мин", 64 } }, function() return S.autoScanMin end, function(v) S.autoScanMin = v end)
-  -- Place this heading within the lower card, not across its top frame.
-  local t2 = UI.Font(f, 13, UI.GOLD)
-  UI.SetFont(t2, UI.TITLE_FONT, 15, "")
-  t2:SetPoint("TOPLEFT", a.x + 4, -236)
-  t2:SetText(L"Общий рынок")
-  a.y = -262
+  local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 15); t2:SetText(L"Общий рынок"); a.y = a.y - 39
   chk(a, L"Делиться своими снимками с игроками", "netSend", nil, true)
   chk(a, L"Принимать цены от игроков", "netRecv", nil, true)
   chk(a, L"Турбо: рассылка через 4 имени (в 2-4 раза быстрее)", "netTurbo", nil, true)
@@ -1172,11 +1052,7 @@ local function buildSettings(f)
   setp.reload = UI.Button(f, L"Перезагрузить интерфейс", 190, 22, function() if ReloadUI then ReloadUI() end end, true)
   setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
-  local t3 = UI.Font(f, 13, UI.GOLD)
-  UI.SetFont(t3, UI.TITLE_FONT, 15, "")
-  t3:SetPoint("TOPLEFT", b.x + 4, b.y - 55)
-  t3:SetText(L"Прочее")
-  b.y = b.y - 79
+  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 55); t3:SetText(L"Прочее"); b.y = b.y - 79
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
   chk(b, L"У аукциониста: графики в окнах покупки и выставления лота", "ahBuyChart", function(v) if ns.SetAHBuyDeco then ns.SetAHBuyDeco(v) end end, true)
   local jb = UI.Button(f, L"Открыть журнал", 170, 22, function() ns.OpenLog() end, true); jb:SetPoint("TOPLEFT", b.x, b.y - 6)
@@ -1187,7 +1063,7 @@ local function buildSettings(f)
   local rl = UI.Button(f, L"Перезагрузить интерфейс (/reload)", 230, 22, function() if ReloadUI then ReloadUI() end end)
   rl:SetPoint("LEFT", jb, "RIGHT", 10, 0)
   setp.reloadAlways = rl
-  local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 12, 5); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
+  local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 4, 4); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
   about:SetText("WolfichMarket " .. (ns.VERSION or "") .. "  |cff70d6ffDEV DESIGN|r  ·  " .. L"Тестовая сборка GitHub (design-preview). Команды: /wm help")
   setp.refresh = function() rAuto(); rChat(); rLang() end
 end
@@ -1202,9 +1078,7 @@ local function makePopup(name, w, h, title)
   UI.Skin(p, { theme = "main", scale = 0.6 })
   p.title = UI.Title(p, title)
   UI.Close(p, function() dim:Hide() end)
-  p.body = CreateFrame("Frame", nil, p)
-  p.body:SetPoint("TOPLEFT", 24, -57)
-  p.body:SetPoint("BOTTOMRIGHT", -24, 22)
+  p.body = CreateFrame("Frame", nil, p); p.body:SetPoint("TOPLEFT", 26, -58); p.body:SetPoint("BOTTOMRIGHT", -26, 20)
   p.dim = dim
   dim:Hide()
   return p
@@ -1225,171 +1099,75 @@ local function buildHome(f)
     local p = CreateFrame("Frame", nil, f)
     p:SetPoint("TOPLEFT", f, "TOPLEFT", x, y)
     p:SetSize(w, h)
-    local bg = p:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetAllPoints(); bg:SetColorTexture(0.028, 0.049, 0.076, 1)
-    -- Dashboard panels follow the single-line reference framing.
-    UI.InnerPanel(p, 0.94)
-    if title and title ~= "" then
-      UI.FantasyHeader(p, 9, -9, 29, 0.87, true)
-    end
-    local heading = UI.Font(p, 14, UI.GOLD)
-    UI.SetFont(heading, UI.TITLE_FONT, 16, "")
-    heading:SetPoint("TOPLEFT", p, "TOPLEFT", 20, -18)
+    local bg = p:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(); bg:SetColorTexture(0.045, 0.072, 0.095, 1)
+    local edges = UI.Edge(p, 0.48, 0.39, 0.22, 0.9)
+    local heading = UI.Font(p, 15, UI.GOLD)
+    heading:SetPoint("TOPLEFT", p, "TOPLEFT", 15, -12)
     heading:SetText(title)
     home.widgets[#home.widgets + 1] = p
     return p
   end
-  local hero = panel(0, 0, 961, 147, "")
+  local hero = panel(0, 0, 961, 139, "")
   home.hero = hero
-  -- Decorative crest on the right, using an existing add-on texture.
-  -- All artwork stays outside the text and has no mouse handlers.
-  local heroRail = hero:CreateTexture(nil, "BORDER", nil, 1)
-  heroRail:SetPoint("TOPLEFT", hero, "TOPLEFT", 6, -12)
-  heroRail:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 6, 12)
-  heroRail:SetWidth(2)
-  heroRail:SetColorTexture(0.87, 0.66, 0.32, 0.72)
-  local crest = CreateFrame("Frame", nil, hero)
-  crest:SetSize(108, 108)
-  crest:SetPoint("RIGHT", hero, "RIGHT", -22, 0)
-  local crestBg = crest:CreateTexture(nil, "BACKGROUND", nil, -8)
-  crestBg:SetAllPoints()
-  crestBg:SetColorTexture(0.018, 0.035, 0.050, 0.94)
-  UI.Edge(crest, 0.61, 0.46, 0.25, 0.92)
-  local crestInset = crest:CreateTexture(nil, "BORDER", nil, 1)
-  crestInset:SetPoint("TOPLEFT", crest, "TOPLEFT", 5, -5)
-  crestInset:SetPoint("BOTTOMRIGHT", crest, "BOTTOMRIGHT", -5, 5)
-  crestInset:SetColorTexture(0.08, 0.125, 0.16, 0.85)
-  local paw = crest:CreateTexture(nil, "ARTWORK")
-  paw:SetSize(78, 78)
-  paw:SetPoint("CENTER", crest, "CENTER", 0, 0)
-  UI.WolfTex(paw, "approved-nav-paw")
-  paw:SetVertexColor(0.96, 0.75, 0.36)
-  local title = UI.Font(hero, 24, UI.GOLD)
-  UI.SetFont(title, UI.TITLE_FONT, 25, "")
+  local title = UI.Font(hero, 25, UI.GOLD)
   title:SetPoint("TOPLEFT", hero, "TOPLEFT", 22, -15)
   title:SetText(L"Добро пожаловать в WolfichMarket!")
   local tagline = UI.Font(hero, 13, UI.TEXT)
   tagline:SetPoint("TOPLEFT", hero, "TOPLEFT", 22, -57)
   tagline:SetText(L"Актуальные цены. Выгодный крафт. Общий рынок.")
-  local rule = hero:CreateTexture(nil, "BORDER", nil, 1)
-  rule:SetPoint("TOPLEFT", hero, "TOPLEFT", 22, -89)
-  rule:SetPoint("RIGHT", crest, "LEFT", -24, 0)
-  rule:SetHeight(1)
-  rule:SetColorTexture(0.72, 0.54, 0.29, 0.64)
-  local crestDiamond = hero:CreateTexture(nil, "BORDER", nil, 2)
-  crestDiamond:SetSize(9, 9)
-  crestDiamond:SetPoint("CENTER", rule, "CENTER", 0, 0)
-  crestDiamond:SetColorTexture(0.88, 0.66, 0.31, 0.90)
-  local crestDot = hero:CreateTexture(nil, "BORDER", nil, 3)
-  crestDot:SetSize(3, 3)
-  crestDot:SetPoint("CENTER", crestDiamond, "CENTER")
-  crestDot:SetColorTexture(0.06, 0.12, 0.17, 0.94)
   local sub = UI.Font(hero, 11, UI.DIM)
-  sub:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 22, 23)
+  sub:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 22, 17)
   sub:SetText("WOLFICHMARKET  /  WOW FOREVER")
-  local price = panel(0, -159, 598, 371, L"Выгодный крафт")
-  local heads = UI.Font(price, 10, UI.DIM)
-  heads:SetPoint("TOPLEFT", price, "TOPLEFT", 55, -50)
-  heads:SetText(L"Рецепт")
-  local costHead = UI.Font(price, 10, UI.DIM)
-  costHead:SetPoint("TOPRIGHT", price, "TOPRIGHT", -174, -50)
-  costHead:SetJustifyH("RIGHT")
-  costHead:SetText(L"Затраты")
-  local revHead = UI.Font(price, 10, UI.DIM)
-  revHead:SetPoint("TOPRIGHT", price, "TOPRIGHT", -89, -50)
-  revHead:SetJustifyH("RIGHT")
-  revHead:SetText(L"Доход")
-  local profitHead = UI.Font(price, 10, UI.DIM)
-  profitHead:SetPoint("TOPRIGHT", price, "TOPRIGHT", -19, -50)
-  profitHead:SetJustifyH("RIGHT")
-  profitHead:SetText(L"Прибыль")
+  local price = panel(0, -151, 598, 379, L"Цены из снимка аукциона")
   home.prices = {}
   for i = 1, 6 do
-    local row = CreateFrame("Button", nil, price)
-    row:SetHeight(40)
-    row:SetPoint("TOPLEFT", price, "TOPLEFT", 16, -71 - (i - 1) * 43)
-    row:SetPoint("RIGHT", price, "RIGHT", -16, 0)
-    row:RegisterForClicks("LeftButtonUp")
-    row:SetScript("OnClick", function(self)
-      if self.recipe and ns.OpenDashboardRecipe then
-        ns.OpenDashboardRecipe(self.recipe, self.profession)
-      end
-    end)
-    row:SetScript("OnEnter", function(self)
-      if not self.recipe then return end
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:AddLine(self.recipe.name or L"Рецепт", 1, 0.83, 0.45)
-      if self.profession then GameTooltip:AddLine(self.profession, 0.8, 0.85, 0.9) end
-      GameTooltip:AddLine(L"Затраты" .. ": " .. ns.money(self.costValue or 0, true), 0.82, 0.82, 0.82)
-      GameTooltip:AddLine(L"Доход" .. ": " .. ns.money(self.revenueValue or 0, true), 0.82, 0.82, 0.82)
-      GameTooltip:AddLine(L"Прибыль" .. ": +" .. ns.money(self.profitValue or 0, true), 0.45, 0.95, 0.58)
-      GameTooltip:AddLine(L"Нажмите, чтобы открыть рецепт", 1, 0.8, 0.4)
-      GameTooltip:Show()
-    end)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    local hover = row:CreateTexture(nil, "HIGHLIGHT")
-    hover:SetAllPoints()
-    hover:SetColorTexture(0.75, 0.58, 0.29, 0.16)
-    -- A fine metallic dividing line and quiet alternating blue rows.
+    local row = CreateFrame("Frame", nil, price)
+    row:SetHeight(43)
+    row:SetPoint("TOPLEFT", price, "TOPLEFT", 14, -52 - (i - 1) * 46)
+    row:SetPoint("RIGHT", price, "RIGHT", -14, 0)
     local shade = row:CreateTexture(nil, "BACKGROUND")
     shade:SetAllPoints()
-    shade:SetColorTexture(i % 2 == 0 and 0.065 or 0.045, 0.11, 0.155, 0.75)
-    local rowRule = row:CreateTexture(nil, "BORDER", nil, 0)
-    rowRule:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 4, 0)
-    rowRule:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 0)
-    rowRule:SetHeight(1)
-    rowRule:SetColorTexture(0.49, 0.60, 0.66, 0.22)
+    shade:SetColorTexture(i % 2 == 0 and 0.12 or 0.07, 0.16, 0.19, 0.65)
     row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetSize(29, 29); row.icon:SetPoint("LEFT", 6, 0)
+    row.icon:SetSize(30, 30); row.icon:SetPoint("LEFT", 5, 0)
     row.name = UI.Font(row, 12, UI.TEXT)
     row.name:SetPoint("LEFT", row.icon, "RIGHT", 9, 0)
-    row.name:SetPoint("RIGHT", row, "RIGHT", -277, 0)
-    row.cost = UI.Font(row, 11, UI.DIM)
-    row.cost:SetPoint("RIGHT", row, "RIGHT", -160, 0)
-    row.cost:SetWidth(88); row.cost:SetJustifyH("RIGHT")
-    row.revenue = UI.Font(row, 11, UI.TEXT)
-    row.revenue:SetPoint("RIGHT", row, "RIGHT", -74, 0)
-    row.revenue:SetWidth(80); row.revenue:SetJustifyH("RIGHT")
-    row.price = UI.Font(row, 11, { 0.45, 0.91, 0.54 })
+    row.name:SetPoint("RIGHT", row, "RIGHT", -125, 0)
+    row.price = UI.Font(row, 12, UI.GOLD)
     row.price:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-    row.price:SetWidth(68); row.price:SetJustifyH("RIGHT")
+    row.price:SetJustifyH("RIGHT")
     row:Hide()
     home.prices[i] = row
   end
   home.priceEmpty = UI.Font(price, 12, UI.DIM)
   home.priceEmpty:SetPoint("CENTER", price, "CENTER")
-  home.priceEmpty:SetText(L"Нет рассчитанных прибыльных рецептов.\nОткройте профессии и обновите цены аукциона.")
-  local net = panel(611, -159, 350, 171, L"Сеть WolfichMarket")
+  home.priceEmpty:SetText(L"Снимка пока нет. Откройте аукцион для сбора цен.")
+  local net = panel(611, -151, 350, 171, L"Сеть WolfichMarket")
   home.network = UI.Font(net, 15, UI.TEXT)
-  home.network:SetPoint("TOPLEFT", net, "TOPLEFT", 20, -59)
+  home.network:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -56)
   home.network:SetWidth(319)
   local peers = UI.Font(net, 12, UI.DIM)
-  peers:SetPoint("TOPLEFT", net, "TOPLEFT", 20, -91)
+  peers:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -88)
   home.peerCount = peers
   local last = UI.Font(net, 11, UI.DIM)
-  last:SetPoint("TOPLEFT", net, "TOPLEFT", 20, -122)
+  last:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -119)
   last:SetWidth(319)
   home.lastReceived = last
-  local actions = panel(611, -343, 350, 187, L"Быстрые действия")
-  local auction = UI.Button(actions, L"Открыть аукцион", 286, 28, function() ns.ToggleMain(3) end, true)
-  auction:SetPoint("TOPLEFT", actions, "TOPLEFT", 32, -52)
-  local craft = UI.Button(actions, L"Профессии и рецепты", 286, 28, function() ns.ToggleMain(2) end)
-  craft:SetPoint("TOPLEFT", actions, "TOPLEFT", 32, -92)
-  local history = UI.Button(f, L"История обновлений", 286, 23, function()
+  local actions = panel(611, -335, 350, 195, L"Быстрые действия")
+  local auction = UI.Button(actions, L"Открыть аукцион", 310, 40, function() ns.ToggleMain(3) end, true)
+  auction:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -49)
+  local craft = UI.Button(actions, L"Профессии и рецепты", 310, 40, function() ns.ToggleMain(2) end)
+  craft:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -105)
+  local history = UI.Button(f, L"История обновлений", 310, 28, function()
     home.historyShown = not home.historyShown
     for _, w in ipairs(home.widgets) do w:SetShown(not home.historyShown) end
     home.historyScroll:SetShown(home.historyShown)
     home.historyTitle:SetShown(home.historyShown)
     home.historyButton:SetLabel(home.historyShown and L"Назад к обзору" or L"История обновлений")
-    home.historyButton:ClearAllPoints()
-    if home.historyShown then
-      home.historyButton:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -10, 3)
-      home.refreshHistory()
-    else
-      home.historyButton:SetPoint("TOPLEFT", actions, "TOPLEFT", 32, -136)
-    end
+    if home.historyShown then home.refreshHistory() end
   end)
-  history:SetPoint("TOPLEFT", actions, "TOPLEFT", 32, -136)
+  history:SetPoint("BOTTOMLEFT", actions, "BOTTOMLEFT", 20, 16)
   home.historyButton = history
   local htitle = UI.Font(f, 17, UI.GOLD)
   htitle:SetPoint("TOPLEFT", 3, -7)
@@ -1447,41 +1225,34 @@ local function buildHome(f)
 end
 local function refreshHome()
   if not home.hero then return end
-  -- The home dashboard ranks actual, learned recipes using the same profit
-  -- calculation as the Professions tab. Missing costs never count as profit.
-  -- No scan-only item sorting: we show recipes, not arbitrary item IDs.
-  local calculated = ns.AllRecipeProfits and ns.AllRecipeProfits(nil, false) or {}
-  local profitable = {}
-  for _, pr in ipairs(calculated) do
-    if pr.rec and pr.rec.out and pr.profit and pr.profit > 0
-       and (pr.missing or 0) == 0 and ns.IsLearned(pr.rec) then
-      profitable[#profitable + 1] = pr
+  local scan = ns.CurrentScan and ns.CurrentScan()
+  local ids = {}
+  if scan and scan.items then
+    local marked = ns.DB and ns.DB.marked or {}
+    for id in pairs(marked) do if scan.items[id] then ids[#ids+1] = id end end
+    table.sort(ids)
+    if #ids < 6 then
+      local all = {}
+      for id in pairs(scan.items) do all[#all+1] = id end
+      table.sort(all)
+      for _, id in ipairs(all) do
+        if #ids >= 6 then break end
+        if not marked[id] then ids[#ids+1] = id end
+      end
     end
   end
-  table.sort(profitable, function(a, b)
-    if a.profit == b.profit then return (a.rec.id or 0) < (b.rec.id or 0) end
-    return a.profit > b.profit
-  end)
   for i, row in ipairs(home.prices or {}) do
-    local pr = profitable[i]
-    if pr then
-      row.recipe = pr.rec
-      row.profession = pr.prof
-      row.costValue = pr.cost
-      row.revenueValue = pr.revenue
-      row.profitValue = pr.profit
-      row.icon:SetTexture(ns.itemIcon(pr.rec.out))
-      row.name:SetText(ns.itemLinkText(pr.rec.out))
-      row.cost:SetText(ns.money(pr.cost, true))
-      row.revenue:SetText(pr.revenue and ns.money(pr.revenue, true) or "—")
-      row.price:SetText("+" .. ns.money(pr.profit, true))
+    local id = ids[i]
+    if id then
+      local record = scan.items[id]
+      local price = ns.RegularPrice(id)
+      row.icon:SetTexture(ns.itemIcon(id))
+      row.name:SetText(ns.itemLinkText(id))
+      row.price:SetText(price and ns.money(price, true) or "—")
       row:Show()
-    else
-      row.recipe, row.profession = nil, nil
-      row:Hide()
-    end
+    else row:Hide() end
   end
-  home.priceEmpty:SetShown(#profitable == 0)
+  home.priceEmpty:SetShown(#ids == 0)
   local settings = ns.DB and ns.DB.settings or {}
   local enabled = settings.netSend ~= false or settings.netRecv ~= false
   home.network:SetText(enabled and ("|cff70dc90" .. L"Обмен включён" .. "|r") or ("|cff999999" .. L"Обмен отключён" .. "|r"))
@@ -1520,7 +1291,7 @@ local function build()
   win:SetMovable(true); win:EnableMouse(true); win:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
   win.content = UI.MainChromeCompact(win, function(i) selectView(i) end, NAV_NAMES)
-  win.chromeVer:SetText("|cff4ce0f0FOREVER|r  v" .. (ns.VERSION or ""))
+  win.chromeVer:SetText("|cff70d6ffDEV DESIGN|r  v" .. (ns.VERSION or ""))
   -- разделы по порядку значков колонки
   win.tabs = win.nav
   win.pages = {}
@@ -1551,21 +1322,6 @@ function ns.OpenRecipeInMain(rec)
   win:Show(); selectView(VIEW_CRAFT); raise()
   if rec then craft.chartRec = nil; fillCard(rec) end
 end
--- From dashboard to the same recipe detail panel used by the Professions tab.
--- It never opens the native game's profession window or starts crafting.
-function ns.OpenDashboardRecipe(rec, profession)
-  if not rec or not ns.DB or not ns.charKey then return end
-  build()
-  charKey = ns.charKey
-  prof = profession
-  sel = nil
-  craft.chartRec = nil
-  win:Show()
-  selectView(VIEW_CRAFT)
-  fillCard(rec)
-  raise()
-end
-
 function ns.ToggleMain(section)
   if not ns.DB or not ns.charKey then return end
   build()
