@@ -987,8 +987,8 @@ local function buildSettings(f)
   end
   sectionBackdrop(0, 4, 394, 212)
   sectionBackdrop(0, -219, 394, 164)
-  sectionBackdrop(411, 4, 548, 276)
-  sectionBackdrop(411, -284, 548, 166)
+  sectionBackdrop(411, 4, 548, 239)
+  sectionBackdrop(411, -241, 548, 185)
   local function column(x, title)
     local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x + 10, -7); t:SetText(title)
     return { x = x + 10, y = -31 }
