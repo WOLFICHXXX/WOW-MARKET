@@ -1146,9 +1146,96 @@ local function buildHome(f)
     value:SetWordWrap(false)
     home.metrics[spec[2]] = value
   end
+  -- Compact interactive craft dashboard. Uses the same calculations as Professions.
+  local craftBox = CreateFrame("Frame", nil, f)
+  craftBox:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -201)
+  craftBox:SetSize(961, 338)
+  local craftBg = craftBox:CreateTexture(nil, "BACKGROUND")
+  craftBg:SetAllPoints(); craftBg:SetColorTexture(0.042, 0.064, 0.083, 0.95)
+  UI.Edge(craftBox, 0.35, 0.31, 0.23, 0.8)
+  local craftTitle = UI.Font(craftBox, 16, UI.GOLD)
+  craftTitle:SetPoint("TOPLEFT", 14, -11)
+  craftTitle:SetText(L"Выгодный крафт")
+  local craftHint = UI.Font(craftBox, 10, UI.DIM)
+  craftHint:SetPoint("TOPLEFT", 15, -36)
+  craftHint:SetText(L"Выберите рецепт, чтобы открыть расчёт в профессиях")
+  local columnTitles = {
+    { L"Затраты", -297 }, { L"Доход", -172 }, { L"Прибыль", -18 },
+  }
+  for _, col in ipairs(columnTitles) do
+    local heading = UI.Font(craftBox, 10, UI.DIM)
+    heading:SetPoint("TOPRIGHT", craftBox, "TOPRIGHT", col[2], -40)
+    heading:SetText(col[1])
+  end
+  home.craftRows = {}
+  for i = 1, 6 do
+    local row = CreateFrame("Button", nil, craftBox)
+    row:SetSize(931, 39)
+    row:SetPoint("TOPLEFT", craftBox, "TOPLEFT", 15, -65 - (i - 1) * 43)
+    local rowBg = row:CreateTexture(nil, "BACKGROUND")
+    rowBg:SetAllPoints()
+    rowBg:SetColorTexture(0.075, 0.105, 0.13, i % 2 == 0 and 0.85 or 0.58)
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(); highlight:SetColorTexture(0.72, 0.56, 0.28, 0.18)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(30, 30); row.icon:SetPoint("LEFT", row, "LEFT", 5, 0)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.name = UI.Font(row, 12, UI.TEXT)
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 9, 0)
+    row.name:SetPoint("RIGHT", row, "RIGHT", -350, 0)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+    row.cost = UI.Font(row, 11, UI.DIM)
+    row.cost:SetPoint("RIGHT", row, "RIGHT", -234, 0)
+    row.cost:SetWidth(105); row.cost:SetJustifyH("RIGHT")
+    row.revenue = UI.Font(row, 11, UI.TEXT)
+    row.revenue:SetPoint("RIGHT", row, "RIGHT", -110, 0)
+    row.revenue:SetWidth(105); row.revenue:SetJustifyH("RIGHT")
+    row.profit = UI.Font(row, 11, UI.GOLD)
+    row.profit:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+    row.profit:SetWidth(100); row.profit:SetJustifyH("RIGHT")
+    row:SetScript("OnClick", function(self)
+      if not self.recipe then return end
+      prof = self.profession
+      sel = nil
+      ns.ToggleMain(2)
+      fillCard(self.recipe)
+    end)
+    row:SetScript("OnEnter", function(self)
+      if not self.recipe then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(self.recipe.name or L"Рецепт", 1, 0.82, 0.4)
+      GameTooltip:AddLine(L"Затраты" .. ": " .. ns.money(self.costValue, true), 0.85, 0.85, 0.85)
+      GameTooltip:AddLine(L"Доход" .. ": " .. ns.money(self.revenueValue, true), 0.85, 0.85, 0.85)
+      GameTooltip:AddLine(L"Прибыль" .. ": +" .. ns.money(self.profitValue, true), 0.55, 0.95, 0.62)
+      GameTooltip:AddLine(L"Нажмите, чтобы открыть рецепт", 0.7, 0.7, 0.7)
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row:Hide()
+    home.craftRows[i] = row
+  end
+  home.craftEmpty = UI.Font(craftBox, 12, UI.DIM)
+  home.craftEmpty:SetPoint("CENTER", craftBox, "CENTER", 0, -7)
+  home.craftEmpty:SetText(L"Нет рецептов с подтверждённой прибылью. Откройте профессии и обновите цены аукциона.")
+  home.craftEmpty:SetWidth(880)
+  home.craftPanel = craftBox
+  local toggle = UI.Button(f, L"История обновлений", 172, 24, function()
+    home.historyShown = not home.historyShown
+    craftBox:SetShown(not home.historyShown)
+    home.historyTitle:SetShown(home.historyShown)
+    home.historySubtitle:SetShown(home.historyShown)
+    home.sf:SetShown(home.historyShown)
+    home.historyToggle:SetLabel(home.historyShown and L"Назад к крафту" or L"История обновлений")
+  end)
+  toggle:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -205)
+  home.historyToggle = toggle
   local t = UI.Font(f, 16, UI.GOLD); t:SetPoint("TOPLEFT", 2, -205); t:SetText(L"История обновлений")
   local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -229); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
   sub:SetText(L"Изменения версий WolfichMarket")
+  home.historyTitle = t
+  home.historySubtitle = sub
+  t:Hide(); sub:Hide()
   local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -255); sf:SetPoint("BOTTOMRIGHT", 0, 0)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
   local child = CreateFrame("Frame", nil, sf); child:SetSize(780, 400); sf:SetScrollChild(child)
@@ -1159,6 +1246,7 @@ local function buildHome(f)
     cur = math.max(0, math.min(max, cur - d * 40)); self:SetVerticalScroll(cur)
   end)
   home.child, home.cards, home.sf = child, {}, sf
+  sf:Hide()
 end
 local function refreshHome()
   if not home.child then return end
@@ -1181,6 +1269,36 @@ local function refreshHome()
       home.metrics.network:SetText("|cff70cf82" .. L"Включён" .. "|r   " .. L"Участников замечено" .. ": " .. seen)
     end
   end
+  -- Rank learned, priced recipes by the real profit calculation.
+  local available = ns.AllRecipeProfits and ns.AllRecipeProfits(nil, false) or {}
+  local ranked = {}
+  for _, pr in ipairs(available) do
+    if pr.rec and pr.rec.out and pr.profit and pr.profit > 0
+       and (pr.missing or 0) == 0 and ns.IsLearned(pr.rec) then
+      ranked[#ranked + 1] = pr
+    end
+  end
+  table.sort(ranked, function(a, b)
+    if a.profit == b.profit then return (a.rec.id or 0) < (b.rec.id or 0) end
+    return a.profit > b.profit
+  end)
+  for i, row in ipairs(home.craftRows or {}) do
+    local pr = ranked[i]
+    if pr then
+      row.recipe, row.profession = pr.rec, pr.prof
+      row.costValue, row.revenueValue, row.profitValue = pr.cost, pr.revenue, pr.profit
+      row.icon:SetTexture(ns.itemIcon(pr.rec.out))
+      row.name:SetText(ns.itemLinkText(pr.rec.out))
+      row.cost:SetText(ns.money(pr.cost, true))
+      row.revenue:SetText(ns.money(pr.revenue, true))
+      row.profit:SetText("+" .. ns.money(pr.profit, true))
+      row:Show()
+    else
+      row.recipe = nil
+      row:Hide()
+    end
+  end
+  home.craftEmpty:SetShown(#ranked == 0)
   local lang = ns.Lang()
   local y = 0
   for i, e in ipairs(ns.CHANGELOG or {}) do
