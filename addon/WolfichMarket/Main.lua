@@ -144,7 +144,7 @@ local function fillCard(rec)
   card.total:SetText(table.concat(lines, "\n"))
   -- «Крафт» и «Поставить сигнал» — сразу под последней строкой рецепта
   local n = math.min(#items, #card.rows)
-  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -38 - n * 24 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+  card.portRow:ClearAllPoints(); card.portRow:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -45 - n * 24 - 4); card.portRow:SetPoint("RIGHT", card, "RIGHT", -12, 0)
   craft.drawChart()
 end
 -- график цены выбранного предмета (по умолчанию — результат рецепта)
@@ -371,11 +371,11 @@ local function buildCraft(f)
   local listHead = craft.listBox:CreateTexture(nil, "BACKGROUND", nil, -3)
   listHead:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 1, -1)
   listHead:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -1, -1)
-  listHead:SetHeight(35)
+  listHead:SetHeight(41)
   listHead:SetColorTexture(0.19, 0.145, 0.079, 0.97)
   local listHeadRule = craft.listBox:CreateTexture(nil, "BORDER")
-  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -35)
-  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -35)
+  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -41)
+  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -41)
   listHeadRule:SetHeight(1)
   listHeadRule:SetColorTexture(0.72, 0.52, 0.25, 0.89)
   -- шапка списка: столбики Ф и Общ
@@ -443,8 +443,8 @@ local function buildCraft(f)
     craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 33)
     -- The ornate top rim occupies ~12px; labels get a separate band,
     -- and the first recipe starts after the band rather than behind it.
-    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 13, -16); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -16, 0)
-    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 7, -39); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -7, 11)
+    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 15, -20); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -18, 0)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 7, -45); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -7, 13)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 33)
   end
   craft.setTop(0)
@@ -452,22 +452,22 @@ local function buildCraft(f)
   local cardHeader = card:CreateTexture(nil, "BACKGROUND", nil, -3)
   cardHeader:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
   cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
-  cardHeader:SetHeight(34)
+  cardHeader:SetHeight(40)
   cardHeader:SetColorTexture(0.19, 0.145, 0.079, 0.97)
   -- Highlight the recipe detail rather than covering any item icons.
   local cardAccent = card:CreateTexture(nil, "BORDER", nil, 1)
   cardAccent:SetPoint("TOPLEFT", card, "TOPLEFT", 3, -4)
-  cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -30)
+  cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -36)
   cardAccent:SetWidth(3)
   cardAccent:SetColorTexture(0.89, 0.67, 0.30, 0.93)
   -- Dark fantasy heading framed with a double bronze line.
   local cardRule = card:CreateTexture(nil, "BORDER")
-  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -34)
-  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
+  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -40)
+  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -40)
   cardRule:SetHeight(1)
   cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
-  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -17, -17); card.level:SetJustifyH("RIGHT")
-  card.title = UI.Font(card, 16, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 16, ""); card.title:SetPoint("TOPLEFT", 20, -14); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
+  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -19, -20); card.level:SetJustifyH("RIGHT")
+  card.title = UI.Font(card, 16, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 16, ""); card.title:SetPoint("TOPLEFT", 21, -17); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
   -- An opaque, raised empty state hides all chart internals (including any
   -- stray slider/marker texture) until a recipe is actually selected.
   local empty = CreateFrame("Frame", nil, card)
@@ -504,7 +504,7 @@ local function buildCraft(f)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(22)
-    r:SetPoint("TOPLEFT", 10, -38 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
+    r:SetPoint("TOPLEFT", 10, -45 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
     if i % 2 == 0 then
       local stripe = r:CreateTexture(nil, "BACKGROUND")
       stripe:SetAllPoints()
@@ -591,7 +591,7 @@ local function buildCraft(f)
   -- график - в своей панели до низа карточки
   local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
   cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -8, -14); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
-  card.chartTitle = UI.Font(cbox, 10, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 16, -11); card.chartTitle:SetPoint("RIGHT", -16, 0); card.chartTitle:SetWordWrap(false)
+  card.chartTitle = UI.Font(cbox, 10, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 18, -15); card.chartTitle:SetPoint("RIGHT", -18, 0); card.chartTitle:SetWordWrap(false)
   card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
   card.chart.onClick = function() if card.chartId then ns.ShowChartDialog(card.chartId) end end -- клик - большой график
   card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
