@@ -311,7 +311,7 @@ function UI.Close(parent, onClick)
 end
 
 -- кнопка (2.43.33): своя плоская - заливка и тонкая кромка, без картинок; b:SetGold(on) - золотая (главная / выбрана) или тёмная
-local GOLD_TXT, DARK_TXT = { 0.12, 0.08, 0.02 }, { 0.94, 0.88, 0.77 }
+local GOLD_TXT, DARK_TXT = { 1.00, 0.93, 0.74 }, { 0.94, 0.88, 0.77 }
 local BTN = {
   dark = { bg = { 0.085, 0.115, 0.14, 0.96 }, edge = { 0.35, 0.43, 0.47, 1 } },
   gold = { bg = { 0.83, 0.63, 0.29, 1 }, edge = { 0.96, 0.81, 0.49, 1 } },
@@ -385,7 +385,7 @@ function UI.Button(parent, text, w, h, onClick, gold)
     end
     local c = not en and { 0.6, 0.56, 0.48 } or (isGold and GOLD_TXT or DARK_TXT)
     fs:SetTextColor(c[1], c[2], c[3])
-    if fs.SetShadowColor then fs:SetShadowColor(0, 0, 0, (isGold and en) and 0 or 0.8) end
+    if fs.SetShadowColor then fs:SetShadowColor(0, 0, 0, 0.95) end
   end
   function b:SetGold(on) isGold = on and true or false; paint() end
   function b:IsGold() return isGold end
@@ -1071,9 +1071,13 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.025, 0.040, 0.055, 1)
   -- Original graphical side texture (384x1517): same aspect as our rail.
   local railArt = rail:CreateTexture(nil, "BACKGROUND", nil, -7)
-  railArt:SetAllPoints()
+  -- The tall painting has a large crown at its top. Crop it to the quiet
+  -- navy center and reserve the top 75px for the readable brand/navigation.
+  railArt:SetPoint("TOPLEFT", rail, "TOPLEFT", 4, -77)
+  railArt:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -4, 6)
   UI.WolfTex(railArt, "approved-sidebar")
-  railArt:SetAlpha(1)
+  railArt:SetTexCoord(0.14, 0.86, 0.24, 0.82)
+  railArt:SetAlpha(0.84)
   edge(rail, unpack(GOLD_EDGE))
   local railAccent = rail:CreateTexture(nil, "BORDER", nil, 2)
   railAccent:SetPoint("TOPRIGHT", rail, "TOPRIGHT", -2, -2)
@@ -1110,9 +1114,14 @@ function UI.MainChromeCompact(win, onNav, navTips)
   headerBg:SetAllPoints()
   headerBg:SetColorTexture(0.048, 0.070, 0.088, 1)
   local headerArt = top:CreateTexture(nil, "BACKGROUND", nil, -4)
-  headerArt:SetAllPoints()
+  -- The illustration is a complete header with a large wolf/crown. Using
+  -- all of it in a 42px toolbar draws golden strokes THROUGH the text.
+  -- Use only its dark center as the toolbar texture; the title stays clear.
+  headerArt:SetPoint("TOPLEFT", top, "TOPLEFT", 1, -2)
+  headerArt:SetPoint("BOTTOMRIGHT", top, "BOTTOMRIGHT", -1, 2)
   UI.WolfTex(headerArt, "approved-header")
-  headerArt:SetAlpha(0.95)
+  headerArt:SetTexCoord(0.42, 0.85, 0.43, 0.70)
+  headerArt:SetAlpha(0.70)
   local hl = top:CreateTexture(nil, "BORDER")
   hl:SetColorTexture(0.76, 0.55, 0.24, 1)
   hl:SetHeight(2); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
@@ -1135,8 +1144,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
   -- The approved portrait appears below the navigation, without blocking it.
   local wolf = rail:CreateTexture(nil, "ARTWORK", nil, -1)
-  wolf:SetSize(RAIL - 26, 138)
-  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 22)
+  wolf:SetSize(114, 114)
+  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 26)
   UI.WolfTex(wolf, "approved-wolf-emblem")
   wolf:SetAlpha(0.90)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
