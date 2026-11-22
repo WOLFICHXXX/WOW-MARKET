@@ -935,7 +935,7 @@ local CONTENT_W, CONTENT_H = 961, 546
 local RAIL, PAD, HEAD = 62, 16, 42
 UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
 -- свои простые значки разделов (белые линии, красятся цветом): media\\win\\nav-*.tga, исходник - tools\\icons
-local NAV_ICONS = { "Г", "П", "А", "Н" }
+local NAV_ICONS = { "INV_Misc_Book_09", "Trade_Alchemy", "INV_Hammer_20", "INV_Gizmo_02" }
 local IC_DIM, IC_HOVER, IC_ON = { 0.62, 0.56, 0.44 }, { 0.92, 0.84, 0.66 }, { 0.95, 0.78, 0.38 }
 local function edge(f, r, g, b, a, layer)
   local L = {}
@@ -990,7 +990,10 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- значок-волк сверху полосы
-  local logo = UI.Font(rail, 22, UI.GOLD); logo:SetPoint("TOP", 0, -14); logo:SetText("W")
+  local logo = rail:CreateTexture(nil, "ARTWORK")
+  logo:SetSize(29, 29); logo:SetPoint("TOP", rail, "TOP", 0, -12)
+  logo:SetTexture("Interface\\Icons\\Ability_Hunter_Pet_Wolf")
+  logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.43, 0.33, 0.16, 0.6); sep:SetSize(34, 1); sep:SetPoint("TOP", 0, -54)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
@@ -1000,8 +1003,11 @@ function UI.MainChromeCompact(win, onNav, navTips)
     -- подложка выбранного раздела и золотая черта у левого края полосы
     b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.22, 0.36, 0.42, 0.65); b.bg:Hide()
     b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
-    b.icon = UI.Font(b, 20, UI.DIM); b.icon:SetPoint("CENTER"); b.icon:SetText(c)
-    local function tint(t) b.icon:SetTextColor(t[1], t[2], t[3]) end
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetSize(27, 27); b.icon:SetPoint("CENTER")
+    b.icon:SetTexture("Interface\\Icons\\" .. c)
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
     tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
