@@ -390,13 +390,14 @@ local function buildCraft(f)
   -- второй ряд профессий сдвигает фильтры, список и карточку вниз
   function craft.setTop(dy)
     c1:ClearAllPoints(); c1:SetPoint("TOPLEFT", 0, -34 - dy)
-    c2:ClearAllPoints(); c2:SetPoint("TOPLEFT", 150, -34 - dy)
-    c3:ClearAllPoints(); c3:SetPoint("TOPLEFT", 320, -34 - dy)
-    c4:ClearAllPoints(); c4:SetPoint("TOPLEFT", 530, -34 - dy)
+    -- Give full checkbox labels room; keep the recipe panels at their original height.
+    c2:ClearAllPoints(); c2:SetPoint("TOPLEFT", 190, -34 - dy)
+    c3:ClearAllPoints(); c3:SetPoint("TOPLEFT", 405, -34 - dy)
+    c4:ClearAllPoints(); c4:SetPoint("TOPLEFT", 680, -34 - dy)
     sortLbl:ClearAllPoints(); sortLbl:SetPoint("TOPLEFT", 2, -64 - dy)
-    sortChecks.main:ClearAllPoints(); sortChecks.main:SetPoint("TOPLEFT", 110, -60 - dy)
-    sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 320, -60 - dy)
-    sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 500, -60 - dy)
+    sortChecks.main:ClearAllPoints(); sortChecks.main:SetPoint("TOPLEFT", 125, -60 - dy)
+    sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 394, -60 - dy)
+    sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 655, -60 - dy)
     -- список и карточка - две панели одной высоты, сверху и снизу на одной линии
     craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 18)
     lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 6, -4); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
@@ -404,12 +405,28 @@ local function buildCraft(f)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
   end
   craft.setTop(0)
+  -- Recipe header remains fixed when switching items; never redraw item icons.
+  local cardHeader = card:CreateTexture(nil, "BACKGROUND", nil, -3)
+  cardHeader:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
+  cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
+  cardHeader:SetHeight(34)
+  cardHeader:SetColorTexture(0.095, 0.135, 0.16, 0.90)
+  local cardRule = card:CreateTexture(nil, "BORDER")
+  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -34)
+  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
+  cardRule:SetHeight(1)
+  cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
   card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -12, -12); card.level:SetJustifyH("RIGHT")
   card.title = UI.Font(card, 15, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 15, ""); card.title:SetPoint("TOPLEFT", 14, -10); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(22)
     r:SetPoint("TOPLEFT", 10, -38 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
+    if i % 2 == 0 then
+      local stripe = r:CreateTexture(nil, "BACKGROUND")
+      stripe:SetAllPoints()
+      stripe:SetColorTexture(0.12, 0.18, 0.22, 0.34)
+    end
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", 2, 0)
     r.search = UI.Icon(r, "search", 16, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT", -2, 0)
     r.bell = UI.Bell(r, 17, function(self) return self:GetParent().id end); r.bell:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
@@ -474,11 +491,21 @@ local function buildCraft(f)
     for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
   end
   brow:SetScript("OnSizeChanged", layoutBtns); layoutBtns()
-  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 2, -8); card.total:SetPoint("RIGHT", -12, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
+  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 8, -10); card.total:SetPoint("RIGHT", -14, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
+  -- A subtle cost/profit summary band follows the text's actual height.
+  local totalShade = card:CreateTexture(nil, "BACKGROUND", nil, -2)
+  totalShade:SetPoint("TOPLEFT", card.total, "TOPLEFT", -7, 5)
+  totalShade:SetPoint("BOTTOMRIGHT", card.total, "BOTTOMRIGHT", 7, -5)
+  totalShade:SetColorTexture(0.08, 0.12, 0.14, 0.85)
+  local totalAccent = card:CreateTexture(nil, "BORDER")
+  totalAccent:SetPoint("TOPLEFT", totalShade, "TOPLEFT")
+  totalAccent:SetPoint("BOTTOMLEFT", totalShade, "BOTTOMLEFT")
+  totalAccent:SetWidth(2)
+  totalAccent:SetColorTexture(0.72, 0.56, 0.31, 0.9)
   -- график - в своей панели до низа карточки
   local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
-  cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -4, -8); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
-  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0)
+  cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -8, -14); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
+  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0); card.chartTitle:SetWordWrap(false)
   card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
   card.chart.onClick = function() if card.chartId then ns.ShowChartDialog(card.chartId) end end -- клик - большой график
   card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
@@ -725,6 +752,9 @@ local SORTS = { name = L"Название", p = L"Цена", q = L"Кол-во",
 local function buildAuc(f)
   local S = ns.DB.settings
   S.aucCat = S.aucCat or {}
+  -- Keep the existing compact auction controls layout. No decorative toolbar
+  -- background: the controls, scan status and table header occupy separate
+  -- tight rows, and an added texture can visually cross their boundaries.
   -- верхняя строка: какой аукцион, поиск, категория
   aucp.kind = {}
   local x = 0
@@ -961,9 +991,25 @@ local setp = {}
 local function buildSettings(f)
   local S = ns.DB.settings
   local function hl(b, on) b:SetGold(on) end
+  -- Distinct group backgrounds, all on the parent's background layer so they
+  -- cannot intercept mouse input or cover interactive options.
+  local function sectionBackdrop(x, top, width, height)
+    local panel = f:CreateTexture(nil, "BACKGROUND", nil, -5)
+    panel:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    panel:SetSize(width, height)
+    panel:SetColorTexture(0.070, 0.095, 0.115, 0.83)
+    local stripe = f:CreateTexture(nil, "BACKGROUND", nil, -4)
+    stripe:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    stripe:SetSize(3, height)
+    stripe:SetColorTexture(0.72, 0.54, 0.28, 0.75)
+  end
+  sectionBackdrop(0, 4, 394, 212)
+  sectionBackdrop(0, -219, 394, 164)
+  sectionBackdrop(411, 4, 548, 239)
+  sectionBackdrop(411, -241, 548, 185)
   local function column(x, title)
-    local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x, 0); t:SetText(title)
-    return { x = x, y = -24 }
+    local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x + 10, -7); t:SetText(title)
+    return { x = x + 10, y = -31 }
   end
   local function chk(col, text, key, after, inverted)
     local c = UI.Check(f, text, function() if inverted then return S[key] ~= false end return S[key] end, function(v) S[key] = v; if after then after(v) end end)
@@ -988,7 +1034,7 @@ local function buildSettings(f)
   chk(a, L"Цена и прибыль в подсказке предмета", "tooltip")
   chk(a, L"Снимать аукцион автоматически, пока он открыт", "autoScan")
   local rAuto = buttons(a, L"Автоснимок раз в:", { { 15, "15 " .. L"мин", 64 }, { 30, "30 " .. L"мин", 64 }, { 60, "60 " .. L"мин", 64 } }, function() return S.autoScanMin end, function(v) S.autoScanMin = v end)
-  local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 8); t2:SetText(L"Общий рынок"); a.y = a.y - 32
+  local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 15); t2:SetText(L"Общий рынок"); a.y = a.y - 39
   chk(a, L"Делиться своими снимками с игроками", "netSend", nil, true)
   chk(a, L"Принимать цены от игроков", "netRecv", nil, true)
   chk(a, L"Турбо: рассылка через 4 имени (в 2-4 раза быстрее)", "netTurbo", nil, true)
@@ -1006,7 +1052,7 @@ local function buildSettings(f)
   setp.reload = UI.Button(f, L"Перезагрузить интерфейс", 190, 22, function() if ReloadUI then ReloadUI() end end, true)
   setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
-  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Прочее"); b.y = b.y - 72
+  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 55); t3:SetText(L"Прочее"); b.y = b.y - 79
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
   chk(b, L"У аукциониста: графики в окнах покупки и выставления лота", "ahBuyChart", function(v) if ns.SetAHBuyDeco then ns.SetAHBuyDeco(v) end end, true)
   local jb = UI.Button(f, L"Открыть журнал", 170, 22, function() ns.OpenLog() end, true); jb:SetPoint("TOPLEFT", b.x, b.y - 6)
@@ -1018,7 +1064,7 @@ local function buildSettings(f)
   rl:SetPoint("LEFT", jb, "RIGHT", 10, 0)
   setp.reloadAlways = rl
   local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 4, 4); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
-  about:SetText("WolfichMarket " .. (ns.VERSION or "") .. L"  -  обновление: WolfichMarket-Updater.bat с сайта или CurseForge.  Команды: /wm help")
+  about:SetText("WolfichMarket " .. (ns.VERSION or "") .. "  ·  " .. L"Обновление: WolfichMarket-Updater.bat или CurseForge. Команды: /wm help")
   setp.refresh = function() rAuto(); rChat(); rLang() end
 end
 local function refreshSettings() if setp.refresh then setp.refresh() end end
@@ -1048,16 +1094,62 @@ end
 -- ---------- раздел «Главная»: что нового в каждой версии (язык - как у аддона) ----------
 local home = {}
 local function buildHome(f)
-  local t = UI.Font(f, 18, UI.GOLD, "OVERLAY", "OUTLINE"); t:SetPoint("TOPLEFT", 2, 0); t:SetText(L"Что нового")
-  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -26); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
-  sub:SetText(L"История обновлений WolfichMarket")
-  -- Компактный сетевой индикатор: считаем только реально замеченных участников канала,
-  -- а не всех игроков сервера. Не показываем выдуманное число онлайн.
-  local net = UI.Font(f, 11, UI.DIM)
-  net:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -4)
-  net:SetJustifyH("RIGHT")
-  home.net = net
-  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -48); sf:SetPoint("BOTTOMRIGHT", 0, 0)
+  -- Preview: a clearly visible, restrained dashboard header (no custom item icons).
+  local banner = CreateFrame("Frame", nil, f)
+  banner:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+  banner:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+  banner:SetHeight(112)
+  local bg = banner:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(0.055, 0.085, 0.115, 0.94)
+  local line = banner:CreateTexture(nil, "BORDER")
+  line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT"); line:SetHeight(2)
+  line:SetColorTexture(0.75, 0.57, 0.26, 0.95)
+  local accent = banner:CreateTexture(nil, "BORDER")
+  accent:SetPoint("TOPLEFT", 0, 0); accent:SetPoint("BOTTOMLEFT", 0, 0)
+  accent:SetWidth(4); accent:SetColorTexture(0.84, 0.65, 0.32, 1)
+  local mark = UI.Font(banner, 12, UI.DIM)
+  mark:SetPoint("TOPLEFT", 18, -12)
+  mark:SetText("WOLFICHMARKET  /  FOREVER")
+  local title = UI.Font(banner, 23, UI.GOLD)
+  title:SetPoint("TOPLEFT", 18, -31)
+  title:SetText(L"Обзор рынка")
+  local caption = UI.Font(banner, 12, UI.TEXT)
+  caption:SetPoint("TOPLEFT", 18, -69)
+  caption:SetText(L"Цены, профессии и обмен данными в одном месте")
+  home.banner = banner
+  -- Three read-only summary cards; display only facts already known by the addon.
+  home.metrics = {}
+  local specs = {
+    { L"Снимок аукциона", "scan" },
+    { L"Цены игроков", "received" },
+    { L"Обмен данными", "network" },
+  }
+  for i, spec in ipairs(specs) do
+    local card = CreateFrame("Frame", nil, f)
+    card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * 324, -122)
+    card:SetSize(312, 65)
+    local cbg = card:CreateTexture(nil, "BACKGROUND")
+    cbg:SetAllPoints()
+    cbg:SetColorTexture(0.06, 0.087, 0.11, 1)
+    local bar = card:CreateTexture(nil, "BORDER")
+    bar:SetPoint("TOPLEFT"); bar:SetPoint("BOTTOMLEFT")
+    bar:SetWidth(3)
+    bar:SetColorTexture(0.68, 0.52, 0.28, 1)
+    local label = UI.Font(card, 10, UI.DIM)
+    label:SetPoint("TOPLEFT", 14, -8)
+    label:SetText(spec[1])
+    local value = UI.Font(card, 13, UI.TEXT)
+    value:SetPoint("TOPLEFT", 14, -28)
+    value:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    value:SetJustifyH("LEFT")
+    value:SetWordWrap(false)
+    home.metrics[spec[2]] = value
+  end
+  local t = UI.Font(f, 16, UI.GOLD); t:SetPoint("TOPLEFT", 2, -205); t:SetText(L"История обновлений")
+  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -229); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
+  sub:SetText(L"Изменения версий WolfichMarket")
+  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -255); sf:SetPoint("BOTTOMRIGHT", 0, 0)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
   local child = CreateFrame("Frame", nil, sf); child:SetSize(780, 400); sf:SetScrollChild(child)
   local cur = 0
@@ -1072,16 +1164,21 @@ local function refreshHome()
   if not home.child then return end
   local W = (home.sf:GetWidth() or 0) > 100 and home.sf:GetWidth() or 790
   home.child:SetWidth(W)
-  if home.net then
+  if home.metrics then
+    local scan = ns.CurrentScan and ns.CurrentScan()
+    local scanStamp = scan and scan.t
+    home.metrics.scan:SetText(scanStamp and (L"Снимок " .. ns.ago(scanStamp)) or L"Снимка пока нет")
+    local receivedAt = ns.NetInfo and ns.NetInfo()
+    home.metrics.received:SetText(receivedAt and (L"Получены " .. ns.ago(receivedAt)) or L"Пока нет данных")
     local settings = ns.DB and ns.DB.settings or {}
     if settings.netSend == false and settings.netRecv == false then
-      home.net:SetText("|cff999999●|r  " .. L"Обмен отключён")
+      home.metrics.network:SetText("|cff999999" .. L"Обмен отключён" .. "|r")
     else
       local seen, now = 0, time()
       for _, stamp in pairs(ns._netInChannel or {}) do
-        if type(stamp) == "number" and now - stamp < 300 then seen = seen + 1 end
+        if type(stamp) == "number" and now - stamp >= 0 and now - stamp < 300 then seen = seen + 1 end
       end
-      home.net:SetText("|cff70cf82●|r  " .. L"Обмен включён" .. "   |cffaaa69c·|r   " .. L"Обнаружено" .. ": " .. seen)
+      home.metrics.network:SetText("|cff70cf82" .. L"Включён" .. "|r   " .. L"Участников замечено" .. ": " .. seen)
     end
   end
   local lang = ns.Lang()
