@@ -726,17 +726,9 @@ local SORTS = { name = L"Название", p = L"Цена", q = L"Кол-во",
 local function buildAuc(f)
   local S = ns.DB.settings
   S.aucCat = S.aucCat or {}
-  -- Separate the auction controls visually from the data grid.
-  local toolbar = f:CreateTexture(nil, "BACKGROUND", nil, -5)
-  toolbar:SetPoint("TOPLEFT", f, "TOPLEFT", -4, 5)
-  toolbar:SetPoint("TOPRIGHT", f, "TOPRIGHT", 4, 5)
-  toolbar:SetHeight(44)
-  toolbar:SetColorTexture(0.065, 0.09, 0.11, 0.90)
-  local toolbarEdge = f:CreateTexture(nil, "BACKGROUND", nil, -4)
-  toolbarEdge:SetPoint("TOPLEFT", f, "TOPLEFT", -4, -38)
-  toolbarEdge:SetPoint("TOPRIGHT", f, "TOPRIGHT", 4, -38)
-  toolbarEdge:SetHeight(1)
-  toolbarEdge:SetColorTexture(0.55, 0.44, 0.25, 0.85)
+  -- Keep the existing compact auction controls layout. No decorative toolbar
+  -- background: the controls, scan status and table header occupy separate
+  -- tight rows, and an added texture can visually cross their boundaries.
   -- верхняя строка: какой аукцион, поиск, категория
   aucp.kind = {}
   local x = 0
