@@ -283,6 +283,13 @@ function UI.FantasyHeader(frame, inset, top, height, alpha, warm)
   plate:SetHeight(height)
   if warm then
     plate:SetColorTexture(0.23, 0.143, 0.056, alpha)
+    -- Subtle goldwork in dashboard headers, sampled from the quiet center
+    -- of the authored button. At low opacity it reads as embossed metal.
+    local etch = frame:CreateTexture(nil, "BACKGROUND", nil, -2)
+    UI.WolfTex(etch, "ref-button-gold")
+    etch:SetTexCoord(0.36, 0.64, 0.22, 0.78)
+    etch:SetAllPoints(plate)
+    etch:SetAlpha(0.22)
   else
     plate:SetColorTexture(0.045, 0.100, 0.160, alpha)
   end
@@ -469,7 +476,8 @@ function UI.Button(parent, text, w, h, onClick, gold)
       piece:SetVertexColor(1, 1, 1)
     end
     skinLeft:SetTexCoord(0,0.15,0,1)
-    skinMid:SetTexCoord(0.34,0.58,0.08,0.92)
+    -- All three slices use the same vertical range, avoiding horizontal seams.
+    skinMid:SetTexCoord(0.46,0.54,0,1)
     skinRight:SetTexCoord(0.85,1,0,1)
     for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
     if en and isGold then
