@@ -1166,7 +1166,7 @@ local function build()
   win:SetMovable(true); win:EnableMouse(true); win:SetClampedToScreen(true)
   tinsert(UISpecialFrames, "WolfichMarketMainFrame")
   win.content = UI.MainChromeCompact(win, function(i) selectView(i) end, NAV_NAMES)
-  win.chromeVer:SetText("v" .. (ns.VERSION or ""))
+  win.chromeVer:SetText("|cff70d6ffDEV DESIGN|r  v" .. (ns.VERSION or ""))
   -- разделы по порядку значков колонки
   win.tabs = win.nav
   win.pages = {}
