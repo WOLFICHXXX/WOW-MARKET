@@ -264,7 +264,7 @@ end
 function UI.Title(parent, text)
   if parent.wmTheme == "flat" then
     local logo = parent:CreateTexture(nil, "OVERLAY"); logo:SetSize(18, 18); logo:SetPoint("LEFT", parent, "TOPLEFT", 14, -20)
-    UI.WolfTex(logo, "nav-paw"); logo:SetVertexColor(0.95, 0.78, 0.38)
+    UI.WolfTex(logo, "approved-nav-paw"); logo:SetVertexColor(0.95, 0.78, 0.38)
     local fs = parent:CreateFontString(nil, "OVERLAY"); setFont(fs, UI.TITLE_FONT, 19, "")
     fs:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); fs:SetJustifyH("LEFT"); fs:SetWordWrap(false)
     fs:SetPoint("LEFT", logo, "RIGHT", 8, 0); fs:SetText(text)
