@@ -1018,7 +1018,7 @@ local function buildSettings(f)
   rl:SetPoint("LEFT", jb, "RIGHT", 10, 0)
   setp.reloadAlways = rl
   local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 4, 4); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
-  about:SetText("WolfichMarket " .. (ns.VERSION or "") .. L"  -  обновление: WolfichMarket-Updater.bat с сайта или CurseForge.  Команды: /wm help")
+  about:SetText("WolfichMarket " .. (ns.VERSION or "") .. "  |cff70d6ffDEV DESIGN|r  ·  " .. L"Тестовая сборка GitHub (design-preview). Команды: /wm help")
   setp.refresh = function() rAuto(); rChat(); rLang() end
 end
 local function refreshSettings() if setp.refresh then setp.refresh() end end
