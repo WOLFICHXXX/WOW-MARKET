@@ -149,67 +149,82 @@ function UI.WolfTex(texture, name)
 end
 -- True nine-slice painted fantasy frame, sourced from approved-panel.tga.
 -- Texture corners stay proportionate while the center stretches to its frame.
+-- Reference-themed nine-slice frame. Every segment comes from the imported
+-- transparent fantasy TGA instead of stretching a whole painted screenshot.
+-- The middle uses independent cracked-stone artwork; no labels are baked in.
 function UI.OrnatePanel(frame, alpha, cap)
-  cap = cap or 14
-  alpha = alpha or 0.93
-  local pieces = {
-    { "tl", 0, 0.15, 0, 0.16, "TOPLEFT" },
-    { "tr", 0.85, 1, 0, 0.16, "TOPRIGHT" },
-    { "bl", 0, 0.15, 0.84, 1, "BOTTOMLEFT" },
-    { "br", 0.85, 1, 0.84, 1, "BOTTOMRIGHT" },
-  }
-  for _, p in ipairs(pieces) do
-    local t = frame:CreateTexture(nil, "BORDER", nil, 2)
-    UI.WolfTex(t, "approved-panel")
-    t:SetTexCoord(p[2], p[3], p[4], p[5])
-    t:SetSize(cap, cap)
-    t:SetPoint(p[6], frame, p[6])
-    t:SetAlpha(alpha)
+  alpha = alpha or 0.95
+  cap = math.max(16, cap or 18)
+  local function piece(layer, sub, l, r, t, b, anchor, x, y, w, h)
+    local tex = frame:CreateTexture(nil, layer, nil, sub)
+    UI.WolfTex(tex, "ref-panel")
+    tex:SetTexCoord(l, r, t, b)
+    tex:SetSize(w, h)
+    tex:SetPoint(anchor, frame, anchor, x or 0, y or 0)
+    tex:SetAlpha(alpha)
+    return tex
   end
-  -- Image-atlas strips contain black scenery; stretching them produced
-  -- thick black bands in the header and on short recipe panels.
-  -- Preserve painted corner motifs, but join them with fine bronze lines.
-  local function rim(pointA, pointB, ax, ay, bx, by, horizontal)
-    local t = frame:CreateTexture(nil, "BORDER", nil, 1)
-    t:SetColorTexture(0.68, 0.51, 0.28, alpha * 0.78)
-    if horizontal then t:SetHeight(1) else t:SetWidth(1) end
-    t:SetPoint(pointA, frame, pointA, ax, ay)
-    t:SetPoint(pointB, frame, pointB, bx, by)
+  -- Ornamented corners remain proportional at every window size.
+  piece("BORDER", 2, 0, 0.15, 0, 0.25, "TOPLEFT", 0, 0, cap, cap)
+  piece("BORDER", 2, 0.85, 1, 0, 0.25, "TOPRIGHT", 0, 0, cap, cap)
+  piece("BORDER", 2, 0, 0.15, 0.75, 1, "BOTTOMLEFT", 0, 0, cap, cap)
+  piece("BORDER", 2, 0.85, 1, 0.75, 1, "BOTTOMRIGHT", 0, 0, cap, cap)
+  local function edgeTex(anchor, horizontal, l, r, t, b)
+    local tex = frame:CreateTexture(nil, "BORDER", nil, 1)
+    UI.WolfTex(tex, "ref-panel")
+    tex:SetTexCoord(l, r, t, b)
+    if horizontal then
+      tex:SetHeight(5)
+      tex:SetPoint(anchor .. "LEFT", frame, anchor .. "LEFT", cap, 0)
+      tex:SetPoint(anchor .. "RIGHT", frame, anchor .. "RIGHT", -cap, 0)
+    else
+      tex:SetWidth(5)
+      tex:SetPoint("TOP" .. anchor, frame, "TOP" .. anchor, 0, -cap)
+      tex:SetPoint("BOTTOM" .. anchor, frame, "BOTTOM" .. anchor, 0, cap)
+    end
+    tex:SetAlpha(alpha)
   end
-  rim("TOPLEFT", "TOPRIGHT", cap, -1, -cap, -1, true)
-  rim("BOTTOMLEFT", "BOTTOMRIGHT", cap, 1, -cap, 1, true)
-  rim("TOPLEFT", "BOTTOMLEFT", 1, -cap, 1, cap, false)
-  rim("TOPRIGHT", "BOTTOMRIGHT", -1, -cap, -1, cap, false)
+  -- Select quiet stretches between the central diamonds, not the full edge.
+  edgeTex("TOP", true, 0.24, 0.39, 0.045, 0.125)
+  edgeTex("BOTTOM", true, 0.24, 0.39, 0.875, 0.955)
+  edgeTex("LEFT", false, 0.025, 0.075, 0.29, 0.41)
+  edgeTex("RIGHT", false, 0.925, 0.975, 0.29, 0.41)
   local center = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
-  -- Newly authored native TGA stone layer. Texture content has no letters,
-  -- so window sizes and headings are independent of the artwork.
-  UI.WolfTex(center, "reference-stone")
+  UI.WolfTex(center, "ref-stone")
   center:SetTexCoord(0, 1, 0, 1)
-  center:SetPoint("TOPLEFT", frame, "TOPLEFT", cap, -cap)
-  center:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -cap, cap)
-  center:SetAlpha(alpha * 0.65)
+  center:SetPoint("TOPLEFT", frame, "TOPLEFT", cap - 4, -(cap - 4))
+  center:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(cap - 4), cap - 4)
+  center:SetAlpha(alpha * 0.91)
 end
--- панель внутри окна: тёмная подложка и тонкая золотая кромка
-function UI.Box(f, alpha)
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.045, 0.065, 0.085, alpha or 0.62)
-  UI.OrnatePanel(f, 0.86, 12)
-  local function line(p1, p2, horiz)
-    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.31, 0.37, 0.40, 0.95)
-    if horiz then t:SetHeight(1) else t:SetWidth(1) end
-    t:SetPoint(p1); t:SetPoint(p2)
+-- A luxury three-slice gilded heading band, used on all tab panels.
+-- No baked text; the existing FontStrings stay live and translated.
+function UI.FantasyHeader(frame, inset, top, height, alpha)
+  inset, top, height, alpha = inset or 10, top or -9, height or 31, alpha or 0.86
+  local left = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
+  local mid = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
+  local right = frame:CreateTexture(nil, "BACKGROUND", nil, -3)
+  for _, tex in ipairs({ left, mid, right }) do
+    UI.WolfTex(tex, "ref-button-gold")
+    tex:SetAlpha(alpha)
+    tex:SetVertexColor(0.69, 0.62, 0.49)
   end
-  line("TOPLEFT", "TOPRIGHT", true); line("BOTTOMLEFT", "BOTTOMRIGHT", true); line("TOPLEFT", "BOTTOMLEFT"); line("TOPRIGHT", "BOTTOMRIGHT")
-  -- Slim bronze bevel: no artwork dependency, no mouse interception.
-  local highlight = f:CreateTexture(nil, "BORDER", nil, 2)
-  highlight:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
-  highlight:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
-  highlight:SetHeight(1)
-  highlight:SetColorTexture(0.70, 0.53, 0.28, 0.65)
-  local foot = f:CreateTexture(nil, "BORDER", nil, 2)
-  foot:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 2, 2)
-  foot:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 2)
-  foot:SetHeight(1)
-  foot:SetColorTexture(0.15, 0.21, 0.24, 0.92)
+  left:SetTexCoord(0, 0.14, 0, 1)
+  left:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, top)
+  left:SetSize(25, height)
+  right:SetTexCoord(0.86, 1, 0, 1)
+  right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, top)
+  right:SetSize(25, height)
+  mid:SetTexCoord(0.34, 0.55, 0.08, 0.92)
+  mid:SetPoint("TOPLEFT", left, "TOPRIGHT")
+  mid:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT")
+  return left, mid, right
+end
+-- Interior panel keeps the authored stone and the ornamental nine-slice.
+function UI.Box(f, alpha)
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6)
+  bg:SetAllPoints()
+  bg:SetColorTexture(0.025, 0.043, 0.071, alpha or 0.93)
+  UI.OrnatePanel(f, 0.96, 19)
   f.wmBox = true
   return f
 end
@@ -328,11 +343,11 @@ function UI.Button(parent, text, w, h, onClick, gold)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
   -- Three-piece real painted button; the ornate caps never stretch.
   local skinLeft = b:CreateTexture(nil, "ARTWORK", nil, -2)
-  skinLeft:SetWidth(14)
+  skinLeft:SetWidth(16)
   skinLeft:SetPoint("TOPLEFT", b, "TOPLEFT")
   skinLeft:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT")
   local skinRight = b:CreateTexture(nil, "ARTWORK", nil, -2)
-  skinRight:SetWidth(14)
+  skinRight:SetWidth(16)
   skinRight:SetPoint("TOPRIGHT", b, "TOPRIGHT")
   skinRight:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT")
   local skinMid = b:CreateTexture(nil, "ARTWORK", nil, -3)
@@ -371,13 +386,13 @@ function UI.Button(parent, text, w, h, onClick, gold)
     bg:SetColorTexture(st.bg[1], st.bg[2], st.bg[3], st.bg[4])
     local variant = (not en and "dark") or (isGold and "gold" or "dark")
     for _, piece in ipairs({ skinLeft, skinMid, skinRight }) do
-      UI.WolfTex(piece, "approved-button-" .. variant)
-      piece:SetAlpha(en and 0.90 or 0.37)
-      piece:SetVertexColor(0.90, 0.89, 0.85)
+      UI.WolfTex(piece, "ref-button-" .. variant)
+      piece:SetAlpha(en and 0.99 or 0.42)
+      piece:SetVertexColor(1, 1, 1)
     end
-    skinLeft:SetTexCoord(0,0.18,0,1)
-    skinMid:SetTexCoord(0.18,0.82,0,1)
-    skinRight:SetTexCoord(0.82,1,0,1)
+    skinLeft:SetTexCoord(0,0.15,0,1)
+    skinMid:SetTexCoord(0.34,0.58,0.08,0.92)
+    skinRight:SetTexCoord(0.85,1,0,1)
     for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
     if en and isGold then
       bevelTop:SetColorTexture(0.90, 0.75, 0.48, 0.52)
@@ -1064,15 +1079,15 @@ function UI.FlatSkin(f, opts)
   bg:SetAllPoints()
   bg:SetColorTexture(0.035, 0.055, 0.075, 1)
   -- Same authored corners as the main window, with thin bronze joins.
-  UI.OrnatePanel(f, 0.66, 12)
+  UI.OrnatePanel(f, 0.95, 20)
   edge(f, 0.47, 0.40, 0.25, 0.9)
   local head = opts.head or 40
   local band = f:CreateTexture(nil, "BACKGROUND", nil, -3)
   band:SetPoint("TOPLEFT", f, "TOPLEFT", 13, -12)
   band:SetPoint("TOPRIGHT", f, "TOPRIGHT", -13, -12)
   band:SetHeight(math.max(24, head - 13))
-  UI.WolfTex(band, "reference-headband")
-  band:SetTexCoord(0, 1, 0, 1)
+  UI.WolfTex(band, "ref-header-wolves")
+  band:SetTexCoord(0.19, 0.81, 0.20, 0.80)
   band:SetAlpha(0.84)
   local hl = f:CreateTexture(nil, "BORDER")
   hl:SetColorTexture(0.67, 0.48, 0.25, 0.65)
@@ -1092,11 +1107,11 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local railArt = rail:CreateTexture(nil, "BACKGROUND", nil, -7)
   -- The tall painting has a large crown at its top. Crop it to the quiet
   -- navy center and reserve the top 75px for the readable brand/navigation.
-  railArt:SetPoint("TOPLEFT", rail, "TOPLEFT", 4, -77)
-  railArt:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -4, 6)
-  UI.WolfTex(railArt, "approved-sidebar")
-  railArt:SetTexCoord(0.14, 0.86, 0.24, 0.82)
-  railArt:SetAlpha(0.84)
+  railArt:SetPoint("TOPLEFT", rail, "TOPLEFT", 2, -274)
+  railArt:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -2, 2)
+  UI.WolfTex(railArt, "ref-sidebar-wolf")
+  railArt:SetTexCoord(0, 1, 0, 1)
+  railArt:SetAlpha(1)
   edge(rail, unpack(GOLD_EDGE))
   local railAccent = rail:CreateTexture(nil, "BORDER", nil, 2)
   railAccent:SetPoint("TOPRIGHT", rail, "TOPRIGHT", -2, -2)
@@ -1109,12 +1124,12 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
   local mainArt = main:CreateTexture(nil, "BACKGROUND", nil, -7)
   mainArt:SetAllPoints()
-  UI.WolfTex(mainArt, "reference-stone")
+  UI.WolfTex(mainArt, "ref-stone")
   mainArt:SetTexCoord(0, 1, 0, 1)
-  mainArt:SetAlpha(0.50)
+  mainArt:SetAlpha(0.92)
   -- The dark inset keeps real item names and costs legible over art.
   edge(main, unpack(GOLD_EDGE))
-  UI.OrnatePanel(main, 0.93, 16)
+  UI.OrnatePanel(main, 0.96, 20)
   -- Fine inner stroke gives the old-world bronze frame a second edge.
   local insetTop = main:CreateTexture(nil, "BORDER", nil, 2)
   insetTop:SetPoint("TOPLEFT", main, "TOPLEFT", 3, -3)
@@ -1141,9 +1156,15 @@ function UI.MainChromeCompact(win, onNav, navTips)
   headerArt:SetPoint("BOTTOMRIGHT", top, "BOTTOMRIGHT", -1, 2)
   -- A quiet texture behind the toolbar; keep the moon/wolf illustration
   -- out of the narrow text strip entirely.
-  UI.WolfTex(headerArt, "reference-headband")
-  headerArt:SetTexCoord(0, 1, 0, 1)
-  headerArt:SetAlpha(0.92)
+  UI.WolfTex(headerArt, "ref-header-wolves")
+  headerArt:SetTexCoord(0.19, 0.81, 0.17, 0.83)
+  headerArt:SetAlpha(0.96)
+  local headerWolf = top:CreateTexture(nil, "BORDER", nil, 1)
+  headerWolf:SetSize(65, HEAD)
+  headerWolf:SetPoint("TOPRIGHT", top, "TOPRIGHT", -37, 0)
+  UI.WolfTex(headerWolf, "ref-header-wolves")
+  headerWolf:SetTexCoord(0.80, 1, 0, 1)
+  headerWolf:SetAlpha(0.96)
   local hl = top:CreateTexture(nil, "BORDER")
   hl:SetColorTexture(0.76, 0.55, 0.24, 1)
   hl:SetHeight(2); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
@@ -1172,7 +1193,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 22)
   UI.WolfTex(wolf, "approved-wolf-emblem")
   wolf:SetTexCoord(0, 1, 0, 1)
-  wolf:SetAlpha(0.95)
+  wolf:SetAlpha(0) -- large illustrated wolf now fills the sidebar itself
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
@@ -1184,9 +1205,9 @@ function UI.MainChromeCompact(win, onNav, navTips)
     b.goldPlate = b:CreateTexture(nil, "BORDER", nil, -2)
     b.goldPlate:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0)
     b.goldPlate:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, 0)
-    UI.WolfTex(b.goldPlate, "approved-button-gold")
+    UI.WolfTex(b.goldPlate, "ref-button-gold")
     b.goldPlate:SetTexCoord(0, 1, 0, 1)
-    b.goldPlate:SetAlpha(0.60)
+    b.goldPlate:SetAlpha(0.98)
     b.goldPlate:Hide()
     local hover = b:CreateTexture(nil, "HIGHLIGHT")
     hover:SetAllPoints()
@@ -1204,8 +1225,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
     b.selBottom:SetColorTexture(0.44, 0.34, 0.19, 0.80)
     b.selBottom:Hide()
     b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(3, 34); b.bar:SetPoint("LEFT", b, "LEFT", -1, 0); b.bar:Hide()
-    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(33, 33); b.icon:SetPoint("LEFT", b, "LEFT", 4, 0); UI.WolfTex(b.icon, "approved-" .. c)
-    b.text = UI.Font(b, 12, UI.TEXT)
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(35, 35); b.icon:SetPoint("LEFT", b, "LEFT", 4, 0); UI.WolfTex(b.icon, "approved-" .. c)
+    b.text = UI.Font(b, 13, UI.TEXT)
     b.text:SetPoint("LEFT", b.icon, "RIGHT", 10, 0)
     b.text:SetPoint("RIGHT", b, "RIGHT", -5, 0)
     b.text:SetJustifyH("LEFT")
