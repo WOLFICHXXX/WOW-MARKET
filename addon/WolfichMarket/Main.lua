@@ -371,11 +371,11 @@ local function buildCraft(f)
   local listHead = craft.listBox:CreateTexture(nil, "BACKGROUND", nil, -3)
   listHead:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 1, -1)
   listHead:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -1, -1)
-  listHead:SetHeight(41)
-  listHead:SetColorTexture(0.19, 0.145, 0.079, 0.97)
+  listHead:SetHeight(36)
+  listHead:SetColorTexture(0.075, 0.105, 0.130, 0.98)
   local listHeadRule = craft.listBox:CreateTexture(nil, "BORDER")
-  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -41)
-  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -41)
+  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -36)
+  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -36)
   listHeadRule:SetHeight(1)
   listHeadRule:SetColorTexture(0.72, 0.52, 0.25, 0.89)
   -- шапка списка: столбики Ф и Общ
@@ -443,8 +443,8 @@ local function buildCraft(f)
     craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 33)
     -- The ornate top rim occupies ~12px; labels get a separate band,
     -- and the first recipe starts after the band rather than behind it.
-    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 15, -20); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -18, 0)
-    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 7, -45); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -7, 13)
+    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 15, -17); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -18, 0)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 7, -38); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -7, 13)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 33)
   end
   craft.setTop(0)
@@ -452,22 +452,22 @@ local function buildCraft(f)
   local cardHeader = card:CreateTexture(nil, "BACKGROUND", nil, -3)
   cardHeader:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
   cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
-  cardHeader:SetHeight(40)
-  cardHeader:SetColorTexture(0.19, 0.145, 0.079, 0.97)
+  cardHeader:SetHeight(36)
+  cardHeader:SetColorTexture(0.075, 0.105, 0.130, 0.98)
   -- Highlight the recipe detail rather than covering any item icons.
   local cardAccent = card:CreateTexture(nil, "BORDER", nil, 1)
   cardAccent:SetPoint("TOPLEFT", card, "TOPLEFT", 3, -4)
-  cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -36)
+  cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -32)
   cardAccent:SetWidth(3)
   cardAccent:SetColorTexture(0.89, 0.67, 0.30, 0.93)
   -- Dark fantasy heading framed with a double bronze line.
   local cardRule = card:CreateTexture(nil, "BORDER")
-  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -40)
-  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -40)
+  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -36)
+  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -36)
   cardRule:SetHeight(1)
   cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
-  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -19, -20); card.level:SetJustifyH("RIGHT")
-  card.title = UI.Font(card, 16, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 16, ""); card.title:SetPoint("TOPLEFT", 21, -17); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
+  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -19, -16); card.level:SetJustifyH("RIGHT")
+  card.title = UI.Font(card, 15, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 15, ""); card.title:SetPoint("TOPLEFT", 19, -14); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
   -- An opaque, raised empty state hides all chart internals (including any
   -- stray slider/marker texture) until a recipe is actually selected.
   local empty = CreateFrame("Frame", nil, card)
@@ -533,7 +533,7 @@ local function buildCraft(f)
     r:Hide(); card.rows[i] = r
   end
   -- порции: сколько раз крафтить - пересчёт материалов, «докупить» и прибыли; «Запланировать» - в план закупки
-  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(34); card.portRow = prow
+  local prow = CreateFrame("Frame", nil, card); prow:SetHeight(29); card.portRow = prow
   local pl = UI.Font(prow, 12); pl:SetPoint("LEFT", 2, 0); pl:SetText(L"Порций:")
   local function setN(v)
     if not sel then return end
@@ -542,27 +542,27 @@ local function buildCraft(f)
     fillCard(sel)
   end
   local function cur() return sel and craft.portions and craft.portions[sel.id] or 1 end
-  local minus = UI.Button(prow, "-", 28, 26, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
+  local minus = UI.Button(prow, "-", 26, 23, function() setN(cur() - 1) end); minus:SetPoint("LEFT", pl, "RIGHT", 8, 0)
   card.portion = CreateFrame("EditBox", nil, prow, "InputBoxTemplate"); card.portion:SetSize(40, 22); card.portion:SetPoint("LEFT", minus, "RIGHT", 8, 0)
   card.portion:SetAutoFocus(false); card.portion:SetNumeric(true); card.portion:SetMaxLetters(3); card.portion:SetJustifyH("CENTER")
   if card.portion.SetFont then UI.SetFont(card.portion, UI.FONT, 13, "") end
   card.portion:SetScript("OnEnterPressed", function(self) self:ClearFocus(); setN(self:GetText()) end)
   card.portion:SetScript("OnEditFocusLost", function(self) setN(self:GetText()) end)
-  local plus = UI.Button(prow, "+", 28, 26, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
-  local p5 = UI.Button(prow, "+5", 38, 26, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
-  card.plan = UI.Button(prow, L"Запланировать", 150, 26, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
+  local plus = UI.Button(prow, "+", 26, 23, function() setN(cur() + 1) end); plus:SetPoint("LEFT", card.portion, "RIGHT", 4, 0)
+  local p5 = UI.Button(prow, "+5", 34, 23, function() setN(cur() + 5) end); p5:SetPoint("LEFT", plus, "RIGHT", 4, 0)
+  card.plan = UI.Button(prow, L"Запланировать", 136, 23, function() if sel then ns.AddPlan(sel, charKey, prof, craft.portions[sel.id] or 1) end end, true)
   card.plan:SetPoint("RIGHT", 0, 0)
   card.plan:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L"Сохранить рецепт и число порций в план. У аукциониста во вкладке «План» будет список всего, что нужно докупить.", 1, 1, 1, true); GameTooltip:Show() end)
   card.plan:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- кнопки: Крафт / На аукционе - на всю ширину карточки, поровну
-  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(34)
+  local brow = CreateFrame("Frame", nil, card); brow:SetHeight(27)
   brow:SetPoint("TOPLEFT", prow, "BOTTOMLEFT", 0, -6); brow:SetPoint("RIGHT", prow, "RIGHT", 0, 0)
-  card.craft = UI.Button(brow, L"Крафт", 100, 28, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
+  card.craft = UI.Button(brow, L"Крафт", 100, 25, function() if sel then ns.OpenRecipeInGame(sel, prof) end end, true)
   card.craft:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(self.tip or L"Открыть этот рецепт в окне профессии", 1, 1, 1, true); GameTooltip:Show() end)
   card.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- «Где взять»: тренер, продавцы, добыча, задания, репутация и карта зоны
   -- «На аукционе»: найти результат у аукциониста и обновить цены всего рецепта
-  card.onAH = UI.Button(brow, L"На аукционе", 100, 28, function()
+  card.onAH = UI.Button(brow, L"На аукционе", 100, 25, function()
     if not sel then return end
     if not ns.AHIsOpen() then ns.say(L"цены обновляются у аукциониста - откройте аукцион.") return end
     ns.QuickRefresh(ns.RecipePriceIDs(sel))
@@ -573,8 +573,8 @@ local function buildCraft(f)
   card.prices, card.alarm = card.onAH, card.onAH
   local function layoutBtns()
     local w = (brow:GetWidth() or 0); if w < 60 then w = 380 end
-    local bw = math.floor((w - 6) / 2)
-    for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
+    local bw = math.floor((w - 50) / 2)
+    for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", 25 + (i - 1) * (bw + 8), 0) end
   end
   brow:SetScript("OnSizeChanged", layoutBtns); layoutBtns()
   card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 8, -10); card.total:SetPoint("RIGHT", -14, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
