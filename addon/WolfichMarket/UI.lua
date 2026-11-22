@@ -378,8 +378,8 @@ function UI.List(parent, rowH, makeRow, fillRow)
   local bar = CreateFrame("Slider", nil, box)
   bar:SetWidth(8); bar:SetPoint("TOPRIGHT", 0, 0); bar:SetPoint("BOTTOMRIGHT", 0, 0)
   bar:SetOrientation("VERTICAL"); bar:SetMinMaxValues(0, 0); bar:SetValueStep(1)
-  local track = bar:CreateTexture(nil, "BACKGROUND"); track:SetAllPoints(); track:SetColorTexture(0, 0, 0, 0.35)
-  local th = bar:CreateTexture(nil, "OVERLAY"); th:SetColorTexture(0.85, 0.66, 0.32, 0.9); th:SetSize(8, 28)
+  local track = bar:CreateTexture(nil, "BACKGROUND"); track:SetAllPoints(); track:SetColorTexture(0.025, 0.045, 0.060, 0.95)
+  local th = bar:CreateTexture(nil, "OVERLAY"); th:SetColorTexture(0.85, 0.68, 0.37, 1); th:SetSize(8, 28)
   bar:SetThumbTexture(th)
   box.bar = bar
   -- раскрытие строки (box:EnableDetail): слева треугольник, под строкой - панель на n строк
@@ -391,8 +391,14 @@ function UI.List(parent, rowH, makeRow, fillRow)
       r.box = self
       r:SetHeight(rowH)
       r:SetPoint("TOPLEFT", DX, -(i - 1) * rowH); r:SetPoint("RIGHT", bar, "LEFT", -2, 0)
-      local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetTexture(M .. "row-hl")
-      if i % 2 == 0 then local z = r:CreateTexture(nil, "BACKGROUND"); z:SetAllPoints(); z:SetColorTexture(1, 1, 1, 0.025) end
+      local hl = r:CreateTexture(nil, "HIGHLIGHT")
+      hl:SetAllPoints()
+      hl:SetColorTexture(0.75, 0.56, 0.28, 0.16)
+      if i % 2 == 0 then
+        local z = r:CreateTexture(nil, "BACKGROUND")
+        z:SetAllPoints()
+        z:SetColorTexture(0.14, 0.20, 0.24, 0.28)
+      end
       if self.detailN then
         local t = CreateFrame("Button", nil, r); t:SetSize(14, rowH); t:SetPoint("RIGHT", r, "LEFT", -1, 0)
         t.tex = t:CreateTexture(nil, "ARTWORK"); t.tex:SetSize(11, 11); t.tex:SetPoint("CENTER"); UI.WinTex(t.tex, "tri")
@@ -414,7 +420,7 @@ function UI.List(parent, rowH, makeRow, fillRow)
     self.rows = {}; self.visible = nil
     local det = CreateFrame("Frame", nil, self)
     det:SetHeight(n * rowH)
-    local bg = det:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.42)
+    local bg = det:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.040, 0.075, 0.095, 0.98)
     local ln = det:CreateTexture(nil, "BORDER"); ln:SetHeight(1); ln:SetPoint("BOTTOMLEFT"); ln:SetPoint("BOTTOMRIGHT"); ln:SetColorTexture(0.55, 0.42, 0.2, 0.6)
     make(det); det.fill = fill; det:Hide()
     self.det = det
