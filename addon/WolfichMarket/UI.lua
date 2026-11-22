@@ -255,19 +255,20 @@ function UI.InnerPanel(f, alpha)
     t:SetPoint(b, f, b, x2, y2)
     return t
   end
-  line("TOPLEFT", "TOPRIGHT", 8, -1, -8, -1, true, 0.91)
-  line("BOTTOMLEFT", "BOTTOMRIGHT", 8, 1, -8, 1, true, 0.91)
-  line("TOPLEFT", "BOTTOMLEFT", 1, -8, 1, 8, false, 0.82)
-  line("TOPRIGHT", "BOTTOMRIGHT", -1, -8, -1, 8, false, 0.82)
-  -- Small diagonal corners provide a forged finish without ornate repetition.
+  -- Closed one-pixel outline; the four sides join without black gaps.
+  line("TOPLEFT", "TOPRIGHT", 1, -1, -1, -1, true, 0.91)
+  line("BOTTOMLEFT", "BOTTOMRIGHT", 1, 1, -1, 1, true, 0.91)
+  line("TOPLEFT", "BOTTOMLEFT", 1, -1, 1, 1, false, 0.82)
+  line("TOPRIGHT", "BOTTOMRIGHT", -1, -1, -1, 1, false, 0.82)
+  -- Minimal internal glints, never heavy square atlas corner pieces.
   for _, corner in ipairs({
-    { "TOPLEFT", 2, -2 }, { "TOPRIGHT", -2, -2 },
-    { "BOTTOMLEFT", 2, 2 }, { "BOTTOMRIGHT", -2, 2 },
+    { "TOPLEFT", 4, -4 }, { "TOPRIGHT", -4, -4 },
+    { "BOTTOMLEFT", 4, 4 }, { "BOTTOMRIGHT", -4, 4 },
   }) do
-    local gem = f:CreateTexture(nil, "BORDER", nil, 2)
-    gem:SetSize(5, 5)
-    gem:SetPoint(corner[1], f, corner[1], corner[2], corner[3])
-    gem:SetColorTexture(0.93, 0.72, 0.37, 0.73)
+    local glint = f:CreateTexture(nil, "BORDER", nil, 2)
+    glint:SetSize(2, 2)
+    glint:SetPoint(corner[1], f, corner[1], corner[2], corner[3])
+    glint:SetColorTexture(0.98, 0.78, 0.38, 0.60)
   end
   f.wmBox = true
   return f
