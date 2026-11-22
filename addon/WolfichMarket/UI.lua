@@ -256,11 +256,20 @@ end
 
 function UI.Title(parent, text)
   if parent.wmTheme == "flat" then
-    local logo = parent:CreateTexture(nil, "OVERLAY"); logo:SetSize(18, 18); logo:SetPoint("LEFT", parent, "TOPLEFT", 14, -20)
-    UI.WolfTex(logo, "approved-nav-paw"); logo:SetVertexColor(0.95, 0.78, 0.38)
-    local fs = parent:CreateFontString(nil, "OVERLAY"); setFont(fs, UI.TITLE_FONT, 19, "")
-    fs:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); fs:SetJustifyH("LEFT"); fs:SetWordWrap(false)
-    fs:SetPoint("LEFT", logo, "RIGHT", 8, 0); fs:SetText(text)
+    -- Restrained popup heading: small crest + readable type on the clean
+    -- navy band provided by FlatSkin. No oversized metallic nameplate.
+    local logo = parent:CreateTexture(nil, "OVERLAY")
+    logo:SetSize(16, 16)
+    logo:SetPoint("LEFT", parent, "TOPLEFT", 18, -20)
+    UI.WolfTex(logo, "approved-nav-paw")
+    logo:SetVertexColor(0.91, 0.79, 0.52)
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    setFont(fs, UI.BOLD, 16, "")
+    fs:SetTextColor(0.92, 0.78, 0.48)
+    fs:SetJustifyH("LEFT"); fs:SetWordWrap(false)
+    fs:SetPoint("LEFT", logo, "RIGHT", 10, 0)
+    fs:SetPoint("RIGHT", parent, "RIGHT", -46, 0)
+    fs:SetText(text)
     return fs, logo
   end
   local th = parent.wmTheme and UI.THEMES[parent.wmTheme]
@@ -1051,14 +1060,23 @@ UI.Edge = edge
 function UI.FlatSkin(f, opts)
   opts = opts or {}
   f.wmTheme, f.wmScale = "flat", 1
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); bg:SetColorTexture(0.035, 0.055, 0.075, 1)
-  -- Use the same newly painted navy/gold material as the main window.
-  -- Do not add the outdated floating paw pattern behind charts.
-  UI.OrnatePanel(f, 0.68, 12)
-  edge(f, 0.47, 0.40, 0.25, 1)
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+  bg:SetAllPoints()
+  bg:SetColorTexture(0.035, 0.055, 0.075, 1)
+  -- Same authored corners as the main window, with thin bronze joins.
+  UI.OrnatePanel(f, 0.66, 12)
+  edge(f, 0.47, 0.40, 0.25, 0.9)
   local head = opts.head or 40
-  local hl = f:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.39, 0.33, 0.20, 1); hl:SetHeight(1)
-  hl:SetPoint("TOPLEFT", 1, -head); hl:SetPoint("TOPRIGHT", -1, -head)
+  local band = f:CreateTexture(nil, "BACKGROUND", nil, -3)
+  band:SetPoint("TOPLEFT", f, "TOPLEFT", 13, -12)
+  band:SetPoint("TOPRIGHT", f, "TOPRIGHT", -13, -12)
+  band:SetHeight(math.max(24, head - 13))
+  band:SetColorTexture(0.064, 0.095, 0.119, 0.96)
+  local hl = f:CreateTexture(nil, "BORDER")
+  hl:SetColorTexture(0.67, 0.48, 0.25, 0.65)
+  hl:SetHeight(1)
+  hl:SetPoint("TOPLEFT", f, "TOPLEFT", 13, -head)
+  hl:SetPoint("TOPRIGHT", f, "TOPRIGHT", -13, -head)
   return f
 end
 function UI.MainChromeCompact(win, onNav, navTips)
