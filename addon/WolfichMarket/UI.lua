@@ -191,7 +191,9 @@ function UI.OrnatePanel(frame, alpha, cap)
   end
   local center = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
   UI.WolfTex(center, "approved-panel")
-  center:SetTexCoord(0.15,0.85,0.16,0.84)
+  -- Use only the unornamented navy center; lower panorama should not repeat
+  -- across wide/short frames (particularly Settings and Chart dialogs).
+  center:SetTexCoord(0.27, 0.73, 0.20, 0.48)
   center:SetPoint("TOPLEFT", frame, "TOPLEFT", cap, -cap)
   center:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -cap, cap)
   center:SetAlpha(alpha * 0.70)
@@ -644,7 +646,8 @@ function UI.Chart(parent)
   local function layout()
     local compact = f.compact
     local small = compact or f.mid -- без строки цифр и кнопок периода
-    local top = small and 6 or 46
+    -- Reserve space for period buttons above the plot frame.
+    local top = small and 6 or 61
     plot:ClearAllPoints()
     plot:SetPoint("TOPLEFT", compact and 46 or 58, -top); plot:SetPoint("BOTTOMRIGHT", compact and -30 or -40, compact and 16 or 20)
     f.stats:ClearAllPoints(); f.stats:SetPoint("TOPLEFT", 4, -2); f.stats:SetPoint("RIGHT", -250, 0)
@@ -652,7 +655,7 @@ function UI.Chart(parent)
     local x = 0
     for k = #f.periodBtns, 1, -1 do
       local b = f.periodBtns[k]
-      b:ClearAllPoints(); b:SetPoint("BOTTOMRIGHT", plot, "TOPRIGHT", -x, 4); x = x + 50
+      b:ClearAllPoints(); b:SetPoint("BOTTOMRIGHT", plot, "TOPRIGHT", -x, 15); x = x + 50
       b:SetShown(not small)
     end
     f.stats:SetShown(not small)
@@ -1093,7 +1096,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local mainArt = main:CreateTexture(nil, "BACKGROUND", nil, -7)
   mainArt:SetAllPoints()
   UI.WolfTex(mainArt, "approved-panel")
-  mainArt:SetAlpha(0.20)
+  mainArt:SetTexCoord(0.27, 0.73, 0.20, 0.48)
+  mainArt:SetAlpha(0.14)
   -- The dark inset keeps real item names and costs legible over art.
   edge(main, unpack(GOLD_EDGE))
   UI.OrnatePanel(main, 0.93, 16)
@@ -1121,9 +1125,11 @@ function UI.MainChromeCompact(win, onNav, navTips)
   -- Use only its dark center as the toolbar texture; the title stays clear.
   headerArt:SetPoint("TOPLEFT", top, "TOPLEFT", 1, -2)
   headerArt:SetPoint("BOTTOMRIGHT", top, "BOTTOMRIGHT", -1, 2)
-  UI.WolfTex(headerArt, "approved-header")
-  headerArt:SetTexCoord(0.42, 0.85, 0.43, 0.70)
-  headerArt:SetAlpha(0.70)
+  -- A quiet texture behind the toolbar; keep the moon/wolf illustration
+  -- out of the narrow text strip entirely.
+  UI.WolfTex(headerArt, "approved-panel")
+  headerArt:SetTexCoord(0.27, 0.73, 0.20, 0.48)
+  headerArt:SetAlpha(0.46)
   local hl = top:CreateTexture(nil, "BORDER")
   hl:SetColorTexture(0.76, 0.55, 0.24, 1)
   hl:SetHeight(2); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
@@ -1146,10 +1152,11 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
   -- The approved portrait appears below the navigation, without blocking it.
   local wolf = rail:CreateTexture(nil, "ARTWORK", nil, -1)
-  wolf:SetSize(114, 114)
-  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 26)
+  wolf:SetSize(106, 106)
+  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 35)
   UI.WolfTex(wolf, "approved-wolf-emblem")
-  wolf:SetAlpha(0.90)
+  wolf:SetTexCoord(0, 1, 0, 1)
+  wolf:SetAlpha(0.95)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
