@@ -1048,16 +1048,40 @@ end
 -- ---------- раздел «Главная»: что нового в каждой версии (язык - как у аддона) ----------
 local home = {}
 local function buildHome(f)
-  local t = UI.Font(f, 18, UI.GOLD, "OVERLAY", "OUTLINE"); t:SetPoint("TOPLEFT", 2, 0); t:SetText(L"Что нового")
-  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -26); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
+  -- Preview: a clearly visible, restrained dashboard header (no custom item icons).
+  local banner = CreateFrame("Frame", nil, f)
+  banner:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+  banner:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+  banner:SetHeight(112)
+  local bg = banner:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(0.055, 0.085, 0.115, 0.94)
+  local line = banner:CreateTexture(nil, "BORDER")
+  line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT"); line:SetHeight(2)
+  line:SetColorTexture(0.75, 0.57, 0.26, 0.95)
+  local accent = banner:CreateTexture(nil, "BORDER")
+  accent:SetPoint("TOPLEFT", 0, 0); accent:SetPoint("BOTTOMLEFT", 0, 0)
+  accent:SetWidth(4); accent:SetColorTexture(0.84, 0.65, 0.32, 1)
+  local mark = UI.Font(banner, 12, UI.DIM)
+  mark:SetPoint("TOPLEFT", 18, -12)
+  mark:SetText("WOLFICHMARKET  /  FOREVER")
+  local title = UI.Font(banner, 23, UI.GOLD)
+  title:SetPoint("TOPLEFT", 18, -31)
+  title:SetText(L"Обзор рынка")
+  local caption = UI.Font(banner, 12, UI.TEXT)
+  caption:SetPoint("TOPLEFT", 18, -69)
+  caption:SetText(L"Цены, профессии и обмен данными в одном месте")
+  home.banner = banner
+  local t = UI.Font(f, 16, UI.GOLD); t:SetPoint("TOPLEFT", 2, -129); t:SetText(L"История обновлений")
+  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -153); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
   sub:SetText(L"История обновлений WolfichMarket")
   -- Компактный сетевой индикатор: считаем только реально замеченных участников канала,
   -- а не всех игроков сервера. Не показываем выдуманное число онлайн.
   local net = UI.Font(f, 11, UI.DIM)
-  net:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -4)
+  net:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, -132)
   net:SetJustifyH("RIGHT")
   home.net = net
-  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -48); sf:SetPoint("BOTTOMRIGHT", 0, 0)
+  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -177); sf:SetPoint("BOTTOMRIGHT", 0, 0)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
   local child = CreateFrame("Frame", nil, sf); child:SetSize(780, 400); sf:SetScrollChild(child)
   local cur = 0
