@@ -1137,10 +1137,31 @@ local function buildHome(f)
   profitHead:SetText(L"Прибыль")
   home.prices = {}
   for i = 1, 6 do
-    local row = CreateFrame("Frame", nil, price)
+    local row = CreateFrame("Button", nil, price)
     row:SetHeight(43)
     row:SetPoint("TOPLEFT", price, "TOPLEFT", 14, -57 - (i - 1) * 46)
     row:SetPoint("RIGHT", price, "RIGHT", -14, 0)
+    row:RegisterForClicks("LeftButtonUp")
+    row:SetScript("OnClick", function(self)
+      if self.recipe and ns.OpenDashboardRecipe then
+        ns.OpenDashboardRecipe(self.recipe, self.profession)
+      end
+    end)
+    row:SetScript("OnEnter", function(self)
+      if not self.recipe then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(self.recipe.name or L"Рецепт", 1, 0.83, 0.45)
+      if self.profession then GameTooltip:AddLine(self.profession, 0.8, 0.85, 0.9) end
+      GameTooltip:AddLine(L"Затраты" .. ": " .. ns.money(self.costValue or 0, true), 0.82, 0.82, 0.82)
+      GameTooltip:AddLine(L"Доход" .. ": " .. ns.money(self.revenueValue or 0, true), 0.82, 0.82, 0.82)
+      GameTooltip:AddLine(L"Прибыль" .. ": +" .. ns.money(self.profitValue or 0, true), 0.45, 0.95, 0.58)
+      GameTooltip:AddLine(L"Нажмите, чтобы открыть рецепт", 1, 0.8, 0.4)
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    local hover = row:CreateTexture(nil, "HIGHLIGHT")
+    hover:SetAllPoints()
+    hover:SetColorTexture(0.75, 0.58, 0.29, 0.16)
     local shade = row:CreateTexture(nil, "BACKGROUND")
     shade:SetAllPoints()
     shade:SetColorTexture(i % 2 == 0 and 0.12 or 0.07, 0.16, 0.19, 0.65)
@@ -1270,13 +1291,21 @@ local function refreshHome()
   for i, row in ipairs(home.prices or {}) do
     local pr = profitable[i]
     if pr then
+      row.recipe = pr.rec
+      row.profession = pr.prof
+      row.costValue = pr.cost
+      row.revenueValue = pr.revenue
+      row.profitValue = pr.profit
       row.icon:SetTexture(ns.itemIcon(pr.rec.out))
       row.name:SetText(ns.itemLinkText(pr.rec.out))
       row.cost:SetText(ns.money(pr.cost, true))
       row.revenue:SetText(pr.revenue and ns.money(pr.revenue, true) or "—")
       row.price:SetText("+" .. ns.money(pr.profit, true))
       row:Show()
-    else row:Hide() end
+    else
+      row.recipe, row.profession = nil, nil
+      row:Hide()
+    end
   end
   home.priceEmpty:SetShown(#profitable == 0)
   local settings = ns.DB and ns.DB.settings or {}
@@ -1348,6 +1377,21 @@ function ns.OpenRecipeInMain(rec)
   win:Show(); selectView(VIEW_CRAFT); raise()
   if rec then craft.chartRec = nil; fillCard(rec) end
 end
+-- From dashboard to the same recipe detail panel used by the Professions tab.
+-- It never opens the native game's profession window or starts crafting.
+function ns.OpenDashboardRecipe(rec, profession)
+  if not rec or not ns.DB or not ns.charKey then return end
+  build()
+  charKey = ns.charKey
+  prof = profession
+  sel = nil
+  craft.chartRec = nil
+  win:Show()
+  selectView(VIEW_CRAFT)
+  fillCard(rec)
+  raise()
+end
+
 function ns.ToggleMain(section)
   if not ns.DB or not ns.charKey then return end
   build()
