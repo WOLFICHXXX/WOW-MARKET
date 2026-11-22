@@ -87,8 +87,10 @@ local function fillCard(rec)
   for _, r in ipairs(card.rows) do r:Hide() end
   if not rec then
     card.title:SetText(L"Выберите рецепт"); card.level:SetText(""); card.total:SetText(""); card.onAH:Hide(); card.craft:Hide(); card.portRow:Hide(); card.chartTitle:SetText(""); card.chart:Hide(); card.chartBox:Hide()
+    if card.emptyState then card.emptyState:Show() end
     return
   end
+  if card.emptyState then card.emptyState:Hide() end
   card.craft:Show(); card.onAH:Show(); card.chart:Show(); card.chartBox:Show(); card.portRow:Show()
   if craft.chartRec ~= rec then craft.chartRec = rec; craft.chartId = rec.out or (rec.reag[1] and rec.reag[1][1]) end
   local mine = charKey == ns.charKey
@@ -356,12 +358,18 @@ local function buildCraft(f)
   c4:HookScript("OnLeave", function() GameTooltip:Hide() end)
   craft.flat = c4
   craft.listBox = CreateFrame("Frame", nil, f); UI.Box(craft.listBox)
+  -- Wide warm inner rim, visible even when the list contains only a few rows.
+  local craftRim = craft.listBox:CreateTexture(nil, "BORDER", nil, 2)
+  craftRim:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 3, -2)
+  craftRim:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -3, -2)
+  craftRim:SetHeight(2)
+  craftRim:SetColorTexture(0.83, 0.61, 0.28, 0.93)
   -- A reserved bronze heading band sits behind the existing column labels.
   local listHead = craft.listBox:CreateTexture(nil, "BACKGROUND", nil, -3)
   listHead:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 1, -1)
   listHead:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -1, -1)
   listHead:SetHeight(19)
-  listHead:SetColorTexture(0.105, 0.136, 0.144, 0.93)
+  listHead:SetColorTexture(0.19, 0.145, 0.079, 0.97)
   local listHeadRule = craft.listBox:CreateTexture(nil, "BORDER")
   listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -19)
   listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -19)
@@ -440,20 +448,50 @@ local function buildCraft(f)
   cardHeader:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
   cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
   cardHeader:SetHeight(34)
-  cardHeader:SetColorTexture(0.095, 0.135, 0.16, 0.90)
+  cardHeader:SetColorTexture(0.19, 0.145, 0.079, 0.97)
   -- Highlight the recipe detail rather than covering any item icons.
   local cardAccent = card:CreateTexture(nil, "BORDER", nil, 1)
   cardAccent:SetPoint("TOPLEFT", card, "TOPLEFT", 3, -4)
   cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -30)
   cardAccent:SetWidth(3)
   cardAccent:SetColorTexture(0.89, 0.67, 0.30, 0.93)
+  -- Dark fantasy heading framed with a double bronze line.
   local cardRule = card:CreateTexture(nil, "BORDER")
   cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -34)
   cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
   cardRule:SetHeight(1)
   cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
   card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -12, -12); card.level:SetJustifyH("RIGHT")
-  card.title = UI.Font(card, 15, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 15, ""); card.title:SetPoint("TOPLEFT", 14, -10); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
+  card.title = UI.Font(card, 17, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 17, ""); card.title:SetPoint("TOPLEFT", 17, -8); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
+  -- An opaque, raised empty state hides all chart internals (including any
+  -- stray slider/marker texture) until a recipe is actually selected.
+  local empty = CreateFrame("Frame", nil, card)
+  empty:SetPoint("TOPLEFT", card, "TOPLEFT", 2, -35)
+  empty:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -2, 2)
+  empty:SetFrameLevel(card:GetFrameLevel() + 15)
+  empty:EnableMouse(false)
+  local emptyBg = empty:CreateTexture(nil, "BACKGROUND")
+  emptyBg:SetAllPoints()
+  emptyBg:SetColorTexture(0.028, 0.048, 0.066, 1)
+  local emptyLogo = empty:CreateTexture(nil, "ARTWORK")
+  emptyLogo:SetSize(80, 80)
+  emptyLogo:SetPoint("CENTER", empty, "CENTER", 0, 58)
+  UI.WinTex(emptyLogo, "nav-prof")
+  emptyLogo:SetVertexColor(0.76, 0.59, 0.34, 0.55)
+  local emptyHeading = UI.Font(empty, 18, UI.GOLD)
+  emptyHeading:SetPoint("TOP", emptyLogo, "BOTTOM", 0, -15)
+  emptyHeading:SetText(L"Выберите рецепт")
+  local emptyTip = UI.Font(empty, 12, UI.DIM)
+  emptyTip:SetPoint("TOP", emptyHeading, "BOTTOM", 0, -12)
+  emptyTip:SetWidth(325)
+  emptyTip:SetJustifyH("CENTER")
+  emptyTip:SetText(L"Нажмите на рецепт слева, чтобы увидеть материалы, себестоимость, прибыль и график цен.")
+  local emptyRule = empty:CreateTexture(nil, "BORDER")
+  emptyRule:SetHeight(1)
+  emptyRule:SetWidth(210)
+  emptyRule:SetPoint("TOP", emptyTip, "BOTTOM", 0, -20)
+  emptyRule:SetColorTexture(0.72, 0.53, 0.26, 0.65)
+  card.emptyState = empty
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(22)
