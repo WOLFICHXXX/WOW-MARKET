@@ -1107,26 +1107,24 @@ local function buildSettings(f)
   -- Distinct group backgrounds, all on the parent's background layer so they
   -- cannot intercept mouse input or cover interactive options.
   local function sectionBackdrop(x, top, width, height)
-    local panel = f:CreateTexture(nil, "BACKGROUND", nil, -5)
-    panel:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
-    panel:SetSize(width, height)
-    panel:SetColorTexture(0.070, 0.095, 0.115, 0.83)
-    -- Subtle painted material from the approved 2026 panel atlas.
-    -- Background-only textures do not cover settings checkboxes or buttons.
-    local cloth = f:CreateTexture(nil, "BACKGROUND", nil, -4)
-    cloth:SetPoint("TOPLEFT", f, "TOPLEFT", x + 3, top - 3)
-    cloth:SetSize(width - 6, height - 6)
-    UI.WolfTex(cloth, "reference-stone")
-    cloth:SetTexCoord(0, 1, 0, 1)
-    cloth:SetAlpha(0.37)
-    local topTrim = f:CreateTexture(nil, "BACKGROUND", nil, -3)
-    topTrim:SetPoint("TOPLEFT", f, "TOPLEFT", x + 4, top - 1)
-    topTrim:SetSize(width - 8, 1)
-    topTrim:SetColorTexture(0.68, 0.51, 0.29, 0.64)
-    local stripe = f:CreateTexture(nil, "BACKGROUND", nil, -3)
-    stripe:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
-    stripe:SetSize(3, height)
-    stripe:SetColorTexture(0.68, 0.49, 0.26, 0.70)
+    -- Each settings group is a real ornamental panel, not a large stretched
+    -- black atlas strip. Keep it at the page's own frame level so checkboxes
+    -- and interactive buttons (created afterwards) render above it.
+    local group = CreateFrame("Frame", nil, f)
+    group:SetFrameLevel(f:GetFrameLevel())
+    group:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    group:SetSize(width, height)
+    group:EnableMouse(false)
+    local bg = group:CreateTexture(nil, "BACKGROUND", nil, -8)
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.025, 0.044, 0.068, 0.98)
+    UI.OrnatePanel(group, 0.94, 17)
+    local line = group:CreateTexture(nil, "BORDER", nil, 3)
+    line:SetPoint("TOPLEFT", group, "TOPLEFT", 20, -33)
+    line:SetPoint("TOPRIGHT", group, "TOPRIGHT", -20, -33)
+    line:SetHeight(1)
+    line:SetColorTexture(0.72, 0.54, 0.28, 0.57)
+    return group
   end
   sectionBackdrop(0, 4, 394, 212)
   sectionBackdrop(0, -219, 394, 164)
@@ -1134,9 +1132,9 @@ local function buildSettings(f)
   sectionBackdrop(411, -241, 548, 185)
   local function column(x, title)
     local t = UI.Font(f, 12, UI.GOLD)
-    t:SetPoint("TOPLEFT", x + 13, -11)
+    t:SetPoint("TOPLEFT", x + 23, -15)
     t:SetText(title)
-    return { x = x + 13, y = -35 }
+    return { x = x + 19, y = -40 }
   end
   local function chk(col, text, key, after, inverted)
     local c = UI.Check(f, text, function() if inverted then return S[key] ~= false end return S[key] end, function(v) S[key] = v; if after then after(v) end end)
@@ -1190,7 +1188,7 @@ local function buildSettings(f)
   local rl = UI.Button(f, L"Перезагрузить интерфейс (/reload)", 230, 22, function() if ReloadUI then ReloadUI() end end)
   rl:SetPoint("LEFT", jb, "RIGHT", 10, 0)
   setp.reloadAlways = rl
-  local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 4, 4); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
+  local about = UI.Font(f, 10, UI.DIM); about:SetPoint("BOTTOMLEFT", 12, 5); about:SetPoint("RIGHT", -4, 0); about:SetWordWrap(true)
   about:SetText("WolfichMarket " .. (ns.VERSION or "") .. "  |cff70d6ffDEV DESIGN|r  ·  " .. L"Тестовая сборка GitHub (design-preview). Команды: /wm help")
   setp.refresh = function() rAuto(); rChat(); rLang() end
 end
