@@ -140,13 +140,20 @@ function UI.FrameSkin(f, s)
   local _, emh = sz("f-em"); q = tex("f-em", "BORDER", 2); q:SetSize(emw, emh); q:SetPoint("TOP", f, "BOTTOM", 0, bh)
   return f
 end
+-- 2026 authored TGA pack. Independent of the retired media/win look.
+function UI.WolfTex(texture, name)
+  if texture then
+    texture:SetTexture(M .. "wolf2026\\" .. name)
+    texture:SetTexCoord(0, 1, 0, 1)
+  end
+end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
 function UI.Box(f, alpha)
   local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.045, 0.065, 0.085, alpha or 0.62)
   -- Real preinstalled TGA artwork: the old panel center, under all contents.
   local cloth = f:CreateTexture(nil, "BACKGROUND", nil, -5)
   cloth:SetAllPoints()
-  UI.WinTex(cloth, "f-c")
+  UI.WolfTex(cloth, "surface")
   cloth:SetAlpha(0.50)
   local function line(p1, p2, horiz)
     local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.31, 0.37, 0.40, 0.95)
@@ -272,19 +279,11 @@ function UI.Button(parent, text, w, h, onClick, gold)
   h = h + 4 -- чуть выше: надпись не прилипает к кромке
   b:SetSize(w, h)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
-  -- The previously unused three-part WoW textures scale without stretching
-  -- the ornate caps. No changes to Button size or click handlers.
-  local skinLeft = b:CreateTexture(nil, "ARTWORK", nil, -2)
-  skinLeft:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0)
-  skinLeft:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 0, 0)
-  skinLeft:SetWidth(14)
-  local skinRight = b:CreateTexture(nil, "ARTWORK", nil, -2)
-  skinRight:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 0)
-  skinRight:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, 0)
-  skinRight:SetWidth(14)
-  local skinMid = b:CreateTexture(nil, "ARTWORK", nil, -3)
-  skinMid:SetPoint("TOPLEFT", skinLeft, "TOPRIGHT", 0, 0)
-  skinMid:SetPoint("BOTTOMRIGHT", skinRight, "BOTTOMLEFT", 0, 0)
+  -- Original 2026-made 128x32 TGA artwork. The text remains separately
+  -- rendered and the entire button stays clickable.
+  local skinArt = b:CreateTexture(nil, "ARTWORK", nil, -2)
+  skinArt:SetAllPoints()
+  UI.WolfTex(skinArt, gold and "button-gold" or "button-dark")
   local edges = UI.Edge(b, 0, 0, 0, 1, "BORDER")
   local bevelTop = b:CreateTexture(nil, "BORDER", nil, 2)
   bevelTop:SetPoint("TOPLEFT", b, "TOPLEFT", 2, -2)
@@ -317,11 +316,8 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local st = not en and BTN.off or (isGold and BTN.gold or BTN.dark)
     bg:SetColorTexture(st.bg[1], st.bg[2], st.bg[3], st.bg[4])
     local variant = (not en and "dark") or (isGold and "gold" or "dark")
-    UI.WinTex(skinLeft, "btn-" .. variant .. "-l")
-    UI.WinTex(skinMid, "btn-" .. variant .. "-m")
-    UI.WinTex(skinRight, "btn-" .. variant .. "-r")
-    local alpha = en and 1 or 0.43
-    skinLeft:SetAlpha(alpha); skinMid:SetAlpha(alpha); skinRight:SetAlpha(alpha)
+    UI.WolfTex(skinArt, "button-" .. variant)
+    skinArt:SetAlpha(en and 1 or 0.43)
     for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
     if en and isGold then
       bevelTop:SetColorTexture(1, 0.91, 0.66, 0.75)
@@ -1019,7 +1015,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   -- Original graphical side texture (384x1517): same aspect as our rail.
   local railArt = rail:CreateTexture(nil, "BACKGROUND", nil, -7)
   railArt:SetAllPoints()
-  UI.WinTex(railArt, "side")
+  UI.WolfTex(railArt, "side")
   railArt:SetAlpha(0.86)
   edge(rail, unpack(GOLD_EDGE))
   local railAccent = rail:CreateTexture(nil, "BORDER", nil, 2)
@@ -1033,7 +1029,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
   local mainArt = main:CreateTexture(nil, "BACKGROUND", nil, -7)
   mainArt:SetAllPoints()
-  UI.WinTex(mainArt, "f-c")
+  UI.WolfTex(mainArt, "surface")
   mainArt:SetAlpha(0.66)
   -- The dark inset keeps real item names and costs legible over art.
   edge(main, unpack(GOLD_EDGE))
@@ -1057,7 +1053,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   headerBg:SetColorTexture(0.048, 0.070, 0.088, 1)
   local headerArt = top:CreateTexture(nil, "BACKGROUND", nil, -4)
   headerArt:SetAllPoints()
-  UI.WinTex(headerArt, "bar")
+  UI.WolfTex(headerArt, "header")
   headerArt:SetAlpha(0.83)
   local hl = top:CreateTexture(nil, "BORDER")
   hl:SetColorTexture(0.76, 0.55, 0.24, 1)
@@ -1079,13 +1075,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   brand:SetPoint("TOP", rail, "TOP", 0, -19)
   brand:SetText("WOLFICH")
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
-  -- Decorative wolf artwork from an existing TGA; never overlaps menu buttons.
-  local wolfBanner = rail:CreateTexture(nil, "ARTWORK", nil, -2)
-  wolfBanner:SetPoint("BOTTOMLEFT", rail, "BOTTOMLEFT", 7, 12)
-  wolfBanner:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -7, 12)
-  wolfBanner:SetHeight(204)
-  UI.WinTex(wolfBanner, "banner")
-  wolfBanner:SetAlpha(0.86)
+  -- The new side.tga contains integrated wolf ornament; no old banner overlay.
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
