@@ -166,29 +166,20 @@ function UI.OrnatePanel(frame, alpha, cap)
     t:SetPoint(p[6], frame, p[6])
     t:SetAlpha(alpha)
   end
-  local strips = {
-    { 0.15, 0.85, 0, 0.16, "TOP" },
-    { 0.15, 0.85, 0.84, 1, "BOTTOM" },
-    { 0, 0.15, 0.16, 0.84, "LEFT" },
-    { 0.85, 1, 0.16, 0.84, "RIGHT" },
-  }
-  for _, p in ipairs(strips) do
+  -- Image-atlas strips contain black scenery; stretching them produced
+  -- thick black bands in the header and on short recipe panels.
+  -- Preserve painted corner motifs, but join them with fine bronze lines.
+  local function rim(pointA, pointB, ax, ay, bx, by, horizontal)
     local t = frame:CreateTexture(nil, "BORDER", nil, 1)
-    UI.WolfTex(t, "approved-panel")
-    t:SetTexCoord(p[1], p[2], p[3], p[4])
-    if p[5] == "TOP" or p[5] == "BOTTOM" then
-      t:SetHeight(cap)
-      local pt = p[5] == "TOP" and "TOP" or "BOTTOM"
-      t:SetPoint(pt .. "LEFT", frame, pt .. "LEFT", cap, 0)
-      t:SetPoint(pt .. "RIGHT", frame, pt .. "RIGHT", -cap, 0)
-    else
-      t:SetWidth(cap)
-      local pt = p[5] == "LEFT" and "LEFT" or "RIGHT"
-      t:SetPoint("TOP" .. pt, frame, "TOP" .. pt, 0, -cap)
-      t:SetPoint("BOTTOM" .. pt, frame, "BOTTOM" .. pt, 0, cap)
-    end
-    t:SetAlpha(alpha)
+    t:SetColorTexture(0.68, 0.51, 0.28, alpha * 0.78)
+    if horizontal then t:SetHeight(1) else t:SetWidth(1) end
+    t:SetPoint(pointA, frame, pointA, ax, ay)
+    t:SetPoint(pointB, frame, pointB, bx, by)
   end
+  rim("TOPLEFT", "TOPRIGHT", cap, -1, -cap, -1, true)
+  rim("BOTTOMLEFT", "BOTTOMRIGHT", cap, 1, -cap, 1, true)
+  rim("TOPLEFT", "BOTTOMLEFT", 1, -cap, 1, cap, false)
+  rim("TOPRIGHT", "BOTTOMRIGHT", -1, -cap, -1, cap, false)
   local center = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
   UI.WolfTex(center, "approved-panel")
   -- Use only the unornamented navy center; lower panorama should not repeat
@@ -323,7 +314,7 @@ UI.BTN_COLORS = BTN
 function UI.Button(parent, text, w, h, onClick, gold)
   local b = CreateFrame("Button", nil, parent)
   w, h = w or 100, h or 22
-  h = h + 4 -- чуть выше: надпись не прилипает к кромке
+  -- Use the requested size, without the former extra four pixels.
   b:SetSize(w, h)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
   -- Three-piece real painted button; the ornate caps never stretch.
@@ -372,15 +363,16 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local variant = (not en and "dark") or (isGold and "gold" or "dark")
     for _, piece in ipairs({ skinLeft, skinMid, skinRight }) do
       UI.WolfTex(piece, "approved-button-" .. variant)
-      piece:SetAlpha(en and 1 or 0.40)
+      piece:SetAlpha(en and 0.90 or 0.37)
+      piece:SetVertexColor(0.90, 0.89, 0.85)
     end
     skinLeft:SetTexCoord(0,0.18,0,1)
     skinMid:SetTexCoord(0.18,0.82,0,1)
     skinRight:SetTexCoord(0.82,1,0,1)
     for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
     if en and isGold then
-      bevelTop:SetColorTexture(1, 0.91, 0.66, 0.75)
-      bevelBottom:SetColorTexture(0.31, 0.20, 0.06, 0.85)
+      bevelTop:SetColorTexture(0.90, 0.75, 0.48, 0.52)
+      bevelBottom:SetColorTexture(0.31, 0.20, 0.06, 0.60)
     else
       bevelTop:SetColorTexture(0.58, 0.48, 0.30, en and 0.75 or 0.30)
       bevelBottom:SetColorTexture(0.015, 0.025, 0.035, 0.9)
