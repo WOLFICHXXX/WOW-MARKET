@@ -945,7 +945,7 @@ UI.Edge = edge
 function UI.FlatSkin(f, opts)
   opts = opts or {}
   f.wmTheme, f.wmScale = "flat", 1
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); bg:SetColorTexture(0.035, 0.055, 0.075, 1)
   UI.PawsBG(f)
   edge(f, 0.47, 0.40, 0.25, 1)
   local head = opts.head or 40
@@ -959,12 +959,12 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local GOLD_EDGE = { 0.48, 0.40, 0.24, 1 }
   -- полоса значков
   local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
-  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.025, 0.040, 0.055, 0.99)
+  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.025, 0.040, 0.055, 1)
   edge(rail, unpack(GOLD_EDGE))
   -- основная часть
   local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
   -- фон - прежняя ткань с едва заметными лапками
-  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 0.97)
+  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
   -- Quiet background: no decorative paw prints in the content area.
   edge(main, unpack(GOLD_EDGE))
   win.frameBox = main
