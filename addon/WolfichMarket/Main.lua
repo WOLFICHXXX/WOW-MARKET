@@ -286,7 +286,7 @@ local function buildCraft(f)
     for i, ck in ipairs(l) do if ck == charKey then setChar(l[(i - 1 + d) % #l + 1]); return end end
     if l[1] then setChar(l[1]) end
   end
-  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("BOTTOMLEFT", 2, 0); craft.status:SetPoint("RIGHT", -2, 0)
+  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("BOTTOMLEFT", 2, 7); craft.status:SetPoint("RIGHT", -2, 0)
   -- сортировка по прибыли: на фракционном (по умолчанию), на общем или по марже - одна галочка всегда стоит
   local sortChecks = {}
   local function setSort(k) S.craftSort = k; for kk, c in pairs(sortChecks) do c:SetChecked(kk == k) end; refreshCraft() end
@@ -438,8 +438,9 @@ local function buildCraft(f)
     sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 655, -60 - dy)
     -- список и карточка - две панели одной высоты, сверху и снизу на одной линии
     craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 18)
-    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 6, -4); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
-    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 4, -20); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -4, 4)
+    -- Keep column labels below the heavy frame edge and above the first row.
+    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 9, -9); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 5, -28); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -5, 8)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
   end
   craft.setTop(0)
@@ -1085,13 +1086,13 @@ local function buildSettings(f)
     cloth:SetPoint("TOPLEFT", f, "TOPLEFT", x + 3, top - 3)
     cloth:SetSize(width - 6, height - 6)
     UI.WolfTex(cloth, "approved-panel")
-    cloth:SetTexCoord(0.20, 0.80, 0.20, 0.80)
+    cloth:SetTexCoord(0.27, 0.73, 0.20, 0.48)
     cloth:SetAlpha(0.26)
     local topTrim = f:CreateTexture(nil, "BACKGROUND", nil, -3)
     topTrim:SetPoint("TOPLEFT", f, "TOPLEFT", x + 3, top)
     topTrim:SetSize(width - 6, 3)
     UI.WolfTex(topTrim, "approved-panel")
-    topTrim:SetTexCoord(0.16, 0.84, 0.015, 0.095)
+    topTrim:SetTexCoord(0.18, 0.82, 0.04, 0.10)
     topTrim:SetAlpha(0.69)
     local stripe = f:CreateTexture(nil, "BACKGROUND", nil, -3)
     stripe:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
@@ -1206,12 +1207,12 @@ local function buildHome(f)
     topAccent:SetHeight(1)
     topAccent:SetColorTexture(0.84, 0.65, 0.32, 0.55)
     local heading = UI.Font(p, 15, UI.GOLD)
-    heading:SetPoint("TOPLEFT", p, "TOPLEFT", 15, -12)
+    heading:SetPoint("TOPLEFT", p, "TOPLEFT", 17, -18)
     heading:SetText(title)
     home.widgets[#home.widgets + 1] = p
     return p
   end
-  local hero = panel(0, 0, 961, 139, "")
+  local hero = panel(0, 0, 961, 147, "")
   home.hero = hero
   -- Decorative crest on the right, using an existing add-on texture.
   -- All artwork stays outside the text and has no mouse handlers.
@@ -1248,9 +1249,9 @@ local function buildHome(f)
   rule:SetHeight(1)
   rule:SetColorTexture(0.60, 0.46, 0.28, 0.52)
   local sub = UI.Font(hero, 11, UI.DIM)
-  sub:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 22, 17)
+  sub:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 22, 23)
   sub:SetText("WOLFICHMARKET  /  WOW FOREVER")
-  local price = panel(0, -151, 598, 379, L"Выгодный крафт")
+  local price = panel(0, -159, 598, 371, L"Выгодный крафт")
   local heads = UI.Font(price, 10, UI.DIM)
   heads:SetPoint("TOPLEFT", price, "TOPLEFT", 53, -39)
   heads:SetText(L"Рецепт")
@@ -1316,7 +1317,7 @@ local function buildHome(f)
   home.priceEmpty = UI.Font(price, 12, UI.DIM)
   home.priceEmpty:SetPoint("CENTER", price, "CENTER")
   home.priceEmpty:SetText(L"Нет рассчитанных прибыльных рецептов.\nОткройте профессии и обновите цены аукциона.")
-  local net = panel(611, -151, 350, 171, L"Сеть WolfichMarket")
+  local net = panel(611, -159, 350, 171, L"Сеть WolfichMarket")
   home.network = UI.Font(net, 15, UI.TEXT)
   home.network:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -56)
   home.network:SetWidth(319)
@@ -1327,7 +1328,7 @@ local function buildHome(f)
   last:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -119)
   last:SetWidth(319)
   home.lastReceived = last
-  local actions = panel(611, -335, 350, 195, L"Быстрые действия")
+  local actions = panel(611, -343, 350, 187, L"Быстрые действия")
   local auction = UI.Button(actions, L"Открыть аукцион", 310, 34, function() ns.ToggleMain(3) end, true)
   auction:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -43)
   local craft = UI.Button(actions, L"Профессии и рецепты", 310, 34, function() ns.ToggleMain(2) end)
