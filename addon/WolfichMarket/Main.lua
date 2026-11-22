@@ -361,19 +361,8 @@ local function buildCraft(f)
   c4:HookScript("OnLeave", function() GameTooltip:Hide() end)
   craft.flat = c4
   craft.listBox = CreateFrame("Frame", nil, f); UI.Box(craft.listBox)
-  -- Wide warm inner rim, visible even when the list contains only a few rows.
-  local craftRim = craft.listBox:CreateTexture(nil, "BORDER", nil, 2)
-  craftRim:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 3, -2)
-  craftRim:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -3, -2)
-  craftRim:SetHeight(2)
-  craftRim:SetColorTexture(0.83, 0.61, 0.28, 0.93)
-  -- Sculpted bronze three-slice title band. Live headings appear above it.
-  UI.FantasyHeader(craft.listBox, 11, -10, 29, 0.78)
-  local listHeadRule = craft.listBox:CreateTexture(nil, "BORDER")
-  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -36)
-  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -36)
-  listHeadRule:SetHeight(1)
-  listHeadRule:SetColorTexture(0.72, 0.52, 0.25, 0.89)
+  -- One recessed title, one thin outline: no doubled frame or heavy caps.
+  UI.FantasyHeader(craft.listBox, 9, -9, 29, 0.86)
   -- шапка списка: столбики Ф и Общ
   local lh = CreateFrame("Frame", nil, f); lh:SetHeight(14)
   local lh1 = UI.Font(lh, 10, UI.DIM); lh1:SetPoint("LEFT", 26, 0); lh1:SetText(L"Рецепт")
@@ -444,20 +433,7 @@ local function buildCraft(f)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 33)
   end
   craft.setTop(0)
-  -- The recipe heading uses the same sculpted band as the left table.
-  UI.FantasyHeader(card, 11, -10, 29, 0.82)
-  -- Highlight the recipe detail rather than covering any item icons.
-  local cardAccent = card:CreateTexture(nil, "BORDER", nil, 1)
-  cardAccent:SetPoint("TOPLEFT", card, "TOPLEFT", 3, -4)
-  cardAccent:SetPoint("BOTTOMLEFT", card, "TOPLEFT", 3, -32)
-  cardAccent:SetWidth(3)
-  cardAccent:SetColorTexture(0.89, 0.67, 0.30, 0.93)
-  -- Dark fantasy heading framed with a double bronze line.
-  local cardRule = card:CreateTexture(nil, "BORDER")
-  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -36)
-  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -36)
-  cardRule:SetHeight(1)
-  cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
+  UI.FantasyHeader(card, 9, -9, 29, 0.88)
   card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -21, -18); card.level:SetJustifyH("RIGHT")
   card.title = UI.Font(card, 16, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.TITLE_FONT, 16, ""); card.title:SetPoint("TOPLEFT", 19, -17); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
   -- An opaque, raised empty state hides all chart internals (including any
@@ -470,7 +446,10 @@ local function buildCraft(f)
   local emptyBg = empty:CreateTexture(nil, "BACKGROUND", nil, -8)
   emptyBg:SetAllPoints()
   emptyBg:SetColorTexture(0.018, 0.034, 0.059, 1)
-  UI.OrnatePanel(empty, 0.91, 18)
+  -- The empty state belongs to this card; do not draw a second frame.
+  local emptyRelief = empty:CreateTexture(nil, "BACKGROUND", nil, -7)
+  emptyRelief:SetAllPoints()
+  UI.StoneTile(emptyRelief, empty, 0.15)
   local emptyLogo = empty:CreateTexture(nil, "ARTWORK")
   emptyLogo:SetSize(112, 112)
   emptyLogo:SetPoint("CENTER", empty, "CENTER", 0, 64)
@@ -938,12 +917,7 @@ local function buildAuc(f)
   local COLS = { { "name", 50, nil }, { "p", -210, 110 }, { "q", -130, 70 }, { "chg", -44, 76 } }
   -- Clean slate-blue column strip, with a hairline bronze divider;
   -- drawn behind the controls, not above the data or item icons.
-  UI.FantasyHeader(all, 10, -10, 27, 0.78)
-  local headerRule = all:CreateTexture(nil, "BORDER", nil, 1)
-  headerRule:SetPoint("TOPLEFT", all, "TOPLEFT", 10, -35)
-  headerRule:SetPoint("TOPRIGHT", all, "TOPRIGHT", -10, -35)
-  headerRule:SetHeight(1)
-  headerRule:SetColorTexture(0.66, 0.48, 0.27, 0.65)
+  UI.FantasyHeader(all, 9, -9, 28, 0.84)
   all.heads = {}
   for _, c in ipairs(COLS) do
     local h = CreateFrame("Button", nil, all); h:SetHeight(20)
@@ -978,12 +952,7 @@ local function buildAuc(f)
     if left then p:SetPoint("TOPLEFT", 0, -50); p:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 0)
     else p:SetPoint("TOPLEFT", f, "TOP", 6, -50); p:SetPoint("BOTTOMRIGHT", 0, 0) end
     UI.Skin(p, { theme = "acard", scale = 0.25 })
-    UI.FantasyHeader(p, 12, -11, 28, 0.78)
-    local headingRule = p:CreateTexture(nil, "BORDER", nil, 1)
-    headingRule:SetPoint("TOPLEFT", p, "TOPLEFT", 13, -37)
-    headingRule:SetPoint("TOPRIGHT", p, "TOPRIGHT", -13, -37)
-    headingRule:SetHeight(1)
-    headingRule:SetColorTexture(0.66, 0.48, 0.27, 0.65)
+    UI.FantasyHeader(p, 9, -9, 28, 0.84)
     p.title = UI.Font(p, 12, UI.GOLD); UI.SetFont(p.title, UI.TITLE_FONT, 15, ""); p.title:SetPoint("TOPLEFT", 18, -18); p.title:SetPoint("RIGHT", -18, 0)
     p.list = UI.List(p, 36, function(r)
       r.star = UI.Star(r, 14, function() local d = r.data; return d and d.id end); r.star:SetPoint("LEFT", 4, 0)
@@ -1119,9 +1088,8 @@ local function buildSettings(f)
     local bg = group:CreateTexture(nil, "BACKGROUND", nil, -8)
     bg:SetAllPoints()
     bg:SetColorTexture(0.025, 0.044, 0.068, 0.98)
-    UI.OrnatePanel(group, 0.94, 17)
-    -- Coherent carved navy heading for each settings group.
-    UI.FantasyHeader(group, 16, -8, 28, 0.72)
+    UI.InnerPanel(group, 0.94)
+    UI.FantasyHeader(group, 9, -8, 28, 0.88)
     return group
   end
   sectionBackdrop(0, 4, 394, 212)
@@ -1236,22 +1204,10 @@ local function buildHome(f)
     p:SetSize(w, h)
     local bg = p:CreateTexture(nil, "BACKGROUND", nil, -8)
     bg:SetAllPoints(); bg:SetColorTexture(0.028, 0.049, 0.076, 1)
-    UI.OrnatePanel(p, 0.98, 20)
-    local edges = UI.Edge(p, 0.55, 0.41, 0.24, 0.95)
-    -- Two-pixel header accent with a reserved title area; does not change
-    -- the dimensions or interaction of the existing dashboard content.
-    local topAccent = p:CreateTexture(nil, "BORDER", nil, 2)
-    topAccent:SetPoint("TOPLEFT", p, "TOPLEFT", 2, -2)
-    topAccent:SetPoint("TOPRIGHT", p, "TOPRIGHT", -2, -2)
-    topAccent:SetHeight(1)
-    topAccent:SetColorTexture(0.84, 0.65, 0.32, 0.55)
+    -- Dashboard panels follow the single-line reference framing.
+    UI.InnerPanel(p, 0.94)
     if title and title ~= "" then
-      UI.FantasyHeader(p, 12, -11, 29, 0.79)
-      local rule = p:CreateTexture(nil, "BORDER", nil, 1)
-      rule:SetPoint("TOPLEFT", p, "TOPLEFT", 15, -41)
-      rule:SetPoint("TOPRIGHT", p, "TOPRIGHT", -15, -41)
-      rule:SetHeight(1)
-      rule:SetColorTexture(0.73, 0.54, 0.29, 0.54)
+      UI.FantasyHeader(p, 9, -9, 29, 0.87, true)
     end
     local heading = UI.Font(p, 14, UI.GOLD)
     UI.SetFont(heading, UI.TITLE_FONT, 16, "")
