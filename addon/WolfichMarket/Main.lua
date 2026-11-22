@@ -1160,7 +1160,7 @@ local function buildHome(f)
   craftHint:SetPoint("TOPLEFT", 15, -36)
   craftHint:SetText(L"Выберите рецепт, чтобы открыть расчёт в профессиях")
   local columnTitles = {
-    { L"Затраты", -297 }, { L"Доход", -172 }, { L"Прибыль", -18 },
+    { L"Затраты", -249 }, { L"Доход", -125 }, { L"Прибыль", -20 },
   }
   for _, col in ipairs(columnTitles) do
     local heading = UI.Font(craftBox, 10, UI.DIM)
