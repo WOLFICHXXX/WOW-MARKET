@@ -1094,125 +1094,177 @@ end
 -- ---------- раздел «Главная»: что нового в каждой версии (язык - как у аддона) ----------
 local home = {}
 local function buildHome(f)
-  -- Preview: a clearly visible, restrained dashboard header (no custom item icons).
-  local banner = CreateFrame("Frame", nil, f)
-  banner:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-  banner:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
-  banner:SetHeight(112)
-  local bg = banner:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  bg:SetColorTexture(0.055, 0.085, 0.115, 0.94)
-  local line = banner:CreateTexture(nil, "BORDER")
-  line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT"); line:SetHeight(2)
-  line:SetColorTexture(0.75, 0.57, 0.26, 0.95)
-  local accent = banner:CreateTexture(nil, "BORDER")
-  accent:SetPoint("TOPLEFT", 0, 0); accent:SetPoint("BOTTOMLEFT", 0, 0)
-  accent:SetWidth(4); accent:SetColorTexture(0.84, 0.65, 0.32, 1)
-  local mark = UI.Font(banner, 12, UI.DIM)
-  mark:SetPoint("TOPLEFT", 18, -12)
-  mark:SetText("WOLFICHMARKET  /  FOREVER")
-  local title = UI.Font(banner, 23, UI.GOLD)
-  title:SetPoint("TOPLEFT", 18, -31)
-  title:SetText(L"Обзор рынка")
-  local caption = UI.Font(banner, 12, UI.TEXT)
-  caption:SetPoint("TOPLEFT", 18, -69)
-  caption:SetText(L"Цены, профессии и обмен данными в одном месте")
-  home.banner = banner
-  -- Three read-only summary cards; display only facts already known by the addon.
-  home.metrics = {}
-  local specs = {
-    { L"Снимок аукциона", "scan" },
-    { L"Цены игроков", "received" },
-    { L"Обмен данными", "network" },
-  }
-  for i, spec in ipairs(specs) do
-    local card = CreateFrame("Frame", nil, f)
-    card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * 324, -122)
-    card:SetSize(312, 65)
-    local cbg = card:CreateTexture(nil, "BACKGROUND")
-    cbg:SetAllPoints()
-    cbg:SetColorTexture(0.06, 0.087, 0.11, 1)
-    local bar = card:CreateTexture(nil, "BORDER")
-    bar:SetPoint("TOPLEFT"); bar:SetPoint("BOTTOMLEFT")
-    bar:SetWidth(3)
-    bar:SetColorTexture(0.68, 0.52, 0.28, 1)
-    local label = UI.Font(card, 10, UI.DIM)
-    label:SetPoint("TOPLEFT", 14, -8)
-    label:SetText(spec[1])
-    local value = UI.Font(card, 13, UI.TEXT)
-    value:SetPoint("TOPLEFT", 14, -28)
-    value:SetPoint("RIGHT", card, "RIGHT", -10, 0)
-    value:SetJustifyH("LEFT")
-    value:SetWordWrap(false)
-    home.metrics[spec[2]] = value
+  home.widgets = {}
+  local function panel(x, y, w, h, title)
+    local p = CreateFrame("Frame", nil, f)
+    p:SetPoint("TOPLEFT", f, "TOPLEFT", x, y)
+    p:SetSize(w, h)
+    local bg = p:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(); bg:SetColorTexture(0.045, 0.072, 0.095, 1)
+    local edges = UI.Edge(p, 0.48, 0.39, 0.22, 0.9)
+    local heading = UI.Font(p, 15, UI.GOLD)
+    heading:SetPoint("TOPLEFT", p, "TOPLEFT", 15, -12)
+    heading:SetText(title)
+    home.widgets[#home.widgets + 1] = p
+    return p
   end
-  local t = UI.Font(f, 16, UI.GOLD); t:SetPoint("TOPLEFT", 2, -205); t:SetText(L"История обновлений")
-  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -229); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
-  sub:SetText(L"Изменения версий WolfichMarket")
-  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -255); sf:SetPoint("BOTTOMRIGHT", 0, 0)
-  if sf.SetClipsChildren then sf:SetClipsChildren(true) end
-  local child = CreateFrame("Frame", nil, sf); child:SetSize(780, 400); sf:SetScrollChild(child)
-  local cur = 0
-  sf:EnableMouseWheel(true)
-  sf:SetScript("OnMouseWheel", function(self, d)
-    local max = math.max(0, (child:GetHeight() or 0) - (self:GetHeight() or 0))
-    cur = math.max(0, math.min(max, cur - d * 40)); self:SetVerticalScroll(cur)
+  local hero = panel(0, 0, 961, 139, "")
+  home.hero = hero
+  local title = UI.Font(hero, 25, UI.GOLD)
+  title:SetPoint("TOPLEFT", hero, "TOPLEFT", 22, -15)
+  title:SetText(L"Добро пожаловать в WolfichMarket!")
+  local tagline = UI.Font(hero, 13, UI.TEXT)
+  tagline:SetPoint("TOPLEFT", hero, "TOPLEFT", 22, -57)
+  tagline:SetText(L"Актуальные цены. Выгодный крафт. Общий рынок.")
+  local sub = UI.Font(hero, 11, UI.DIM)
+  sub:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 22, 17)
+  sub:SetText("WOLFICHMARKET  /  WOW FOREVER")
+  local price = panel(0, -151, 598, 379, L"Цены из снимка аукциона")
+  home.prices = {}
+  for i = 1, 6 do
+    local row = CreateFrame("Frame", nil, price)
+    row:SetHeight(43)
+    row:SetPoint("TOPLEFT", price, "TOPLEFT", 14, -52 - (i - 1) * 46)
+    row:SetPoint("RIGHT", price, "RIGHT", -14, 0)
+    local shade = row:CreateTexture(nil, "BACKGROUND")
+    shade:SetAllPoints()
+    shade:SetColorTexture(i % 2 == 0 and 0.12 or 0.07, 0.16, 0.19, 0.65)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(30, 30); row.icon:SetPoint("LEFT", 5, 0)
+    row.name = UI.Font(row, 12, UI.TEXT)
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 9, 0)
+    row.name:SetPoint("RIGHT", row, "RIGHT", -125, 0)
+    row.price = UI.Font(row, 12, UI.GOLD)
+    row.price:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    row.price:SetJustifyH("RIGHT")
+    row:Hide()
+    home.prices[i] = row
+  end
+  home.priceEmpty = UI.Font(price, 12, UI.DIM)
+  home.priceEmpty:SetPoint("CENTER", price, "CENTER")
+  home.priceEmpty:SetText(L"Снимка пока нет. Откройте аукцион для сбора цен.")
+  local net = panel(611, -151, 350, 171, L"Сеть WolfichMarket")
+  home.network = UI.Font(net, 15, UI.TEXT)
+  home.network:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -56)
+  home.network:SetWidth(319)
+  local peers = UI.Font(net, 12, UI.DIM)
+  peers:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -88)
+  home.peerCount = peers
+  local last = UI.Font(net, 11, UI.DIM)
+  last:SetPoint("TOPLEFT", net, "TOPLEFT", 16, -119)
+  last:SetWidth(319)
+  home.lastReceived = last
+  local actions = panel(611, -335, 350, 195, L"Быстрые действия")
+  local auction = UI.Button(actions, L"Открыть аукцион", 310, 40, function() ns.ToggleMain(3) end, true)
+  auction:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -49)
+  local craft = UI.Button(actions, L"Профессии и рецепты", 310, 40, function() ns.ToggleMain(2) end)
+  craft:SetPoint("TOPLEFT", actions, "TOPLEFT", 20, -105)
+  local history = UI.Button(f, L"История обновлений", 165, 24, function()
+    home.historyShown = not home.historyShown
+    for _, w in ipairs(home.widgets) do w:SetShown(not home.historyShown) end
+    home.historyScroll:SetShown(home.historyShown)
+    home.historyTitle:SetShown(home.historyShown)
+    home.historyButton:SetLabel(home.historyShown and L"Назад к обзору" or L"История обновлений")
+    if home.historyShown then home.refreshHistory() end
   end)
-  home.child, home.cards, home.sf = child, {}, sf
+  history:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 2)
+  home.historyButton = history
+  local htitle = UI.Font(f, 17, UI.GOLD)
+  htitle:SetPoint("TOPLEFT", 3, -7)
+  htitle:SetText(L"История обновлений")
+  htitle:Hide()
+  home.historyTitle = htitle
+  local scroll = CreateFrame("ScrollFrame", nil, f)
+  scroll:SetPoint("TOPLEFT", 0, -42)
+  scroll:SetPoint("BOTTOMRIGHT", 0, 38)
+  if scroll.SetClipsChildren then scroll:SetClipsChildren(true) end
+  local child = CreateFrame("Frame", nil, scroll)
+  child:SetSize(945, 500); scroll:SetScrollChild(child)
+  scroll:EnableMouseWheel(true)
+  scroll:SetScript("OnMouseWheel", function(self, delta)
+    local max = math.max(0, child:GetHeight() - self:GetHeight())
+    self:SetVerticalScroll(math.max(0, math.min(max, self:GetVerticalScroll() - delta * 42)))
+  end)
+  home.historyScroll = scroll
+  home.historyChild = child
+  home.historyRows = {}
+  scroll:Hide()
+  home.refreshHistory = function()
+    local W = math.max(400, scroll:GetWidth() - 8)
+    child:SetWidth(W)
+    local lang = ns.Lang()
+    local y = 0
+    for i, e in ipairs(ns.CHANGELOG or {}) do
+      local c = home.historyRows[i]
+      if not c then
+        c = CreateFrame("Frame", nil, child)
+        c.bg = c:CreateTexture(nil, "BACKGROUND")
+        c.bg:SetAllPoints(); c.bg:SetColorTexture(0.045, 0.075, 0.095, 1)
+        c.version = UI.Font(c, 14, UI.GOLD)
+        c.version:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -8)
+        c.description = UI.Font(c, 11, UI.TEXT)
+        c.description:SetPoint("TOPLEFT", c, "TOPLEFT", 14, -34)
+        c.description:SetWidth(W - 28)
+        c.description:SetWordWrap(true)
+        c.description:SetJustifyV("TOP")
+        home.historyRows[i] = c
+      end
+      c:SetWidth(W)
+      c.description:SetWidth(W - 28)
+      c.version:SetText((e.v or "") .. "   " .. (e.d or ""))
+      local lines = (lang == "en" and e.en) or e.ru or {}
+      c.description:SetText(table.concat(lines, "\n• "))
+      local h = math.max(24, c.description:GetStringHeight() or 24)
+      c:SetHeight(42 + h)
+      c:ClearAllPoints(); c:SetPoint("TOPLEFT", child, "TOPLEFT", 0, -y)
+      c:Show()
+      y = y + 49 + h
+    end
+    child:SetHeight(math.max(10, y))
+  end
 end
 local function refreshHome()
-  if not home.child then return end
-  local W = (home.sf:GetWidth() or 0) > 100 and home.sf:GetWidth() or 790
-  home.child:SetWidth(W)
-  if home.metrics then
-    local scan = ns.CurrentScan and ns.CurrentScan()
-    local scanStamp = scan and scan.t
-    home.metrics.scan:SetText(scanStamp and (L"Снимок " .. ns.ago(scanStamp)) or L"Снимка пока нет")
-    local receivedAt = ns.NetInfo and ns.NetInfo()
-    home.metrics.received:SetText(receivedAt and (L"Получены " .. ns.ago(receivedAt)) or L"Пока нет данных")
-    local settings = ns.DB and ns.DB.settings or {}
-    if settings.netSend == false and settings.netRecv == false then
-      home.metrics.network:SetText("|cff999999" .. L"Обмен отключён" .. "|r")
-    else
-      local seen, now = 0, time()
-      for _, stamp in pairs(ns._netInChannel or {}) do
-        if type(stamp) == "number" and now - stamp >= 0 and now - stamp < 300 then seen = seen + 1 end
+  if not home.hero then return end
+  local scan = ns.CurrentScan and ns.CurrentScan()
+  local ids = {}
+  if scan and scan.items then
+    local marked = ns.DB and ns.DB.marked or {}
+    for id in pairs(marked) do if scan.items[id] then ids[#ids+1] = id end end
+    table.sort(ids)
+    if #ids < 6 then
+      local all = {}
+      for id in pairs(scan.items) do all[#all+1] = id end
+      table.sort(all)
+      for _, id in ipairs(all) do
+        if #ids >= 6 then break end
+        if not marked[id] then ids[#ids+1] = id end
       end
-      home.metrics.network:SetText("|cff70cf82" .. L"Включён" .. "|r   " .. L"Участников замечено" .. ": " .. seen)
     end
   end
-  local lang = ns.Lang()
-  local y = 0
-  for i, e in ipairs(ns.CHANGELOG or {}) do
-    local c = home.cards[i]
-    if not c then
-      c = CreateFrame("Frame", nil, home.child)
-      c.bg = c:CreateTexture(nil, "BACKGROUND"); c.bg:SetAllPoints(); c.bg:SetColorTexture(0.035, 0.045, 0.058, 0.65)
-      c.edge = c:CreateTexture(nil, "BORDER"); c.edge:SetPoint("TOPLEFT"); c.edge:SetPoint("BOTTOMLEFT"); c.edge:SetWidth(2)
-      c.v = UI.Font(c, 15, UI.GOLD, "OVERLAY", "OUTLINE"); c.v:SetPoint("TOPLEFT", 16, -10)
-      c.d = UI.Font(c, 10, UI.DIM); c.d:SetPoint("LEFT", c.v, "RIGHT", 10, -1)
-      c.lines = {}
-      home.cards[i] = c
-    end
-    c:ClearAllPoints(); c:SetPoint("TOPLEFT", 0, -y); c:SetWidth(W - 6)
-    c.v:SetText(e.v); c.d:SetText((i == 1 and ("|cffffd24a" .. L"НОВОЕ" .. "|r   ") or "") .. (e.d or ""))
-    c.edge:SetColorTexture(i == 1 and 0.95 or 0.45, i == 1 and 0.78 or 0.38, i == 1 and 0.38 or 0.22, 1)
-    local list = (lang == "en" and e.en) or e.ru or {}
-    local ly = 34
-    for k, txt in ipairs(list) do
-      local fs = c.lines[k] or UI.Font(c, 12, UI.TEXT); c.lines[k] = fs
-      fs:SetWordWrap(true); fs:SetJustifyV("TOP")
-      fs:ClearAllPoints(); fs:SetPoint("TOPLEFT", 30, -ly); fs:SetWidth(W - 60); fs:SetText("|cfff2c761•|r  " .. txt); fs:Show()
-      local h = fs:GetStringHeight(); if type(h) ~= "number" or h < 12 then h = 15 * math.max(1, math.ceil(#txt / 140)) end
-      ly = ly + h + 5
-    end
-    for k = #list + 1, #c.lines do c.lines[k]:Hide() end
-    c:SetHeight(ly + 8); c:Show()
-    y = y + ly + 8 + 12
+  for i, row in ipairs(home.prices or {}) do
+    local id = ids[i]
+    if id then
+      local record = scan.items[id]
+      local price = ns.RegularPrice(id)
+      row.icon:SetTexture(ns.itemIcon(id))
+      row.name:SetText(ns.itemLinkText(id))
+      row.price:SetText(price and ns.money(price, true) or "—")
+      row:Show()
+    else row:Hide() end
   end
-  home.child:SetHeight(math.max(10, y))
+  home.priceEmpty:SetShown(#ids == 0)
+  local settings = ns.DB and ns.DB.settings or {}
+  local enabled = settings.netSend ~= false or settings.netRecv ~= false
+  home.network:SetText(enabled and ("|cff70dc90" .. L"Обмен включён" .. "|r") or ("|cff999999" .. L"Обмен отключён" .. "|r"))
+  local peers, now = 0, time()
+  for _, stamp in pairs(ns._netInChannel or {}) do
+    if type(stamp) == "number" and now - stamp >= 0 and now - stamp < 300 then peers = peers + 1 end
+  end
+  home.peerCount:SetText(L"Обнаружено участников: " .. peers)
+  local received = ns.NetInfo and ns.NetInfo()
+  home.lastReceived:SetText(received and (L"Цены игроков: " .. ns.ago(received)) or L"Цены от игроков пока не получены")
+  if home.historyShown then home.refreshHistory() end
 end
-
 -- ---------- окно ----------
 local VIEW_HOME, VIEW_CRAFT, VIEW_AUC, VIEW_SET = 1, 2, 3, 4
 local NAV_NAMES = { L"Главная", L"Профессии", L"Аукцион", L"Настройки" }
