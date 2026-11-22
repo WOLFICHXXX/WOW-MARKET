@@ -167,23 +167,25 @@ function UI.OrnatePanel(frame, alpha, cap)
     t:SetAlpha(alpha)
   end
   local strips = {
-    {0.15,0.85,0,0.16,"TOPLEFT","TOPRIGHT",0,-cap,0},
-    {0.15,0.85,0.84,1,"BOTTOMLEFT","BOTTOMRIGHT",0,cap,0},
-    {0,0.15,0.16,0.84,"TOPLEFT","BOTTOMLEFT",cap,-cap,1},
-    {0.85,1,0.16,0.84,"TOPRIGHT","BOTTOMRIGHT",-cap,-cap,1},
+    { 0.15, 0.85, 0, 0.16, "TOP" },
+    { 0.15, 0.85, 0.84, 1, "BOTTOM" },
+    { 0, 0.15, 0.16, 0.84, "LEFT" },
+    { 0.85, 1, 0.16, 0.84, "RIGHT" },
   }
   for _, p in ipairs(strips) do
     local t = frame:CreateTexture(nil, "BORDER", nil, 1)
     UI.WolfTex(t, "approved-panel")
-    t:SetTexCoord(p[1],p[2],p[3],p[4])
-    if p[9] == 0 then
+    t:SetTexCoord(p[1], p[2], p[3], p[4])
+    if p[5] == "TOP" or p[5] == "BOTTOM" then
       t:SetHeight(cap)
-      t:SetPoint(p[5], frame, p[5], p[7], p[8])
-      t:SetPoint(p[6], frame, p[6], -p[7], p[8])
+      local pt = p[5] == "TOP" and "TOP" or "BOTTOM"
+      t:SetPoint(pt .. "LEFT", frame, pt .. "LEFT", cap, 0)
+      t:SetPoint(pt .. "RIGHT", frame, pt .. "RIGHT", -cap, 0)
     else
       t:SetWidth(cap)
-      t:SetPoint(p[5], frame, p[5], p[7], -cap)
-      t:SetPoint(p[6], frame, p[6], p[7], cap)
+      local pt = p[5] == "LEFT" and "LEFT" or "RIGHT"
+      t:SetPoint("TOP" .. pt, frame, "TOP" .. pt, 0, -cap)
+      t:SetPoint("BOTTOM" .. pt, frame, "BOTTOM" .. pt, 0, cap)
     end
     t:SetAlpha(alpha)
   end
