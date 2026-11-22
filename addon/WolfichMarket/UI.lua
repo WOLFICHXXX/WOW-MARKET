@@ -147,14 +147,57 @@ function UI.WolfTex(texture, name)
     texture:SetTexCoord(0, 1, 0, 1)
   end
 end
+-- True nine-slice painted fantasy frame, sourced from approved-panel.tga.
+-- Texture corners stay proportionate while the center stretches to its frame.
+function UI.OrnatePanel(frame, alpha, cap)
+  cap = cap or 14
+  alpha = alpha or 0.93
+  local pieces = {
+    { "tl", 0, 0.15, 0, 0.16, "TOPLEFT" },
+    { "tr", 0.85, 1, 0, 0.16, "TOPRIGHT" },
+    { "bl", 0, 0.15, 0.84, 1, "BOTTOMLEFT" },
+    { "br", 0.85, 1, 0.84, 1, "BOTTOMRIGHT" },
+  }
+  for _, p in ipairs(pieces) do
+    local t = frame:CreateTexture(nil, "BORDER", nil, 2)
+    UI.WolfTex(t, "approved-panel")
+    t:SetTexCoord(p[2], p[3], p[4], p[5])
+    t:SetSize(cap, cap)
+    t:SetPoint(p[6], frame, p[6])
+    t:SetAlpha(alpha)
+  end
+  local strips = {
+    {0.15,0.85,0,0.16,"TOPLEFT","TOPRIGHT",0,-cap,0},
+    {0.15,0.85,0.84,1,"BOTTOMLEFT","BOTTOMRIGHT",0,cap,0},
+    {0,0.15,0.16,0.84,"TOPLEFT","BOTTOMLEFT",cap,-cap,1},
+    {0.85,1,0.16,0.84,"TOPRIGHT","BOTTOMRIGHT",-cap,-cap,1},
+  }
+  for _, p in ipairs(strips) do
+    local t = frame:CreateTexture(nil, "BORDER", nil, 1)
+    UI.WolfTex(t, "approved-panel")
+    t:SetTexCoord(p[1],p[2],p[3],p[4])
+    if p[9] == 0 then
+      t:SetHeight(cap)
+      t:SetPoint(p[5], frame, p[5], p[7], p[8])
+      t:SetPoint(p[6], frame, p[6], -p[7], p[8])
+    else
+      t:SetWidth(cap)
+      t:SetPoint(p[5], frame, p[5], p[7], -cap)
+      t:SetPoint(p[6], frame, p[6], p[7], cap)
+    end
+    t:SetAlpha(alpha)
+  end
+  local center = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
+  UI.WolfTex(center, "approved-panel")
+  center:SetTexCoord(0.15,0.85,0.16,0.84)
+  center:SetPoint("TOPLEFT", frame, "TOPLEFT", cap, -cap)
+  center:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -cap, cap)
+  center:SetAlpha(alpha * 0.70)
+end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
 function UI.Box(f, alpha)
   local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.045, 0.065, 0.085, alpha or 0.62)
-  -- Real preinstalled TGA artwork: the old panel center, under all contents.
-  local cloth = f:CreateTexture(nil, "BACKGROUND", nil, -5)
-  cloth:SetAllPoints()
-  UI.WolfTex(cloth, "surface")
-  cloth:SetAlpha(0.08)
+  UI.OrnatePanel(f, 0.86, 12)
   local function line(p1, p2, horiz)
     local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.31, 0.37, 0.40, 0.95)
     if horiz then t:SetHeight(1) else t:SetWidth(1) end
@@ -279,11 +322,18 @@ function UI.Button(parent, text, w, h, onClick, gold)
   h = h + 4 -- чуть выше: надпись не прилипает к кромке
   b:SetSize(w, h)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
-  -- Original 2026-made 128x32 TGA artwork. The text remains separately
-  -- rendered and the entire button stays clickable.
-  local skinArt = b:CreateTexture(nil, "ARTWORK", nil, -2)
-  skinArt:SetAllPoints()
-  UI.WolfTex(skinArt, gold and "button-gold" or "button-dark")
+  -- Three-piece real painted button; the ornate caps never stretch.
+  local skinLeft = b:CreateTexture(nil, "ARTWORK", nil, -2)
+  skinLeft:SetWidth(14)
+  skinLeft:SetPoint("TOPLEFT", b, "TOPLEFT")
+  skinLeft:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT")
+  local skinRight = b:CreateTexture(nil, "ARTWORK", nil, -2)
+  skinRight:SetWidth(14)
+  skinRight:SetPoint("TOPRIGHT", b, "TOPRIGHT")
+  skinRight:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT")
+  local skinMid = b:CreateTexture(nil, "ARTWORK", nil, -3)
+  skinMid:SetPoint("TOPLEFT", skinLeft, "TOPRIGHT")
+  skinMid:SetPoint("BOTTOMRIGHT", skinRight, "BOTTOMLEFT")
   local edges = UI.Edge(b, 0, 0, 0, 1, "BORDER")
   local bevelTop = b:CreateTexture(nil, "BORDER", nil, 2)
   bevelTop:SetPoint("TOPLEFT", b, "TOPLEFT", 2, -2)
@@ -316,8 +366,13 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local st = not en and BTN.off or (isGold and BTN.gold or BTN.dark)
     bg:SetColorTexture(st.bg[1], st.bg[2], st.bg[3], st.bg[4])
     local variant = (not en and "dark") or (isGold and "gold" or "dark")
-    UI.WolfTex(skinArt, "button-" .. variant)
-    skinArt:SetAlpha(en and 0.06 or 0.02)
+    for _, piece in ipairs({ skinLeft, skinMid, skinRight }) do
+      UI.WolfTex(piece, "approved-button-" .. variant)
+      piece:SetAlpha(en and 1 or 0.40)
+    end
+    skinLeft:SetTexCoord(0,0.18,0,1)
+    skinMid:SetTexCoord(0.18,0.82,0,1)
+    skinRight:SetTexCoord(0.82,1,0,1)
     for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
     if en and isGold then
       bevelTop:SetColorTexture(1, 0.91, 0.66, 0.75)
@@ -1015,8 +1070,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
   -- Original graphical side texture (384x1517): same aspect as our rail.
   local railArt = rail:CreateTexture(nil, "BACKGROUND", nil, -7)
   railArt:SetAllPoints()
-  UI.WolfTex(railArt, "side")
-  railArt:SetAlpha(0.04)
+  UI.WolfTex(railArt, "approved-sidebar")
+  railArt:SetAlpha(1)
   edge(rail, unpack(GOLD_EDGE))
   local railAccent = rail:CreateTexture(nil, "BORDER", nil, 2)
   railAccent:SetPoint("TOPRIGHT", rail, "TOPRIGHT", -2, -2)
@@ -1029,10 +1084,11 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
   local mainArt = main:CreateTexture(nil, "BACKGROUND", nil, -7)
   mainArt:SetAllPoints()
-  UI.WolfTex(mainArt, "surface")
-  mainArt:SetAlpha(0.07)
+  UI.WolfTex(mainArt, "approved-panel")
+  mainArt:SetAlpha(0.20)
   -- The dark inset keeps real item names and costs legible over art.
   edge(main, unpack(GOLD_EDGE))
+  UI.OrnatePanel(main, 0.93, 16)
   -- Fine inner stroke gives the old-world bronze frame a second edge.
   local insetTop = main:CreateTexture(nil, "BORDER", nil, 2)
   insetTop:SetPoint("TOPLEFT", main, "TOPLEFT", 3, -3)
@@ -1053,8 +1109,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
   headerBg:SetColorTexture(0.048, 0.070, 0.088, 1)
   local headerArt = top:CreateTexture(nil, "BACKGROUND", nil, -4)
   headerArt:SetAllPoints()
-  UI.WolfTex(headerArt, "header")
-  headerArt:SetAlpha(0.06)
+  UI.WolfTex(headerArt, "approved-header")
+  headerArt:SetAlpha(0.95)
   local hl = top:CreateTexture(nil, "BORDER")
   hl:SetColorTexture(0.76, 0.55, 0.24, 1)
   hl:SetHeight(2); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
@@ -1070,12 +1126,17 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(24, 24); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 9, -13); UI.WolfTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(24, 24); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 9, -13); UI.WolfTex(logo, "approved-nav-paw"); logo:SetVertexColor(1, 1, 1)
   local brand = UI.Font(rail, 15, UI.GOLD)
   brand:SetPoint("TOP", rail, "TOP", 0, -19)
   brand:SetText("WOLFICH")
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
-  -- The new side.tga contains integrated wolf ornament; no old banner overlay.
+  -- The approved portrait appears below the navigation, without blocking it.
+  local wolf = rail:CreateTexture(nil, "ARTWORK", nil, -1)
+  wolf:SetSize(RAIL - 26, 138)
+  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 22)
+  UI.WolfTex(wolf, "approved-wolf-emblem")
+  wolf:SetAlpha(0.90)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
@@ -1099,13 +1160,13 @@ function UI.MainChromeCompact(win, onNav, navTips)
     b.selBottom:SetColorTexture(0.44, 0.34, 0.19, 0.80)
     b.selBottom:Hide()
     b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(3, 34); b.bar:SetPoint("LEFT", b, "LEFT", -1, 0); b.bar:Hide()
-    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(26, 26); b.icon:SetPoint("LEFT", b, "LEFT", 9, 0); UI.WolfTex(b.icon, c)
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(33, 33); b.icon:SetPoint("LEFT", b, "LEFT", 4, 0); UI.WolfTex(b.icon, "approved-" .. c)
     b.text = UI.Font(b, 12, UI.TEXT)
     b.text:SetPoint("LEFT", b.icon, "RIGHT", 10, 0)
     b.text:SetPoint("RIGHT", b, "RIGHT", -5, 0)
     b.text:SetJustifyH("LEFT")
     b.text:SetText(navTips and navTips[i] or "")
-    local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
+    local function tint(t) b.icon:SetVertexColor(1, 1, 1); b.icon:SetAlpha(t == IC_DIM and 0.73 or 1) end
     tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
     b.pulse = b:CreateTexture(nil, "OVERLAY", nil, 2); b.pulse:SetAllPoints(b.glow); UI.WinTex(b.pulse, "slot-glow"); b.pulse:SetBlendMode("ADD"); b.pulse:SetVertexColor(0.45, 0.78, 1); b.pulse:Hide()
