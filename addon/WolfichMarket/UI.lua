@@ -932,7 +932,7 @@ end
 -- ---------- компактное главное окно: узкая полоса значков слева, тонкая шапка, плоская рамка ----------
 -- область содержимого - того же размера, что в большом окне (разделы не перестраиваются)
 local CONTENT_W, CONTENT_H = 961, 546
-local RAIL, PAD, HEAD = 62, 16, 42
+local RAIL, PAD, HEAD = 164, 16, 42
 UI.COMPACT_SIZE = { RAIL + PAD + CONTENT_W + PAD, HEAD + 10 + CONTENT_H + 14 }
 -- свои простые значки разделов (белые линии, красятся цветом): media\\win\\nav-*.tga, исходник - tools\\icons
 local NAV_ICONS = { "nav-home", "nav-prof", "nav-auc", "nav-set" }
@@ -990,17 +990,25 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(30, 30); logo:SetPoint("TOP", 0, -14); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
-  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.43, 0.33, 0.16, 0.6); sep:SetSize(34, 1); sep:SetPoint("TOP", 0, -54)
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(24, 24); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 9, -13); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
+  local brand = UI.Font(rail, 15, UI.GOLD)
+  brand:SetPoint("TOP", rail, "TOP", 0, -19)
+  brand:SetText("WOLFICH")
+  local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
   -- кнопки разделов: значок 44x44, выбранный - золотая обводка и свечение, подпись - при наведении
   local nav = {}
   for i, c in ipairs(NAV_ICONS) do
-    local b = CreateFrame("Button", nil, rail); b:SetSize(44, 44); b:SetPoint("TOP", 0, -60 - (i - 1) * 50)
+    local b = CreateFrame("Button", nil, rail); b:SetSize(RAIL - 16, 44); b:SetPoint("TOP", rail, "TOP", 0, -72 - (i - 1) * 52)
     b:SetFrameLevel((rail:GetFrameLevel() or 1) + 2)
     -- подложка выбранного раздела и золотая черта у левого края полосы
     b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.22, 0.36, 0.42, 0.65); b.bg:Hide()
-    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
-    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(30, 30); b.icon:SetPoint("CENTER"); UI.WinTex(b.icon, c)
+    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(3, 34); b.bar:SetPoint("LEFT", b, "LEFT", -1, 0); b.bar:Hide()
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(26, 26); b.icon:SetPoint("LEFT", b, "LEFT", 9, 0); UI.WinTex(b.icon, c)
+    b.text = UI.Font(b, 12, UI.TEXT)
+    b.text:SetPoint("LEFT", b.icon, "RIGHT", 10, 0)
+    b.text:SetPoint("RIGHT", b, "RIGHT", -5, 0)
+    b.text:SetJustifyH("LEFT")
+    b.text:SetText(navTips and navTips[i] or "")
     local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
     tint(IC_DIM)
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1); b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
@@ -1013,6 +1021,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
     b:SetScript("OnClick", function() onNav(i) end)
     function b:SetOn(on)
       self.on = on; tint(on and IC_ON or IC_DIM); self.bg:SetShown(on and true or false); self.bar:SetShown(on and true or false)
+      self.text:SetTextColor(on and UI.GOLD[1] or UI.TEXT[1], on and UI.GOLD[2] or UI.TEXT[2], on and UI.GOLD[3] or UI.TEXT[3])
     end
     function b:SetPulse(on)
       self.pulse:SetShown(on)
