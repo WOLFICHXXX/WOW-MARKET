@@ -5,9 +5,9 @@ local M = ns.MEDIA
 local UI = {}
 ns.UI = UI
 
-UI.GOLD = { 0.95, 0.80, 0.42 }
-UI.TEXT = { 0.93, 0.89, 0.80 }
-UI.DIM = { 0.66, 0.62, 0.53 }
+UI.GOLD = { 0.94, 0.76, 0.39 }
+UI.TEXT = { 0.91, 0.92, 0.90 }
+UI.DIM = { 0.66, 0.72, 0.75 }
 -- цвета графиков и рамок (прежнее минималистичное оформление)
 UI.PAL = {
   brass = { 0.95, 0.78, 0.38 }, brassLight = { 0.95, 0.80, 0.42 }, brassDark = { 0.42, 0.33, 0.17 },
@@ -142,9 +142,9 @@ function UI.FrameSkin(f, s)
 end
 -- панель внутри окна: тёмная подложка и тонкая золотая кромка
 function UI.Box(f, alpha)
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.03, 0.025, 0.02, alpha or 0.42)
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6); bg:SetAllPoints(); bg:SetColorTexture(0.045, 0.065, 0.085, alpha or 0.62)
   local function line(p1, p2, horiz)
-    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.42, 0.33, 0.17, 0.95)
+    local t = f:CreateTexture(nil, "BORDER", nil, 3); t:SetColorTexture(0.31, 0.37, 0.40, 0.95)
     if horiz then t:SetHeight(1) else t:SetWidth(1) end
     t:SetPoint(p1); t:SetPoint(p2)
   end
@@ -245,9 +245,9 @@ end
 -- кнопка (2.43.33): своя плоская - заливка и тонкая кромка, без картинок; b:SetGold(on) - золотая (главная / выбрана) или тёмная
 local GOLD_TXT, DARK_TXT = { 0.12, 0.08, 0.02 }, { 0.94, 0.88, 0.77 }
 local BTN = {
-  dark = { bg = { 0.09, 0.075, 0.05, 0.92 }, edge = { 0.45, 0.35, 0.16, 1 } },
-  gold = { bg = { 0.85, 0.64, 0.25, 1 }, edge = { 0.98, 0.82, 0.45, 1 } },
-  off = { bg = { 0.07, 0.06, 0.05, 0.85 }, edge = { 0.28, 0.23, 0.15, 1 } },
+  dark = { bg = { 0.085, 0.115, 0.14, 0.96 }, edge = { 0.35, 0.43, 0.47, 1 } },
+  gold = { bg = { 0.83, 0.63, 0.29, 1 }, edge = { 0.96, 0.81, 0.49, 1 } },
+  off = { bg = { 0.055, 0.072, 0.084, 0.88 }, edge = { 0.22, 0.28, 0.30, 1 } },
 }
 UI.BTN_COLORS = BTN
 function UI.Button(parent, text, w, h, onClick, gold)
@@ -378,8 +378,8 @@ function UI.List(parent, rowH, makeRow, fillRow)
   local bar = CreateFrame("Slider", nil, box)
   bar:SetWidth(8); bar:SetPoint("TOPRIGHT", 0, 0); bar:SetPoint("BOTTOMRIGHT", 0, 0)
   bar:SetOrientation("VERTICAL"); bar:SetMinMaxValues(0, 0); bar:SetValueStep(1)
-  local track = bar:CreateTexture(nil, "BACKGROUND"); track:SetAllPoints(); track:SetColorTexture(0, 0, 0, 0.35)
-  local th = bar:CreateTexture(nil, "OVERLAY"); th:SetColorTexture(0.85, 0.66, 0.32, 0.9); th:SetSize(8, 28)
+  local track = bar:CreateTexture(nil, "BACKGROUND"); track:SetAllPoints(); track:SetColorTexture(0.025, 0.045, 0.060, 0.95)
+  local th = bar:CreateTexture(nil, "OVERLAY"); th:SetColorTexture(0.85, 0.68, 0.37, 1); th:SetSize(8, 28)
   bar:SetThumbTexture(th)
   box.bar = bar
   -- раскрытие строки (box:EnableDetail): слева треугольник, под строкой - панель на n строк
@@ -391,8 +391,14 @@ function UI.List(parent, rowH, makeRow, fillRow)
       r.box = self
       r:SetHeight(rowH)
       r:SetPoint("TOPLEFT", DX, -(i - 1) * rowH); r:SetPoint("RIGHT", bar, "LEFT", -2, 0)
-      local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetTexture(M .. "row-hl")
-      if i % 2 == 0 then local z = r:CreateTexture(nil, "BACKGROUND"); z:SetAllPoints(); z:SetColorTexture(1, 1, 1, 0.025) end
+      local hl = r:CreateTexture(nil, "HIGHLIGHT")
+      hl:SetAllPoints()
+      hl:SetColorTexture(0.75, 0.56, 0.28, 0.16)
+      if i % 2 == 0 then
+        local z = r:CreateTexture(nil, "BACKGROUND")
+        z:SetAllPoints()
+        z:SetColorTexture(0.14, 0.20, 0.24, 0.28)
+      end
       if self.detailN then
         local t = CreateFrame("Button", nil, r); t:SetSize(14, rowH); t:SetPoint("RIGHT", r, "LEFT", -1, 0)
         t.tex = t:CreateTexture(nil, "ARTWORK"); t.tex:SetSize(11, 11); t.tex:SetPoint("CENTER"); UI.WinTex(t.tex, "tri")
@@ -414,7 +420,7 @@ function UI.List(parent, rowH, makeRow, fillRow)
     self.rows = {}; self.visible = nil
     local det = CreateFrame("Frame", nil, self)
     det:SetHeight(n * rowH)
-    local bg = det:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0, 0, 0, 0.42)
+    local bg = det:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.040, 0.075, 0.095, 0.98)
     local ln = det:CreateTexture(nil, "BORDER"); ln:SetHeight(1); ln:SetPoint("BOTTOMLEFT"); ln:SetPoint("BOTTOMRIGHT"); ln:SetColorTexture(0.55, 0.42, 0.2, 0.6)
     make(det); det.fill = fill; det:Hide()
     self.det = det
@@ -945,33 +951,33 @@ UI.Edge = edge
 function UI.FlatSkin(f, opts)
   opts = opts or {}
   f.wmTheme, f.wmScale = "flat", 1
-  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); UI.WinTex(bg, "f-c")
+  local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8); bg:SetAllPoints(); bg:SetColorTexture(0.035, 0.055, 0.075, 1)
   UI.PawsBG(f)
-  edge(f, 0.43, 0.33, 0.16, 1)
+  edge(f, 0.47, 0.40, 0.25, 1)
   local head = opts.head or 40
-  local hl = f:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1)
+  local hl = f:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.39, 0.33, 0.20, 1); hl:SetHeight(1)
   hl:SetPoint("TOPLEFT", 1, -head); hl:SetPoint("TOPRIGHT", -1, -head)
   return f
 end
 function UI.MainChromeCompact(win, onNav, navTips)
   local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
   win:SetSize(W, H)
-  local GOLD_EDGE = { 0.43, 0.33, 0.16, 1 }
+  local GOLD_EDGE = { 0.48, 0.40, 0.24, 1 }
   -- полоса значков
   local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
-  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); UI.WinTex(rb, "f-c"); rb:SetVertexColor(0.62, 0.58, 0.52)
+  local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.025, 0.040, 0.055, 1)
   edge(rail, unpack(GOLD_EDGE))
   -- основная часть
   local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
   -- фон - прежняя ткань с едва заметными лапками
-  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); UI.WinTex(mb, "f-c")
-  UI.PawsBG(main)
+  local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
+  -- Quiet background: no decorative paw prints in the content area.
   edge(main, unpack(GOLD_EDGE))
   win.frameBox = main
   -- шапка: название раздела крупно, рядом «WolfichMarket vX» мелко; линия под шапкой
   local top = CreateFrame("Frame", nil, win); top:SetPoint("TOPLEFT", RAIL, 0); top:SetPoint("TOPRIGHT"); top:SetHeight(HEAD)
   top:SetFrameLevel((main:GetFrameLevel() or 1) + 2)
-  local hl = top:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.18, 0.15, 0.09, 1); hl:SetHeight(1); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
+  local hl = top:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.52, 0.43, 0.25, 1); hl:SetHeight(1); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
   local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 20, "")
   sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD, 0)
   local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 10, -1); title:SetText("·  WolfichMarket")
@@ -992,8 +998,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
     local b = CreateFrame("Button", nil, rail); b:SetSize(44, 44); b:SetPoint("TOP", 0, -60 - (i - 1) * 50)
     b:SetFrameLevel((rail:GetFrameLevel() or 1) + 2)
     -- подложка выбранного раздела и золотая черта у левого края полосы
-    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.95, 0.78, 0.38, 0.12); b.bg:Hide()
-    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.95, 0.78, 0.38, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
+    b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints(); b.bg:SetColorTexture(0.22, 0.36, 0.42, 0.65); b.bg:Hide()
+    b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(2, 30); b.bar:SetPoint("RIGHT", b, "LEFT", -7, 0); b.bar:Hide()
     b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(30, 30); b.icon:SetPoint("CENTER"); UI.WinTex(b.icon, c)
     local function tint(t) b.icon:SetVertexColor(t[1], t[2], t[3]) end
     tint(IC_DIM)
