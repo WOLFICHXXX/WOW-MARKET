@@ -304,6 +304,16 @@ function UI.FantasyHeader(frame, inset, top, height, alpha, warm)
   lower:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset - 2, top - height)
   lower:SetHeight(1)
   lower:SetColorTexture(0.89, 0.66, 0.32, alpha * 0.87)
+  -- Subtle center engraving like the approved reference. One tiny diamond,
+  -- not a second frame or duplicated ornamental bar.
+  local diamond = frame:CreateTexture(nil, "BORDER", nil, 2)
+  diamond:SetSize(7, 7)
+  diamond:SetPoint("CENTER", lower, "CENTER", 0, 0)
+  diamond:SetColorTexture(0.93, 0.72, 0.34, alpha * 0.79)
+  local diamondInset = frame:CreateTexture(nil, "BORDER", nil, 3)
+  diamondInset:SetSize(3, 3)
+  diamondInset:SetPoint("CENTER", diamond, "CENTER")
+  diamondInset:SetColorTexture(0.10, 0.12, 0.13, 0.90)
   return plate, upper, lower
 end
 
@@ -739,7 +749,7 @@ function UI.Chart(parent)
   local plot = CreateFrame("Frame", nil, f)
   f.plot = plot
   f.lines, f.bars, f.labels, f.grid, f.vgrid, f.slines, f.slabels, f.fill, f.refl, f.reflbl = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
-  local bg = plot:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.005, 0.017, 0.029, 0.56)
+  local bg = plot:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.005, 0.017, 0.029, 0.69)
   UI.Edge(plot, P.brassDark[1], P.brassDark[2], P.brassDark[3], 0.8, "BORDER")
   -- легенда и строка цифр над графиком
   f.legend = UI.Font(f, 10, UI.DIM, "OVERLAY")
@@ -758,11 +768,11 @@ function UI.Chart(parent)
     -- Reserve space for period buttons above the plot frame.
     -- Mid-sized recipe charts have their own title above the plot. Reserve
     -- that text row instead of drawing price labels and bars under it.
-    local top = compact and 6 or (f.mid and 31 or 61)
+    local top = compact and 6 or (f.mid and 31 or 63)
     plot:ClearAllPoints()
     plot:SetPoint("TOPLEFT", compact and 46 or 58, -top); plot:SetPoint("BOTTOMRIGHT", compact and -30 or -40, compact and 16 or 30)
     f.stats:ClearAllPoints(); f.stats:SetPoint("TOPLEFT", 4, -2); f.stats:SetPoint("RIGHT", -250, 0)
-    f.legend:ClearAllPoints(); f.legend:SetPoint("BOTTOMLEFT", plot, "TOPLEFT", 0, 8)
+    f.legend:ClearAllPoints(); f.legend:SetPoint("BOTTOMLEFT", plot, "TOPLEFT", 1, 8)
     local x = 0
     for k = #f.periodBtns, 1, -1 do
       local b = f.periodBtns[k]
@@ -1276,10 +1286,10 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(24, 24); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 9, -13); UI.WolfTex(logo, "approved-nav-paw"); logo:SetVertexColor(1, 1, 1)
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(27, 27); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 8, -12); UI.WolfTex(logo, "approved-nav-paw"); logo:SetVertexColor(1, 0.94, 0.80)
   local brand = UI.Font(rail, 17, UI.GOLD)
   setFont(brand, UI.TITLE_FONT, 17, "")
-  brand:SetPoint("TOP", rail, "TOP", 0, -19)
+  brand:SetPoint("TOP", rail, "TOP", 7, -19)
   brand:SetText("WOLFICH")
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
   -- The approved portrait appears below the navigation, without blocking it.
@@ -1307,7 +1317,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
     b.goldPlate:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, 0)
     UI.WolfTex(b.goldPlate, "ref-button-gold")
     b.goldPlate:SetTexCoord(0, 1, 0, 1)
-    b.goldPlate:SetAlpha(0.98)
+    b.goldPlate:SetAlpha(0.90)
     b.goldPlate:Hide()
     local hover = b:CreateTexture(nil, "HIGHLIGHT")
     hover:SetAllPoints()
@@ -1326,8 +1336,8 @@ function UI.MainChromeCompact(win, onNav, navTips)
     b.selBottom:Hide()
     b.bar = b:CreateTexture(nil, "BORDER"); b.bar:SetColorTexture(0.94, 0.75, 0.37, 1); b.bar:SetSize(3, 34); b.bar:SetPoint("LEFT", b, "LEFT", -1, 0); b.bar:Hide()
     b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(35, 35); b.icon:SetPoint("LEFT", b, "LEFT", 4, 0); UI.WolfTex(b.icon, "approved-" .. c)
-    b.text = UI.Font(b, 13, UI.TEXT)
-    setFont(b.text, UI.TITLE_FONT, 13, "")
+    b.text = UI.Font(b, 14, UI.TEXT)
+    setFont(b.text, UI.TITLE_FONT, 14, "")
     b.text:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
     b.text:SetPoint("RIGHT", b, "RIGHT", -5, 0)
     b.text:SetJustifyH("LEFT")
