@@ -147,7 +147,25 @@ function UI.WolfTex(texture, name)
     texture:SetTexCoord(0, 1, 0, 1)
   end
 end
--- True nine-slice painted fantasy frame, sourced from approved-panel.tga.
+-- Keep the native stone relief crisp in large dialogs and panels. The same
+-- low-resolution texture would otherwise blur when stretched to ~1000 px.
+function UI.StoneTile(tex, host, opacity)
+  local path = M .. "wolf2026\\ref-stone"
+  tex:SetTexture(path, "REPEAT", "REPEAT")
+  if tex.SetHorizTile then tex:SetHorizTile(true) end
+  if tex.SetVertTile then tex:SetVertTile(true) end
+  tex:SetAlpha(opacity or 1)
+  local function update()
+    local w, h = host:GetWidth() or 0, host:GetHeight() or 0
+    if w < 2 or h < 2 then return end
+    local tx = math.max(1, math.floor(w / 210 + 0.5))
+    local ty = math.max(1, math.floor(h / 210 + 0.5))
+    tex:SetTexCoord(0, tx, 0, ty)
+  end
+  host:HookScript("OnSizeChanged", update)
+  update()
+end
+-- True nine-slice painted fantasy frame, sourced from ref-panel.tga.
 -- Texture corners stay proportionate while the center stretches to its frame.
 -- Reference-themed nine-slice frame. Every segment comes from the imported
 -- transparent fantasy TGA instead of stretching a whole painted screenshot.
@@ -190,11 +208,9 @@ function UI.OrnatePanel(frame, alpha, cap)
   edgeTex("LEFT", false, 0.025, 0.075, 0.29, 0.41)
   edgeTex("RIGHT", false, 0.925, 0.975, 0.29, 0.41)
   local center = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
-  UI.WolfTex(center, "ref-stone")
-  center:SetTexCoord(0, 1, 0, 1)
   center:SetPoint("TOPLEFT", frame, "TOPLEFT", cap - 4, -(cap - 4))
   center:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(cap - 4), cap - 4)
-  center:SetAlpha(alpha * 0.91)
+  UI.StoneTile(center, frame, alpha * 0.91)
 end
 -- A luxury three-slice gilded heading band, used on all tab panels.
 -- No baked text; the existing FontStrings stay live and translated.
@@ -1134,9 +1150,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
   local mainArt = main:CreateTexture(nil, "BACKGROUND", nil, -7)
   mainArt:SetAllPoints()
-  UI.WolfTex(mainArt, "ref-stone")
-  mainArt:SetTexCoord(0, 1, 0, 1)
-  mainArt:SetAlpha(0.92)
+  UI.StoneTile(mainArt, main, 0.92)
   -- The dark inset keeps real item names and costs legible over art.
   edge(main, unpack(GOLD_EDGE))
   UI.OrnatePanel(main, 0.96, 20)
