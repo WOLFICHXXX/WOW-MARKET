@@ -1050,7 +1050,13 @@ local home = {}
 local function buildHome(f)
   local t = UI.Font(f, 18, UI.GOLD, "OVERLAY", "OUTLINE"); t:SetPoint("TOPLEFT", 2, 0); t:SetText(L"Что нового")
   local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -26); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
-  sub:SetText(L"Изменения каждой версии. Язык - как у аддона (по языку игры; можно сменить в настройках).")
+  sub:SetText(L"История обновлений WolfichMarket")
+  -- Компактный сетевой индикатор: считаем только реально замеченных участников канала,
+  -- а не всех игроков сервера. Не показываем выдуманное число онлайн.
+  local net = UI.Font(f, 11, UI.DIM)
+  net:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -4)
+  net:SetJustifyH("RIGHT")
+  home.net = net
   local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -48); sf:SetPoint("BOTTOMRIGHT", 0, 0)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
   local child = CreateFrame("Frame", nil, sf); child:SetSize(780, 400); sf:SetScrollChild(child)
@@ -1066,14 +1072,26 @@ local function refreshHome()
   if not home.child then return end
   local W = (home.sf:GetWidth() or 0) > 100 and home.sf:GetWidth() or 790
   home.child:SetWidth(W)
+  if home.net then
+    local settings = ns.DB and ns.DB.settings or {}
+    if settings.netSend == false and settings.netRecv == false then
+      home.net:SetText("|cff999999●|r  " .. L"Обмен отключён")
+    else
+      local seen, now = 0, time()
+      for _, stamp in pairs(ns._netInChannel or {}) do
+        if type(stamp) == "number" and now - stamp < 300 then seen = seen + 1 end
+      end
+      home.net:SetText("|cff70cf82●|r  " .. L"Обмен включён" .. "   |cffaaa69c·|r   " .. L"Обнаружено" .. ": " .. seen)
+    end
+  end
   local lang = ns.Lang()
   local y = 0
   for i, e in ipairs(ns.CHANGELOG or {}) do
     local c = home.cards[i]
     if not c then
       c = CreateFrame("Frame", nil, home.child)
-      c.bg = c:CreateTexture(nil, "BACKGROUND"); c.bg:SetAllPoints(); c.bg:SetColorTexture(0, 0, 0, 0.35)
-      c.edge = c:CreateTexture(nil, "BORDER"); c.edge:SetPoint("TOPLEFT"); c.edge:SetPoint("BOTTOMLEFT"); c.edge:SetWidth(3)
+      c.bg = c:CreateTexture(nil, "BACKGROUND"); c.bg:SetAllPoints(); c.bg:SetColorTexture(0.035, 0.045, 0.058, 0.65)
+      c.edge = c:CreateTexture(nil, "BORDER"); c.edge:SetPoint("TOPLEFT"); c.edge:SetPoint("BOTTOMLEFT"); c.edge:SetWidth(2)
       c.v = UI.Font(c, 15, UI.GOLD, "OVERLAY", "OUTLINE"); c.v:SetPoint("TOPLEFT", 16, -10)
       c.d = UI.Font(c, 10, UI.DIM); c.d:SetPoint("LEFT", c.v, "RIGHT", 10, -1)
       c.lines = {}
