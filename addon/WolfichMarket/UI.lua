@@ -649,7 +649,7 @@ function UI.Chart(parent)
     -- Reserve space for period buttons above the plot frame.
     -- Mid-sized recipe charts have their own title above the plot. Reserve
     -- that text row instead of drawing price labels and bars under it.
-    local top = compact and 6 or (f.mid and 27 or 61)
+    local top = compact and 6 or (f.mid and 31 or 61)
     plot:ClearAllPoints()
     plot:SetPoint("TOPLEFT", compact and 46 or 58, -top); plot:SetPoint("BOTTOMRIGHT", compact and -30 or -40, compact and 16 or 30)
     f.stats:ClearAllPoints(); f.stats:SetPoint("TOPLEFT", 4, -2); f.stats:SetPoint("RIGHT", -250, 0)
