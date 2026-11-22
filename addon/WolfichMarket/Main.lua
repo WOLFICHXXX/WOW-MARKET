@@ -390,13 +390,14 @@ local function buildCraft(f)
   -- второй ряд профессий сдвигает фильтры, список и карточку вниз
   function craft.setTop(dy)
     c1:ClearAllPoints(); c1:SetPoint("TOPLEFT", 0, -34 - dy)
-    c2:ClearAllPoints(); c2:SetPoint("TOPLEFT", 150, -34 - dy)
-    c3:ClearAllPoints(); c3:SetPoint("TOPLEFT", 320, -34 - dy)
-    c4:ClearAllPoints(); c4:SetPoint("TOPLEFT", 530, -34 - dy)
+    -- Give full checkbox labels room; keep the recipe panels at their original height.
+    c2:ClearAllPoints(); c2:SetPoint("TOPLEFT", 190, -34 - dy)
+    c3:ClearAllPoints(); c3:SetPoint("TOPLEFT", 405, -34 - dy)
+    c4:ClearAllPoints(); c4:SetPoint("TOPLEFT", 680, -34 - dy)
     sortLbl:ClearAllPoints(); sortLbl:SetPoint("TOPLEFT", 2, -64 - dy)
-    sortChecks.main:ClearAllPoints(); sortChecks.main:SetPoint("TOPLEFT", 110, -60 - dy)
-    sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 320, -60 - dy)
-    sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 500, -60 - dy)
+    sortChecks.main:ClearAllPoints(); sortChecks.main:SetPoint("TOPLEFT", 125, -60 - dy)
+    sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 394, -60 - dy)
+    sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 655, -60 - dy)
     -- список и карточка - две панели одной высоты, сверху и снизу на одной линии
     craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 18)
     lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 6, -4); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
@@ -725,6 +726,17 @@ local SORTS = { name = L"Название", p = L"Цена", q = L"Кол-во",
 local function buildAuc(f)
   local S = ns.DB.settings
   S.aucCat = S.aucCat or {}
+  -- Separate the auction controls visually from the data grid.
+  local toolbar = f:CreateTexture(nil, "BACKGROUND", nil, -5)
+  toolbar:SetPoint("TOPLEFT", f, "TOPLEFT", -4, 5)
+  toolbar:SetPoint("TOPRIGHT", f, "TOPRIGHT", 4, 5)
+  toolbar:SetHeight(44)
+  toolbar:SetColorTexture(0.065, 0.09, 0.11, 0.90)
+  local toolbarEdge = f:CreateTexture(nil, "BACKGROUND", nil, -4)
+  toolbarEdge:SetPoint("TOPLEFT", f, "TOPLEFT", -4, -38)
+  toolbarEdge:SetPoint("TOPRIGHT", f, "TOPRIGHT", 4, -38)
+  toolbarEdge:SetHeight(1)
+  toolbarEdge:SetColorTexture(0.55, 0.44, 0.25, 0.85)
   -- верхняя строка: какой аукцион, поиск, категория
   aucp.kind = {}
   local x = 0
@@ -961,9 +973,25 @@ local setp = {}
 local function buildSettings(f)
   local S = ns.DB.settings
   local function hl(b, on) b:SetGold(on) end
+  -- Distinct group backgrounds, all on the parent's background layer so they
+  -- cannot intercept mouse input or cover interactive options.
+  local function sectionBackdrop(x, top, width, height)
+    local panel = f:CreateTexture(nil, "BACKGROUND", nil, -5)
+    panel:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    panel:SetSize(width, height)
+    panel:SetColorTexture(0.070, 0.095, 0.115, 0.83)
+    local stripe = f:CreateTexture(nil, "BACKGROUND", nil, -4)
+    stripe:SetPoint("TOPLEFT", f, "TOPLEFT", x, top)
+    stripe:SetSize(3, height)
+    stripe:SetColorTexture(0.72, 0.54, 0.28, 0.75)
+  end
+  sectionBackdrop(0, 4, 394, 212)
+  sectionBackdrop(0, -219, 394, 164)
+  sectionBackdrop(411, 4, 548, 276)
+  sectionBackdrop(411, -284, 548, 166)
   local function column(x, title)
-    local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x, 0); t:SetText(title)
-    return { x = x, y = -24 }
+    local t = UI.Font(f, 13, UI.GOLD); t:SetPoint("TOPLEFT", x + 10, -7); t:SetText(title)
+    return { x = x + 10, y = -31 }
   end
   local function chk(col, text, key, after, inverted)
     local c = UI.Check(f, text, function() if inverted then return S[key] ~= false end return S[key] end, function(v) S[key] = v; if after then after(v) end end)
@@ -988,7 +1016,7 @@ local function buildSettings(f)
   chk(a, L"Цена и прибыль в подсказке предмета", "tooltip")
   chk(a, L"Снимать аукцион автоматически, пока он открыт", "autoScan")
   local rAuto = buttons(a, L"Автоснимок раз в:", { { 15, "15 " .. L"мин", 64 }, { 30, "30 " .. L"мин", 64 }, { 60, "60 " .. L"мин", 64 } }, function() return S.autoScanMin end, function(v) S.autoScanMin = v end)
-  local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 8); t2:SetText(L"Общий рынок"); a.y = a.y - 32
+  local t2 = UI.Font(f, 13, UI.GOLD); t2:SetPoint("TOPLEFT", a.x, a.y - 15); t2:SetText(L"Общий рынок"); a.y = a.y - 39
   chk(a, L"Делиться своими снимками с игроками", "netSend", nil, true)
   chk(a, L"Принимать цены от игроков", "netRecv", nil, true)
   chk(a, L"Турбо: рассылка через 4 имени (в 2-4 раза быстрее)", "netTurbo", nil, true)
@@ -1006,7 +1034,7 @@ local function buildSettings(f)
   setp.reload = UI.Button(f, L"Перезагрузить интерфейс", 190, 22, function() if ReloadUI then ReloadUI() end end, true)
   setp.reload:SetPoint("TOPLEFT", b.x, b.y - 18); setp.reload:Hide()
   -- окно профессии игры: таблица цен и столбики можно выключить; кулдауны; журнал
-  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 48); t3:SetText(L"Прочее"); b.y = b.y - 72
+  local t3 = UI.Font(f, 13, UI.GOLD); t3:SetPoint("TOPLEFT", b.x, b.y - 55); t3:SetText(L"Прочее"); b.y = b.y - 79
   chk(b, L"У аукциониста: своя сумка под окном аукциона", "ahBags", function() if ns.UpdateAHBags then ns.UpdateAHBags() end end, true)
   chk(b, L"У аукциониста: графики в окнах покупки и выставления лота", "ahBuyChart", function(v) if ns.SetAHBuyDeco then ns.SetAHBuyDeco(v) end end, true)
   local jb = UI.Button(f, L"Открыть журнал", 170, 22, function() ns.OpenLog() end, true); jb:SetPoint("TOPLEFT", b.x, b.y - 6)
