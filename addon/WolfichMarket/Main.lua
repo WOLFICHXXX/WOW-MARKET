@@ -1092,16 +1092,38 @@ local function buildHome(f)
   caption:SetPoint("TOPLEFT", 18, -69)
   caption:SetText(L"Цены, профессии и обмен данными в одном месте")
   home.banner = banner
-  local t = UI.Font(f, 16, UI.GOLD); t:SetPoint("TOPLEFT", 2, -129); t:SetText(L"История обновлений")
-  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -153); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
-  sub:SetText(L"История обновлений WolfichMarket")
-  -- Компактный сетевой индикатор: считаем только реально замеченных участников канала,
-  -- а не всех игроков сервера. Не показываем выдуманное число онлайн.
-  local net = UI.Font(f, 11, UI.DIM)
-  net:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, -132)
-  net:SetJustifyH("RIGHT")
-  home.net = net
-  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -177); sf:SetPoint("BOTTOMRIGHT", 0, 0)
+  -- Three read-only summary cards; display only facts already known by the addon.
+  home.metrics = {}
+  local specs = {
+    { L"Снимок аукциона", "scan" },
+    { L"Цены игроков", "received" },
+    { L"Обмен данными", "network" },
+  }
+  for i, spec in ipairs(specs) do
+    local card = CreateFrame("Frame", nil, f)
+    card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * 324, -122)
+    card:SetSize(312, 65)
+    local cbg = card:CreateTexture(nil, "BACKGROUND")
+    cbg:SetAllPoints()
+    cbg:SetColorTexture(0.06, 0.087, 0.11, 1)
+    local bar = card:CreateTexture(nil, "BORDER")
+    bar:SetPoint("TOPLEFT"); bar:SetPoint("BOTTOMLEFT")
+    bar:SetWidth(3)
+    bar:SetColorTexture(0.68, 0.52, 0.28, 1)
+    local label = UI.Font(card, 10, UI.DIM)
+    label:SetPoint("TOPLEFT", 14, -8)
+    label:SetText(spec[1])
+    local value = UI.Font(card, 13, UI.TEXT)
+    value:SetPoint("TOPLEFT", 14, -28)
+    value:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    value:SetJustifyH("LEFT")
+    value:SetWordWrap(false)
+    home.metrics[spec[2]] = value
+  end
+  local t = UI.Font(f, 16, UI.GOLD); t:SetPoint("TOPLEFT", 2, -205); t:SetText(L"История обновлений")
+  local sub = UI.Font(f, 11, UI.DIM); sub:SetPoint("TOPLEFT", 2, -229); sub:SetPoint("RIGHT", -4, 0); sub:SetWordWrap(true)
+  sub:SetText(L"Изменения версий WolfichMarket")
+  local sf = CreateFrame("ScrollFrame", nil, f); sf:SetPoint("TOPLEFT", 0, -255); sf:SetPoint("BOTTOMRIGHT", 0, 0)
   if sf.SetClipsChildren then sf:SetClipsChildren(true) end
   local child = CreateFrame("Frame", nil, sf); child:SetSize(780, 400); sf:SetScrollChild(child)
   local cur = 0
@@ -1116,16 +1138,21 @@ local function refreshHome()
   if not home.child then return end
   local W = (home.sf:GetWidth() or 0) > 100 and home.sf:GetWidth() or 790
   home.child:SetWidth(W)
-  if home.net then
+  if home.metrics then
+    local scan = ns.CurrentScan and ns.CurrentScan()
+    local scanStamp = scan and scan.t
+    home.metrics.scan:SetText(scanStamp and (L"Снимок " .. ns.ago(scanStamp)) or L"Снимка пока нет")
+    local receivedAt = ns.NetInfo and ns.NetInfo()
+    home.metrics.received:SetText(receivedAt and (L"Получены " .. ns.ago(receivedAt)) or L"Пока нет данных")
     local settings = ns.DB and ns.DB.settings or {}
     if settings.netSend == false and settings.netRecv == false then
-      home.net:SetText("|cff999999●|r  " .. L"Обмен отключён")
+      home.metrics.network:SetText("|cff999999" .. L"Обмен отключён" .. "|r")
     else
       local seen, now = 0, time()
       for _, stamp in pairs(ns._netInChannel or {}) do
-        if type(stamp) == "number" and now - stamp < 300 then seen = seen + 1 end
+        if type(stamp) == "number" and now - stamp >= 0 and now - stamp < 300 then seen = seen + 1 end
       end
-      home.net:SetText("|cff70cf82●|r  " .. L"Обмен включён" .. "   |cffaaa69c·|r   " .. L"Обнаружено" .. ": " .. seen)
+      home.metrics.network:SetText("|cff70cf82" .. L"Включён" .. "|r   " .. L"Участников замечено" .. ": " .. seen)
     end
   end
   local lang = ns.Lang()
