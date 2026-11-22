@@ -1070,7 +1070,7 @@ function UI.MainChromeCompact(win, onNav, navTips)
   close:SetScript("OnClick", function() win:Hide() end)
   win.closeBtn = close
   -- значок-волк сверху полосы
-  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(24, 24); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 9, -13); UI.WinTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
+  local logo = rail:CreateTexture(nil, "ARTWORK"); logo:SetSize(24, 24); logo:SetPoint("TOPLEFT", rail, "TOPLEFT", 9, -13); UI.WolfTex(logo, "nav-paw"); logo:SetVertexColor(IC_ON[1], IC_ON[2], IC_ON[3])
   local brand = UI.Font(rail, 15, UI.GOLD)
   brand:SetPoint("TOP", rail, "TOP", 0, -19)
   brand:SetText("WOLFICH")
