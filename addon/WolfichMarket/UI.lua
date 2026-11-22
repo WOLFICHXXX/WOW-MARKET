@@ -149,6 +149,17 @@ function UI.Box(f, alpha)
     t:SetPoint(p1); t:SetPoint(p2)
   end
   line("TOPLEFT", "TOPRIGHT", true); line("BOTTOMLEFT", "BOTTOMRIGHT", true); line("TOPLEFT", "BOTTOMLEFT"); line("TOPRIGHT", "BOTTOMRIGHT")
+  -- Slim bronze bevel: no artwork dependency, no mouse interception.
+  local highlight = f:CreateTexture(nil, "BORDER", nil, 2)
+  highlight:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
+  highlight:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+  highlight:SetHeight(1)
+  highlight:SetColorTexture(0.70, 0.53, 0.28, 0.65)
+  local foot = f:CreateTexture(nil, "BORDER", nil, 2)
+  foot:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 2, 2)
+  foot:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 2)
+  foot:SetHeight(1)
+  foot:SetColorTexture(0.15, 0.21, 0.24, 0.92)
   f.wmBox = true
   return f
 end
@@ -257,6 +268,14 @@ function UI.Button(parent, text, w, h, onClick, gold)
   b:SetSize(w, h)
   local bg = b:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints()
   local edges = UI.Edge(b, 0, 0, 0, 1, "BORDER")
+  local bevelTop = b:CreateTexture(nil, "BORDER", nil, 2)
+  bevelTop:SetPoint("TOPLEFT", b, "TOPLEFT", 2, -2)
+  bevelTop:SetPoint("TOPRIGHT", b, "TOPRIGHT", -2, -2)
+  bevelTop:SetHeight(1)
+  local bevelBottom = b:CreateTexture(nil, "BORDER", nil, 2)
+  bevelBottom:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 2, 2)
+  bevelBottom:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 2)
+  bevelBottom:SetHeight(1)
   local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetPoint("TOPLEFT", 1, -1); hl:SetPoint("BOTTOMRIGHT", -1, 1); hl:SetColorTexture(1, 0.85, 0.45, 0.14)
   local fs = b:CreateFontString(nil, "OVERLAY")
   local FONT = UI.BOLD
@@ -280,6 +299,13 @@ function UI.Button(parent, text, w, h, onClick, gold)
     local st = not en and BTN.off or (isGold and BTN.gold or BTN.dark)
     bg:SetColorTexture(st.bg[1], st.bg[2], st.bg[3], st.bg[4])
     for _, t in ipairs(edges) do t:SetColorTexture(st.edge[1], st.edge[2], st.edge[3], st.edge[4]) end
+    if en and isGold then
+      bevelTop:SetColorTexture(1, 0.91, 0.66, 0.75)
+      bevelBottom:SetColorTexture(0.31, 0.20, 0.06, 0.85)
+    else
+      bevelTop:SetColorTexture(0.58, 0.48, 0.30, en and 0.75 or 0.30)
+      bevelBottom:SetColorTexture(0.015, 0.025, 0.035, 0.9)
+    end
     local c = not en and { 0.6, 0.56, 0.48 } or (isGold and GOLD_TXT or DARK_TXT)
     fs:SetTextColor(c[1], c[2], c[3])
     if fs.SetShadowColor then fs:SetShadowColor(0, 0, 0, (isGold and en) and 0 or 0.8) end
@@ -962,22 +988,43 @@ end
 function UI.MainChromeCompact(win, onNav, navTips)
   local W, H = UI.COMPACT_SIZE[1], UI.COMPACT_SIZE[2]
   win:SetSize(W, H)
-  local GOLD_EDGE = { 0.48, 0.40, 0.24, 1 }
+  local GOLD_EDGE = { 0.55, 0.41, 0.23, 1 }
   -- полоса значков
   local rail = CreateFrame("Frame", nil, win); rail:SetPoint("TOPLEFT"); rail:SetPoint("BOTTOMLEFT"); rail:SetWidth(RAIL)
   local rb = rail:CreateTexture(nil, "BACKGROUND", nil, -8); rb:SetAllPoints(); rb:SetColorTexture(0.025, 0.040, 0.055, 1)
   edge(rail, unpack(GOLD_EDGE))
+  local railAccent = rail:CreateTexture(nil, "BORDER", nil, 2)
+  railAccent:SetPoint("TOPRIGHT", rail, "TOPRIGHT", -2, -2)
+  railAccent:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -2, 2)
+  railAccent:SetWidth(2)
+  railAccent:SetColorTexture(0.68, 0.50, 0.23, 0.78)
   -- основная часть
   local main = CreateFrame("Frame", nil, win); main:SetPoint("TOPLEFT", RAIL - 1, 0); main:SetPoint("BOTTOMRIGHT")
   -- фон - прежняя ткань с едва заметными лапками
   local mb = main:CreateTexture(nil, "BACKGROUND", nil, -8); mb:SetAllPoints(); mb:SetColorTexture(0.035, 0.055, 0.075, 1)
   -- Quiet background: no decorative paw prints in the content area.
   edge(main, unpack(GOLD_EDGE))
+  -- Fine inner stroke gives the old-world bronze frame a second edge.
+  local insetTop = main:CreateTexture(nil, "BORDER", nil, 2)
+  insetTop:SetPoint("TOPLEFT", main, "TOPLEFT", 3, -3)
+  insetTop:SetPoint("TOPRIGHT", main, "TOPRIGHT", -3, -3)
+  insetTop:SetHeight(1)
+  insetTop:SetColorTexture(0.78, 0.59, 0.30, 0.55)
+  local insetBottom = main:CreateTexture(nil, "BORDER", nil, 2)
+  insetBottom:SetPoint("BOTTOMLEFT", main, "BOTTOMLEFT", 3, 3)
+  insetBottom:SetPoint("BOTTOMRIGHT", main, "BOTTOMRIGHT", -3, 3)
+  insetBottom:SetHeight(1)
+  insetBottom:SetColorTexture(0.33, 0.25, 0.15, 0.8)
   win.frameBox = main
   -- шапка: название раздела крупно, рядом «WolfichMarket vX» мелко; линия под шапкой
   local top = CreateFrame("Frame", nil, win); top:SetPoint("TOPLEFT", RAIL, 0); top:SetPoint("TOPRIGHT"); top:SetHeight(HEAD)
   top:SetFrameLevel((main:GetFrameLevel() or 1) + 2)
-  local hl = top:CreateTexture(nil, "BORDER"); hl:SetColorTexture(0.52, 0.43, 0.25, 1); hl:SetHeight(1); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
+  local headerBg = top:CreateTexture(nil, "BACKGROUND", nil, -5)
+  headerBg:SetAllPoints()
+  headerBg:SetColorTexture(0.048, 0.070, 0.088, 1)
+  local hl = top:CreateTexture(nil, "BORDER")
+  hl:SetColorTexture(0.76, 0.55, 0.24, 1)
+  hl:SetHeight(2); hl:SetPoint("BOTTOMLEFT"); hl:SetPoint("BOTTOMRIGHT")
   local sub = top:CreateFontString(nil, "OVERLAY"); setFont(sub, UI.TITLE_FONT, 20, "")
   sub:SetTextColor(UI.GOLD[1], UI.GOLD[2], UI.GOLD[3]); sub:SetPoint("LEFT", PAD, 0)
   local title = UI.Font(top, 12, UI.DIM); title:SetPoint("LEFT", sub, "RIGHT", 10, -1); title:SetText("·  WolfichMarket")
