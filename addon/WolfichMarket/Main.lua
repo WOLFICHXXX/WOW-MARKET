@@ -156,7 +156,9 @@ function craft.drawChart()
   card.chartId = id
   -- заголовок вместо легенды: цвет слов = цвет линий
   local sold, lots, qty = ns.SoldIn(id, 24), ns.LotsNow(id)
-  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. (qty and qty > 0 and (" |cffaaaaaa(" .. qty .. " " .. L"шт" .. ")|r") or "") .. "|r   |cff8a8070" .. ns.itemName(id) .. "|r")
+  -- Compact chart heading: item name and detailed quantities remain in the
+  -- recipe rows / full chart; keep this single line within the framed panel.
+  card.chartTitle:SetText("|cfff2c761— " .. L"цена" .. "|r " .. (p and ns.money(p, true) or "-") .. "   |cff66d9cc— " .. L"продано, шт" .. "|r   " .. L"продано за 24 ч" .. ": |cffffffff" .. (sold or "-") .. "|r   " .. L"лотов" .. ": |cffffffff" .. (lots or "-") .. "|r")
   local h = ns.History(id)
   ns.After(0, function() card.chart:SetPoints(h) end)
 end
@@ -286,7 +288,8 @@ local function buildCraft(f)
     for i, ck in ipairs(l) do if ck == charKey then setChar(l[(i - 1 + d) % #l + 1]); return end end
     if l[1] then setChar(l[1]) end
   end
-  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("BOTTOMLEFT", 2, 7); craft.status:SetPoint("RIGHT", -2, 0)
+  -- Footer has its own clear band below the two bordered panels.
+  craft.status = UI.Font(f, 10, UI.DIM); craft.status:SetPoint("BOTTOMLEFT", 8, 7); craft.status:SetPoint("RIGHT", -8, 0)
   -- сортировка по прибыли: на фракционном (по умолчанию), на общем или по марже - одна галочка всегда стоит
   local sortChecks = {}
   local function setSort(k) S.craftSort = k; for kk, c in pairs(sortChecks) do c:SetChecked(kk == k) end; refreshCraft() end
@@ -368,11 +371,11 @@ local function buildCraft(f)
   local listHead = craft.listBox:CreateTexture(nil, "BACKGROUND", nil, -3)
   listHead:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 1, -1)
   listHead:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -1, -1)
-  listHead:SetHeight(19)
+  listHead:SetHeight(35)
   listHead:SetColorTexture(0.19, 0.145, 0.079, 0.97)
   local listHeadRule = craft.listBox:CreateTexture(nil, "BORDER")
-  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -19)
-  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -19)
+  listHeadRule:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 2, -35)
+  listHeadRule:SetPoint("TOPRIGHT", craft.listBox, "TOPRIGHT", -2, -35)
   listHeadRule:SetHeight(1)
   listHeadRule:SetColorTexture(0.72, 0.52, 0.25, 0.89)
   -- шапка списка: столбики Ф и Общ
@@ -437,11 +440,12 @@ local function buildCraft(f)
     sortChecks.neutral:ClearAllPoints(); sortChecks.neutral:SetPoint("TOPLEFT", 394, -60 - dy)
     sortChecks.margin:ClearAllPoints(); sortChecks.margin:SetPoint("TOPLEFT", 655, -60 - dy)
     -- список и карточка - две панели одной высоты, сверху и снизу на одной линии
-    craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 18)
-    -- Keep column labels below the heavy frame edge and above the first row.
-    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 9, -9); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -12, 0)
-    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 5, -28); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -5, 8)
-    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
+    craft.listBox:ClearAllPoints(); craft.listBox:SetPoint("TOPLEFT", 0, -88 - dy); craft.listBox:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -6, 33)
+    -- The ornate top rim occupies ~12px; labels get a separate band,
+    -- and the first recipe starts after the band rather than behind it.
+    lh:ClearAllPoints(); lh:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 13, -16); lh:SetPoint("RIGHT", craft.listBox, "RIGHT", -16, 0)
+    craft.list:ClearAllPoints(); craft.list:SetPoint("TOPLEFT", craft.listBox, "TOPLEFT", 7, -39); craft.list:SetPoint("BOTTOMRIGHT", craft.listBox, "BOTTOMRIGHT", -7, 11)
+    box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 33)
   end
   craft.setTop(0)
   -- Recipe header remains fixed when switching items; never redraw item icons.
@@ -462,8 +466,8 @@ local function buildCraft(f)
   cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
   cardRule:SetHeight(1)
   cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
-  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -12, -12); card.level:SetJustifyH("RIGHT")
-  card.title = UI.Font(card, 17, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 17, ""); card.title:SetPoint("TOPLEFT", 17, -8); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
+  card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -17, -17); card.level:SetJustifyH("RIGHT")
+  card.title = UI.Font(card, 16, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 16, ""); card.title:SetPoint("TOPLEFT", 20, -14); card.title:SetPoint("RIGHT", card.level, "LEFT", -12, 0)
   -- An opaque, raised empty state hides all chart internals (including any
   -- stray slider/marker texture) until a recipe is actually selected.
   local empty = CreateFrame("Frame", nil, card)
@@ -587,7 +591,7 @@ local function buildCraft(f)
   -- график - в своей панели до низа карточки
   local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
   cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -8, -14); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
-  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0); card.chartTitle:SetWordWrap(false)
+  card.chartTitle = UI.Font(cbox, 10, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 16, -11); card.chartTitle:SetPoint("RIGHT", -16, 0); card.chartTitle:SetWordWrap(false)
   card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
   card.chart.onClick = function() if card.chartId then ns.ShowChartDialog(card.chartId) end end -- клик - большой график
   card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
