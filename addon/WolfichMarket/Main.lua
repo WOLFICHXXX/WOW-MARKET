@@ -405,12 +405,28 @@ local function buildCraft(f)
     box:ClearAllPoints(); box:SetPoint("TOPLEFT", f, "TOP", 6, -88 - dy); box:SetPoint("BOTTOMRIGHT", 0, 18)
   end
   craft.setTop(0)
+  -- Recipe header remains fixed when switching items; never redraw item icons.
+  local cardHeader = card:CreateTexture(nil, "BACKGROUND", nil, -3)
+  cardHeader:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
+  cardHeader:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -1)
+  cardHeader:SetHeight(34)
+  cardHeader:SetColorTexture(0.095, 0.135, 0.16, 0.90)
+  local cardRule = card:CreateTexture(nil, "BORDER")
+  cardRule:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -34)
+  cardRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -1, -34)
+  cardRule:SetHeight(1)
+  cardRule:SetColorTexture(0.56, 0.43, 0.25, 0.85)
   card.level = UI.Font(card, 10, UI.DIM); card.level:SetPoint("TOPRIGHT", -12, -12); card.level:SetJustifyH("RIGHT")
   card.title = UI.Font(card, 15, UI.GOLD, "OVERLAY"); UI.SetFont(card.title, UI.BOLD, 15, ""); card.title:SetPoint("TOPLEFT", 14, -10); card.title:SetPoint("RIGHT", card.level, "LEFT", -8, 0)
   card.rows = {}
   for i = 1, 8 do
     local r = CreateFrame("Frame", nil, card); r:SetHeight(22)
     r:SetPoint("TOPLEFT", 10, -38 - (i - 1) * 24); r:SetPoint("RIGHT", -10, 0)
+    if i % 2 == 0 then
+      local stripe = r:CreateTexture(nil, "BACKGROUND")
+      stripe:SetAllPoints()
+      stripe:SetColorTexture(0.12, 0.18, 0.22, 0.34)
+    end
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", 2, 0)
     r.search = UI.Icon(r, "search", 16, L"Искать на аукционе (окно аукциона должно быть открыто)", function(self) ns.SearchAH(self:GetParent().id) end); r.search:SetPoint("RIGHT", -2, 0)
     r.bell = UI.Bell(r, 17, function(self) return self:GetParent().id end); r.bell:SetPoint("RIGHT", r.search, "LEFT", -6, 0)
@@ -475,11 +491,21 @@ local function buildCraft(f)
     for i, b in ipairs({ card.craft, card.onAH }) do b:SetWidth(bw); b:ClearAllPoints(); b:SetPoint("LEFT", brow, "LEFT", (i - 1) * (bw + 6), 0) end
   end
   brow:SetScript("OnSizeChanged", layoutBtns); layoutBtns()
-  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 2, -8); card.total:SetPoint("RIGHT", -12, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
+  card.total = UI.Font(card, 12, UI.TEXT); card.total:SetPoint("TOPLEFT", brow, "BOTTOMLEFT", 8, -10); card.total:SetPoint("RIGHT", -14, 0); card.total:SetWordWrap(true); card.total:SetJustifyV("TOP")
+  -- A subtle cost/profit summary band follows the text's actual height.
+  local totalShade = card:CreateTexture(nil, "BACKGROUND", nil, -2)
+  totalShade:SetPoint("TOPLEFT", card.total, "TOPLEFT", -7, 5)
+  totalShade:SetPoint("BOTTOMRIGHT", card.total, "BOTTOMRIGHT", 7, -5)
+  totalShade:SetColorTexture(0.08, 0.12, 0.14, 0.85)
+  local totalAccent = card:CreateTexture(nil, "BORDER")
+  totalAccent:SetPoint("TOPLEFT", totalShade, "TOPLEFT")
+  totalAccent:SetPoint("BOTTOMLEFT", totalShade, "BOTTOMLEFT")
+  totalAccent:SetWidth(2)
+  totalAccent:SetColorTexture(0.72, 0.56, 0.31, 0.9)
   -- график - в своей панели до низа карточки
   local cbox = CreateFrame("Frame", nil, card); UI.Box(cbox, 0.35)
-  cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -4, -8); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
-  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0)
+  cbox:SetPoint("TOPLEFT", card.total, "BOTTOMLEFT", -8, -14); cbox:SetPoint("BOTTOMRIGHT", -10, 10)
+  card.chartTitle = UI.Font(cbox, 11, UI.GOLD); card.chartTitle:SetPoint("TOPLEFT", 8, -6); card.chartTitle:SetPoint("RIGHT", -8, 0); card.chartTitle:SetWordWrap(false)
   card.chart = UI.Chart(cbox); card.chart.mid = true; card.chart.noLegend = true
   card.chart.onClick = function() if card.chartId then ns.ShowChartDialog(card.chartId) end end -- клик - большой график
   card.chart:SetPoint("TOPLEFT", 0, -16); card.chart:SetPoint("BOTTOMRIGHT", 0, 0)
