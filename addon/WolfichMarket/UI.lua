@@ -647,11 +647,13 @@ function UI.Chart(parent)
     local compact = f.compact
     local small = compact or f.mid -- без строки цифр и кнопок периода
     -- Reserve space for period buttons above the plot frame.
-    local top = small and 6 or 61
+    -- Mid-sized recipe charts have their own title above the plot. Reserve
+    -- that text row instead of drawing price labels and bars under it.
+    local top = compact and 6 or (f.mid and 27 or 61)
     plot:ClearAllPoints()
-    plot:SetPoint("TOPLEFT", compact and 46 or 58, -top); plot:SetPoint("BOTTOMRIGHT", compact and -30 or -40, compact and 16 or 20)
+    plot:SetPoint("TOPLEFT", compact and 46 or 58, -top); plot:SetPoint("BOTTOMRIGHT", compact and -30 or -40, compact and 16 or 30)
     f.stats:ClearAllPoints(); f.stats:SetPoint("TOPLEFT", 4, -2); f.stats:SetPoint("RIGHT", -250, 0)
-    f.legend:ClearAllPoints(); f.legend:SetPoint("BOTTOMLEFT", plot, "TOPLEFT", 0, 5)
+    f.legend:ClearAllPoints(); f.legend:SetPoint("BOTTOMLEFT", plot, "TOPLEFT", 0, 8)
     local x = 0
     for k = #f.periodBtns, 1, -1 do
       local b = f.periodBtns[k]
@@ -784,7 +786,7 @@ function UI.Chart(parent)
         g:SetPoint("TOP", plot, "TOPLEFT", x, 0); g:SetPoint("BOTTOM", plot, "BOTTOMLEFT", x, 0)
       end
       local s = lbl(self.labels, steps + 2 + k, 9); s:ClearAllPoints()
-      s:SetPoint(k == 0 and "TOPLEFT" or k == nT and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", x, -4)
+      s:SetPoint(k == 0 and "TOPLEFT" or k == nT and "TOPRIGHT" or "TOP", plot, "BOTTOMLEFT", x, -7)
       s:SetText(date((t1 - t0) > 2 * 86400 and "%d.%m" or "%d.%m %H:%M", math.floor(t)))
     end
     -- продано между снимками: столбики внизу (морская волна)
@@ -1152,8 +1154,10 @@ function UI.MainChromeCompact(win, onNav, navTips)
   local sep = rail:CreateTexture(nil, "BORDER"); sep:SetColorTexture(0.65, 0.49, 0.27, 0.9); sep:SetSize(RAIL - 24, 1); sep:SetPoint("TOP", 0, -60)
   -- The approved portrait appears below the navigation, without blocking it.
   local wolf = rail:CreateTexture(nil, "ARTWORK", nil, -1)
-  wolf:SetSize(106, 106)
-  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 35)
+  -- The crest was undersized inside the 164px rail; use its full
+  -- painted silhouette while retaining clear air above/below the emblem.
+  wolf:SetSize(132, 132)
+  wolf:SetPoint("BOTTOM", rail, "BOTTOM", 0, 22)
   UI.WolfTex(wolf, "approved-wolf-emblem")
   wolf:SetTexCoord(0, 1, 0, 1)
   wolf:SetAlpha(0.95)
