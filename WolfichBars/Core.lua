@@ -1,4 +1,4 @@
--- WolfichBars Forever 0.3.2
+-- WolfichBars Forever 0.3.3
 -- Compact secure action bars. No protected actions are changed during combat.
 local ADDON, ns = ...
 local ROOT, SETTINGS, MINIMAP_BUTTON
@@ -191,24 +191,33 @@ end
 -- Only an addon-owned macro is edited. Never replace a user's unrelated macro.
 local DOT_MACRO_NAME="WB_AFFDOTS"
 local function ensureDotMacro(book)
-  if not (CreateMacro and GetMacroIndexByName and GetMacroInfo) then return nil end
-  local corruption=resolveSpell({id=172,label="Corruption"},book)
-  local agony=resolveSpell({id=980,label="Bane of Agony"},book)
-  if not corruption or not agony then return nil end
-  local body="#showtooltip\n/castsequence reset=target/8 "..corruption..", "..agony
+  if not (CreateMacro and GetMacroIndexByName and GetMacroInfo) then return nil, nil end
+  -- The secure macro changes only outside combat; its names come from the
+  -- actual character spellbook so custom Forever/localized spells work.
+  local order={172,980,348} -- Corruption, Bane of Agony, Immolate
+  local steps={}
+  for _,id in ipairs(order) do
+    local name=resolveSpell({id=id,label=ns.abilityDB[id] and ns.abilityDB[id].en},book)
+    if name then steps[#steps+1]={id=id,name=name} end
+  end
+  if #steps<2 or steps[1].id~=172 or steps[2].id~=980 then return nil,nil end
+  local names={}
+  for _,step in ipairs(steps) do names[#names+1]=step.name end
+  local body="#showtooltip\n/castsequence reset=target/10 "..table.concat(names,", ")
   local index=GetMacroIndexByName(DOT_MACRO_NAME)
   if index and index>0 then
     local _,_,oldBody=GetMacroInfo(index)
-    if oldBody==body then return index end
-    if type(oldBody)=="string" and oldBody:find("^#showtooltip\n/castsequence reset=target/8 ") and EditMacro then
-      local ok=pcall(EditMacro,index,DOT_MACRO_NAME,GetSpellTexture and GetSpellTexture(172) or 134400,body,1)
-      if ok then return index end
+    if oldBody==body then return index,steps end
+    -- Never overwrite a user macro sharing our name unless it bears our signature.
+    if type(oldBody)=="string" and oldBody:find("^#showtooltip\n/castsequence reset=target/") and EditMacro then
+      local ok=pcall(EditMacro,index,DOT_MACRO_NAME,getIcon(172),body,1)
+      if ok then return index,steps end
     end
-    return nil -- Conflicting macro name or update rejected.
+    return nil,nil
   end
-  local ok,newIndex=pcall(CreateMacro,DOT_MACRO_NAME,134400,body,1)
-  if ok and type(newIndex)=="number" and newIndex>0 then return newIndex end
-  return nil -- No available macro slot: regular Corruption remains usable.
+  local ok,newIndex=pcall(CreateMacro,DOT_MACRO_NAME,getIcon(172),body,1)
+  if ok and type(newIndex)=="number" and newIndex>0 then return newIndex,steps end
+  return nil,nil -- Macro slots full: normal Corruption stays usable.
 end
 local function actualBinding(key)
   if not GetBindingAction then return nil end
@@ -292,7 +301,8 @@ local function drawSlots()
   profile()
   local book=spellBookIndex()
   local readyCount=0
-  local dotsIndex=(adaptiveEnabled() and levelNow()>=8) and ensureDotMacro(book) or nil
+  local dotsIndex,dotsSteps=nil,nil
+  if adaptiveEnabled() and levelNow()>=8 then dotsIndex,dotsSteps=ensureDotMacro(book) end
   for i,b in ipairs(buttons) do
     local s=slot(i,book)
     local castName, foundIcon, visualName=resolveSpell(s,book)
@@ -324,7 +334,9 @@ local function drawSlots()
     b:SetAttribute("spell", ready and not macroIndex and castName or nil)
     b:SetAttribute("macro", ready and macroIndex or nil)
     b.macroActive=macroIndex~=nil
-    if macroIndex then b.spellName="DoT: Порча → Бич агонии" end
+    b.macroSteps=macroIndex and dotsSteps or nil
+    if b.macroBadge then b.macroBadge:SetShown(b.macroActive) end
+    if macroIndex then b.spellName="DoT макрос ("..#dotsSteps.." заклинания)" end
     editorButtons[i]:SetShown(editMode)
   end
   refreshHeader()
@@ -474,7 +486,9 @@ local function farmingInstructions()
     end
   end
   if macroKey then
-    add("1. Цель: ["..macroKey.."] два раза — Порча, затем Бич агонии.")
+    local count=2
+    for _,b in ipairs(buttons) do if b.macroActive and b.macroSteps then count=#b.macroSteps break end end
+    add("1. Нажми ["..macroKey.."] "..count.." раза: Порча → Бич агонии"..(count>=3 and " → Жертвенный огонь." or "."))
     add("   Одна клавиша = ОДНО заклинание, между нажатиями ГКД.")
   else
     local corrupt,agony=hotkey(172),hotkey(980)
@@ -482,6 +496,10 @@ local function farmingInstructions()
     if agony then add("2. Добавь Бич агонии "..agony.." на долгоживущую цель.") end
     if not corrupt and not agony then add("1. Изучи Порчу и Бич агонии у тренера — пока используй доступные заклинания.") end
   end
+  local immolate=hotkey(348)
+  if immolate then add("• Огненный DoT вручную: Жертвенный огонь "..immolate.." (выгоден на живучих мобах).") end
+  local agonyKey=hotkey(980)
+  if agonyKey then add("• Обновить проклятие отдельно: Бич агонии "..agonyKey.." (не сбрасывая макрос).") end
   local siphon=hotkey(18265)
   if siphon then add("+ Вытягивание жизни "..siphon.." на прочную цель (если взят талант).") end
   local drain,bolt=hotkey(689),hotkey(686)
@@ -616,11 +634,31 @@ local function makeActionButton(i)
   keyBG:SetColorTexture(0,0,0,.82)
   b.key=label(b,"GameFontNormalSmall",{"TOPRIGHT",b,"TOPRIGHT",-3,-1},ns.keyLabels[i])
   b.key:SetTextColor(1,.87,.52)
+  -- Distinct visible badge for a macro; does not cover the hotkey label.
+  local macroMark=b:CreateTexture(nil,"OVERLAY")
+  macroMark:SetSize(17,15)
+  macroMark:SetPoint("BOTTOMLEFT",b,"BOTTOMLEFT",1,1)
+  macroMark:SetColorTexture(.10,.25,.12,.96)
+  local macroText=label(b,"GameFontNormalSmall",{"BOTTOMLEFT",b,"BOTTOMLEFT",5,2},"M")
+  macroText:SetTextColor(.55,1,.55)
+  local macroBadge={SetShown=function(_,visible) macroMark:SetShown(visible);macroText:SetShown(visible) end}
+  macroBadge:SetShown(false)
+  b.macroBadge=macroBadge
   b.empty=label(b,"GameFontNormalLarge",{"CENTER",b,"CENTER",0,0},"+")
   b.empty:SetTextColor(.56,.56,.63)
   b:SetScript("OnEnter",function(self)
     GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-    if self.spellID and self.spellID~=0 and GameTooltip.SetSpellByID then
+    if self.macroActive and self.macroSteps then
+      GameTooltip:SetText("МАКРОС: последовательные DoT",.62,1,.62)
+      for stepIndex,step in ipairs(self.macroSteps) do
+        local icon=getIcon(step.id)
+        local texture=icon and ("|T"..tostring(icon)..":18:18:0:0|t ") or ""
+        GameTooltip:AddLine(texture..stepIndex..". "..step.name,1,.88,.66)
+      end
+      GameTooltip:AddLine("1 нажатие = 1 заклинание; повторяй после ГКД",.78,.86,1,true)
+      GameTooltip:AddLine("Сброс цепочки: другая цель или 10 сек без нажатия",.75,.75,.82,true)
+      GameTooltip:AddLine("Бич агонии отдельно: [4], Жертвенный огонь: [R]",.9,.72,.55,true)
+    elseif self.spellID and self.spellID~=0 and GameTooltip.SetSpellByID then
       local ok=pcall(GameTooltip.SetSpellByID,GameTooltip,self.spellID)
       if not ok then GameTooltip:SetText(self.spellName or "Заклинание") end
     else
