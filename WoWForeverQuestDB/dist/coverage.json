@@ -15,7 +15,14 @@
     "Орда": 1359
   },
   "quests_without_coords": 1042,
+  "ru_quest_titles": 4748,
+  "ru_quest_objectives": 4050,
+  "ru_npc_actor_rows": 15616,
+  "ru_reward_item_rows": 2960,
+  "forever_observed_coordinate_rows": 1561,
+  "forever_observed_quest_count": 926,
+  "unverified_fallback_coordinate_rows": 5730,
   "fts_enabled": true,
-  "built_utc": "2026-11-23T02:31:59.816468+00:00",
-  "warning": "Not verified against the live client. XP/money difficulty and multiplier do not equal final reward amount. Some coordinates derive from Classic data."
+  "built_utc": "2026-11-23T02:40:31.838441+00:00",
+  "warning": "QuestieDB ruRU localization. No independent live-client verification. seen in WoW Forever means ForeverDB observation only. XP/money multipliers are not final reward amounts. Classic coordinates are fallback."
 }
