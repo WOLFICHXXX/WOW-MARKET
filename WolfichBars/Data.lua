@@ -71,7 +71,7 @@ ns.abilityDB = {
 -- Each position stays stable; replacement occurs automatically as abilities
 -- become available. First candidate is most desirable, subsequent are fallback.
 -- Leveling: quick-access combat spells first, summons and utility on Shift.
--- Slot 1 becomes a secure /castsequence macro after both DoTs are trained.
+-- Slot 1 becomes a secure /castsequence macro (Corruption -> Bane -> Immolate) after training.
 ns.farmPlan = {
   {172,686},            -- 1  DoT macro (Corruption -> Bane), or Corruption
   {686},                -- 2  Shadow Bolt filler
