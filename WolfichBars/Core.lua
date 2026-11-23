@@ -1,4 +1,4 @@
--- WolfichBars Forever 0.3.0
+-- WolfichBars Forever 0.3.2
 -- Compact secure action bars. No protected actions are changed during combat.
 local ADDON, ns = ...
 local ROOT, SETTINGS, MINIMAP_BUTTON
@@ -68,25 +68,25 @@ local function autoSlot(i,book)
   local choices=ns.farmPlan and ns.farmPlan[i]
   if not choices then return p.FARM[i] end
   local lvl=levelNow()
-  -- Only choose a learned high-level talent. Ordinary spells use level as
-  -- preview data, but still require spellbook confirmation before casting.
-  local nextFuture=nil
-  local nextID=nil
+  -- Use the spellbook as authority. Character level alone never unlocks a button.
+  local future
   for _,id in ipairs(choices) do
     local info=ns.abilityDB[id]
-    if info and lvl>=info.level then
-      if not info.talent or isLearned({id=id,en=info.en,ru=info.ru},book) then
-        local picked={id=id,label=info.en,unlocks=info.level,talent=info.talent}
-        if nextID then picked.pendingID=nextID;picked.pendingLevel=nextFuture.level end
-        return picked
-      elseif not nextFuture then
-        nextFuture=info;nextID=id
+    if info then
+      if lvl>=info.level and isLearned({id=id,en=info.en,ru=info.ru},book) then
+        local chosen={id=id,label=info.en,unlocks=info.level,talent=info.talent}
+        if i==1 and lvl>=8 and isLearned({id=980,en="Bane of Agony",ru="Бич агонии"},book) then
+          chosen.macro="AFF_DOTS"
+        end
+        if future then chosen.pendingID=future.id;chosen.pendingLevel=future.level end
+        return chosen
       end
-    elseif info and not nextFuture then nextFuture=info;nextID=id end
+      if not future then future={id=id,level=info.level,name=info.en} end
+    end
   end
-  -- Show grey preview if no usable candidate, including below level 4.
-  if nextFuture then return {id=choices[1],label=nextFuture.en,unlocks=nextFuture.level} end
-  return {id=choices[#choices],label=""}
+  -- Grey preview until the user actually trains the spell.
+  if future then return {id=future.id,label=future.name,unlocks=future.level} end
+  return {id=0,label=""}
 end
 local function slot(i,book)
   if adaptiveEnabled() then return autoSlot(i,book or {byID={},byName={}}) end
@@ -187,6 +187,29 @@ local function resolveSpell(s, index)
   end
   return nil,nil,suggested
 end
+-- Optional, secure, one-spell-per-press DoT macro for Affliction farming.
+-- Only an addon-owned macro is edited. Never replace a user's unrelated macro.
+local DOT_MACRO_NAME="WB_AFFDOTS"
+local function ensureDotMacro(book)
+  if not (CreateMacro and GetMacroIndexByName and GetMacroInfo) then return nil end
+  local corruption=resolveSpell({id=172,label="Corruption"},book)
+  local agony=resolveSpell({id=980,label="Bane of Agony"},book)
+  if not corruption or not agony then return nil end
+  local body="#showtooltip\n/castsequence reset=target/8 "..corruption..", "..agony
+  local index=GetMacroIndexByName(DOT_MACRO_NAME)
+  if index and index>0 then
+    local _,_,oldBody=GetMacroInfo(index)
+    if oldBody==body then return index end
+    if type(oldBody)=="string" and oldBody:find("^#showtooltip\n/castsequence reset=target/8 ") and EditMacro then
+      local ok=pcall(EditMacro,index,DOT_MACRO_NAME,GetSpellTexture and GetSpellTexture(172) or 134400,body,1)
+      if ok then return index end
+    end
+    return nil -- Conflicting macro name or update rejected.
+  end
+  local ok,newIndex=pcall(CreateMacro,DOT_MACRO_NAME,134400,body,1)
+  if ok and type(newIndex)=="number" and newIndex>0 then return newIndex end
+  return nil -- No available macro slot: regular Corruption remains usable.
+end
 local function actualBinding(key)
   if not GetBindingAction then return nil end
   local ok,result=pcall(GetBindingAction,key,true)
@@ -269,6 +292,7 @@ local function drawSlots()
   profile()
   local book=spellBookIndex()
   local readyCount=0
+  local dotsIndex=(adaptiveEnabled() and levelNow()>=8) and ensureDotMacro(book) or nil
   for i,b in ipairs(buttons) do
     local s=slot(i,book)
     local castName, foundIcon, visualName=resolveSpell(s,book)
@@ -291,12 +315,16 @@ local function drawSlots()
     b.tint:SetAlpha(ready and .04 or .57)
     b.border:SetColorTexture(ready and .47 or .25,ready and .28 or .26,ready and .69 or .29,.94)
     b.empty:SetShown(not s.id or s.id==0)
-    -- Secure action for the left click; disabled until the name has been found
-    -- in the player's spellbook (or the game reports the spell learned).
-    b:SetAttribute("type1", ready and "spell" or nil)
-    b:SetAttribute("spell1", ready and castName or nil)
-    b:SetAttribute("type", ready and "spell" or nil)
-    b:SetAttribute("spell", ready and castName or nil)
+    -- Macro is bound as a native secure action; a single press casts ONE DoT.
+    local macroIndex=(i==1 and s.macro=="AFF_DOTS") and dotsIndex or nil
+    b:SetAttribute("type1", ready and (macroIndex and "macro" or "spell") or nil)
+    b:SetAttribute("spell1", ready and not macroIndex and castName or nil)
+    b:SetAttribute("macro1", ready and macroIndex or nil)
+    b:SetAttribute("type", ready and (macroIndex and "macro" or "spell") or nil)
+    b:SetAttribute("spell", ready and not macroIndex and castName or nil)
+    b:SetAttribute("macro", ready and macroIndex or nil)
+    b.macroActive=macroIndex~=nil
+    if macroIndex then b.spellName="DoT: Порча → Бич агонии" end
     editorButtons[i]:SetShown(editMode)
   end
   refreshHeader()
@@ -422,55 +450,141 @@ local function resetFarm()
   updateDisplay()
   message("Раскладка сброшена к адаптивному пресету по уровню.")
 end
+-- Live in-game farming instructions; derives key labels from the ACTUAL
+-- current slots (including player overrides) and only suggests learned spells.
+local function farmingInstructions()
+  local function hotkey(spellID)
+    for i,b in ipairs(buttons) do
+      if b.ready and b.spellID==spellID then
+        local key=ns.keyLabels[i] or tostring(i)
+        if db and db.bindings~=true then return "["..key.." / мышь]" end
+        return "["..key.."]"
+      end
+    end
+    return nil
+  end
+  local lines={}
+  local function add(t) lines[#lines+1]=t end
+  local lvl=levelNow()
+  local macroKey=nil
+  for i,b in ipairs(buttons) do
+    if b.ready and b.macroActive then
+      macroKey=ns.keyLabels[i] or tostring(i)
+      break
+    end
+  end
+  if macroKey then
+    add("1. Цель: ["..macroKey.."] два раза — Порча, затем Бич агонии.")
+    add("   Одна клавиша = ОДНО заклинание, между нажатиями ГКД.")
+  else
+    local corrupt,agony=hotkey(172),hotkey(980)
+    if corrupt then add("1. Наложи Порчу "..corrupt..".") end
+    if agony then add("2. Добавь Бич агонии "..agony.." на долгоживущую цель.") end
+    if not corrupt and not agony then add("1. Изучи Порчу и Бич агонии у тренера — пока используй доступные заклинания.") end
+  end
+  local siphon=hotkey(18265)
+  if siphon then add("+ Вытягивание жизни "..siphon.." на прочную цель (если взят талант).") end
+  local drain,bolt=hotkey(689),hotkey(686)
+  if drain then
+    add("3. Если нужно здоровье — Похищение жизни "..drain..".")
+  end
+  if bolt then add("4. Добивай Стрелой Тьмы "..bolt.." или жезлом для экономии маны.") end
+  local fear=hotkey(5782)
+  if fear then add("! Враг подошёл / их несколько: Страх "..fear.." (берегись соседних мобов).") end
+  local tap=hotkey(1454)
+  if tap then add("! Мало маны: Жизнеотвод "..tap.." только при запасе здоровья.") end
+  local soul=hotkey(1120)
+  if soul then add("• Нужны осколки: добей цель Похищением души "..soul..".") end
+  local stone=hotkey(6201)
+  if stone then add("• Подготовка: создай и носи камень здоровья "..stone..".") end
+  if lvl>=10 then
+    local pet=hotkey(697)
+    if pet then add("• Соло-фарм: призови демона Бездны "..pet.." и следи за агро.")
+    else add("• Для безопасного фарма используй подходящего демона, доступного в книге.") end
+  end
+  if lvl>=8 and not macroKey and hotkey(172) and hotkey(980) then
+    add("• Макрос DoT пока не создан: используй Порчу и Бич агонии раздельно.")
+  end
+  if db and db.bindings~=true then
+    add("КЛАВИШИ ВЫКЛ: нажимай значки мышью или включи KEYS ON.")
+  end
+  return table.concat(lines,"\n")
+end
+
 local function makeSettings()
   local f=CreateFrame("Frame","WolfichBarsOptions",UIParent,"BackdropTemplate")
-  f:SetSize(438,326)
-  f:SetPoint("CENTER",UIParent,"CENTER",310,55)
+  f:SetSize(520,548)
+  f:SetPoint("CENTER",UIParent,"CENTER",230,15)
   f:SetFrameStrata("DIALOG")
-  f:SetMovable(true); f:EnableMouse(true)
+  f:SetMovable(true);f:EnableMouse(true)
   f:RegisterForDrag("LeftButton")
   f:SetScript("OnDragStart",function(self) self:StartMoving() end)
   f:SetScript("OnDragStop",function(self) self:StopMovingOrSizing() end)
   f:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=14,insets={left=5,right=5,top=5,bottom=5}})
   f:SetBackdropColor(.028,.034,.057,.98);f:SetBackdropBorderColor(.37,.27,.50,1)
-  local header=label(f,"GameFontNormalLarge",{"TOPLEFT",f,"TOPLEFT",18,-16},"WOLFICH  /  ПРЕСЕТЫ")
+  local header=label(f,"GameFontNormalLarge",{"TOPLEFT",f,"TOPLEFT",18,-16},"WOLFICH / ПРЕСЕТЫ")
   header:SetTextColor(.86,.71,1)
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton");close:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
-  local line=f:CreateTexture(nil,"ARTWORK");line:SetPoint("TOPLEFT",f,18,-46);line:SetSize(400,1);line:SetColorTexture(.43,.33,.56,.65)
-  local subtitle=label(f,"GameFontNormal",{"TOPLEFT",f,"TOPLEFT",20,-61},"АФФЛИ  •  КОМФОРТНЫЙ ФАРМ")
+  local line=f:CreateTexture(nil,"ARTWORK");line:SetPoint("TOPLEFT",f,18,-46);line:SetSize(484,1);line:SetColorTexture(.43,.33,.56,.65)
+  local subtitle=label(f,"GameFontNormal",{"TOPLEFT",f,"TOPLEFT",20,-62},"АФФЛИ / ПРОКАЧКА И ФАРМ")
   subtitle:SetTextColor(.66,.92,.74)
-  local status=label(f,"GameFontHighlight",{"TOPLEFT",f,"TOPLEFT",20,-90},"")
-  status:SetWidth(390);status:SetJustifyH("LEFT")
-  local desc=label(f,"GameFontHighlightSmall",{"TOPLEFT",f,"TOPLEFT",20,-119},"Изученные умения подставляются автоматически.\nНеизученные показаны серыми. Таланты проверяются по книге.")
-  desc:SetWidth(400);desc:SetJustifyH("LEFT")
-  local preset=label(f,"GameFontNormalSmall",{"TOPLEFT",f,"TOPLEFT",20,-168},"ПРЕСЕТ 01   /   ПРОКАЧКА И ФАРМ 1–60")
+  local status=label(f,"GameFontHighlight",{"TOPLEFT",f,"TOPLEFT",20,-88},"")
+  status:SetWidth(477);status:SetJustifyH("LEFT")
+  local desc=label(f,"GameFontHighlightSmall",{"TOPLEFT",f,"TOPLEFT",20,-113},"Пресет 01: изученные умения, ручные изменения и советы по уровню.")
+  desc:SetWidth(480);desc:SetJustifyH("LEFT")
+  local title=label(f,"GameFontNormal",{"TOPLEFT",f,"TOPLEFT",20,-142},"КАК ФАРМИТЬ / ПОШАГОВО")
+  title:SetTextColor(.98,.78,.47)
+  local guideBG=CreateFrame("Frame",nil,f,"BackdropTemplate")
+  guideBG:SetPoint("TOPLEFT",f,"TOPLEFT",17,-161)
+  guideBG:SetSize(486,245)
+  guideBG:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=10,insets={left=3,right=3,top=3,bottom=3}})
+  guideBG:SetBackdropColor(.045,.055,.076,.95)
+  guideBG:SetBackdropBorderColor(.28,.28,.38,.9)
+  local scroll=CreateFrame("ScrollFrame",nil,guideBG,"UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT",guideBG,"TOPLEFT",10,-9)
+  scroll:SetPoint("BOTTOMRIGHT",guideBG,"BOTTOMRIGHT",-27,8)
+  local inside=CreateFrame("Frame",nil,scroll)
+  inside:SetSize(438,300)
+  scroll:SetScrollChild(inside)
+  local guide=inside:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  guide:SetPoint("TOPLEFT",inside,"TOPLEFT",0,0)
+  guide:SetWidth(435)
+  guide:SetJustifyH("LEFT")
+  guide:SetJustifyV("TOP")
+  local preset=label(f,"GameFontNormalSmall",{"TOPLEFT",f,"TOPLEFT",20,-418},"ПРЕСЕТ 01 / ФАРМ (АВТО)")
   preset:SetTextColor(.98,.78,.47)
   local reset=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-  reset:SetSize(190,26);reset:SetPoint("TOPLEFT",f,"TOPLEFT",18,-195)
+  reset:SetSize(224,27);reset:SetPoint("TOPLEFT",f,"TOPLEFT",18,-443)
   reset:SetText("СБРОСИТЬ РАСКЛАДКУ")
   reset:SetFrameLevel(f:GetFrameLevel()+10)
   reset:SetScript("OnClick",resetFarm)
   local toggle=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-  toggle:SetSize(195,26);toggle:SetPoint("LEFT",reset,"RIGHT",8,0)
+  toggle:SetSize(242,27);toggle:SetPoint("LEFT",reset,"RIGHT",9,0)
   toggle:SetFrameLevel(f:GetFrameLevel()+10)
   toggle:SetScript("OnClick",function()
     if not guard() then return end
     local p=profile();p.adaptive=not (p.adaptive~=false)
     updateDisplay()
   end)
-  local tip=label(f,"GameFontHighlightSmall",{"TOPLEFT",f,"TOPLEFT",20,-239},"EDIT — меняй ячейки вручную; сброс вернёт пресет.")
-  tip:SetWidth(400);tip:SetJustifyH("LEFT")
-  local scaleMinus=CreateFrame("Button",nil,f,"UIPanelButtonTemplate");scaleMinus:SetSize(112,23);scaleMinus:SetPoint("TOPLEFT",f,"TOPLEFT",18,-271)
+  local tip=label(f,"GameFontHighlightSmall",{"TOPLEFT",f,"TOPLEFT",20,-478},"EDIT — изменяй ячейки; сброс вернёт адаптивный пресет.")
+  tip:SetWidth(480);tip:SetJustifyH("LEFT")
+  local scaleMinus=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
+  scaleMinus:SetSize(112,23);scaleMinus:SetPoint("TOPLEFT",f,"TOPLEFT",18,-510)
   scaleMinus:SetText("МАСШТАБ -");scaleMinus:SetScript("OnClick",function() setScale(math.max(.65,(db.scale or 1)-.1)) end)
-  local scalePlus=CreateFrame("Button",nil,f,"UIPanelButtonTemplate");scalePlus:SetSize(112,23);scalePlus:SetPoint("LEFT",scaleMinus,"RIGHT",7,0)
+  local scalePlus=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
+  scalePlus:SetSize(112,23);scalePlus:SetPoint("LEFT",scaleMinus,"RIGHT",7,0)
   scalePlus:SetText("МАСШТАБ +");scalePlus:SetScript("OnClick",function() setScale(math.min(1.4,(db.scale or 1)+.1)) end)
   local note=label(f,"GameFontHighlightSmall",{"LEFT",scalePlus,"RIGHT",16,0},"")
   function f:Refresh()
     local p=profile();local on=p.adaptive~=false
-    status:SetText("Уровень "..levelNow().."  |  Адаптация: "..(on and "ВКЛ" or "ВЫКЛ").."  |  Правок: "..(p.overrides and (function() local n=0;for _ in pairs(p.overrides) do n=n+1 end;return n end)() or 0))
+    local count=0
+    if p.overrides then for _ in pairs(p.overrides) do count=count+1 end end
+    status:SetText("Уровень "..levelNow().."  |  Адаптация: "..(on and "ВКЛ" or "ВЫКЛ").."  |  Правок: "..count)
     status:SetTextColor(on and .53 or .99,on and .91 or .58,.68)
     toggle:SetText(on and "ОТКЛЮЧИТЬ АВТО" or "ВКЛЮЧИТЬ АВТО")
     note:SetText(string.format("%.1fx",db.scale or 1))
+    guide:SetText(farmingInstructions())
+    inside:SetHeight(math.max(240,guide:GetStringHeight()+12))
   end
   f:Hide();SETTINGS=f
 end
