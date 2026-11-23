@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: |cffc6a4ffWolfichBars|r - Forever
+## Notes: Clean action bars for Forever, secure spell buttons, optional verified hotkeys.
+## Author: Wolfich / ChatGPT
+## Version: 0.3.0
+## SavedVariablesPerCharacter: WolfichBarsDB
+## AddonCompartmentFunc: WolfichBars_CompartmentClick
+## AddonCompartmentFuncOnEnter: WolfichBars_CompartmentEnter
+## AddonCompartmentFuncOnLeave: WolfichBars_CompartmentLeave
+Data.lua
+Core.lua
