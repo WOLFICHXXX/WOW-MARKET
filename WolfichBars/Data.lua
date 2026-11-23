@@ -34,15 +34,6 @@ ns.aliases = {
 }
 
 -- Variant names on Forever; the spellbook is the source of truth for casting.
-ns.aliases = {
- [980]={"Bane of Agony","Curse of Agony","Бич агонии","Проклятие агонии"},
- [1098]={"Subjugate Demon","Enslave Demon","Подчинение демона"},
- [6229]={"Shadow Ward","Защита от темной магии","Защита от Тьмы"},
- [693]={"Create Soulstone","Создание камня души"},
- [6201]={"Create Healthstone","Создание камня здоровья"},
-}
-
-
 -- WoW Forever Affliction: initial learn levels, not rank-up levels.
 -- Based on Wowhead Forever Warlock leveling (2026-11) and cross-check with
 -- talentsforever.com/warlock/abilities. Talent entries must be learned.
@@ -79,22 +70,24 @@ ns.abilityDB = {
 }
 -- Each position stays stable; replacement occurs automatically as abilities
 -- become available. First candidate is most desirable, subsequent are fallback.
+-- Leveling: quick-access combat spells first, summons and utility on Shift.
+-- Slot 1 becomes a secure /castsequence macro after both DoTs are trained.
 ns.farmPlan = {
-  {172,686},            -- 1 Corruption / Shadow Bolt
-  {980,348},            -- 2 Bane / Immolate
-  {689,686},            -- 3 Drain Life / Shadow Bolt
-  {1316697,686},        -- 4 Wrack (talent) / Shadow Bolt
-  {5782,702},           -- Q Fear / Weakness
-  {1454},               -- E Life Tap
-  {348},                -- R Immolate
-  {1120,686},           -- F Drain Soul / Shadow Bolt
-  {18265,702},          -- Shift+1 Siphon Life (talent) / Weakness
-  {6201,687},           -- Shift+2 Healthstone / Skin
-  {706,687},            -- Shift+3 Demon Armor / Skin
-  {755,688},            -- Shift+4 Funnel / Imp
-  {6229,702},           -- Shift+Q Ward / Weakness
-  {2362,693,687},       -- Shift+E Spellstone / Soulstone / Skin
-  {1949,5740,348},     -- Shift+R Hellfire / Rain / Immolate
-  {697,688},            -- Shift+F Voidwalker / Imp
+  {172,686},            -- 1  DoT macro (Corruption -> Bane), or Corruption
+  {686},                -- 2  Shadow Bolt filler
+  {689,686},            -- 3  Drain Life / Shadow Bolt
+  {980,348},            -- 4  Bane manual refresh / Immolate
+  {5782,702},           -- Q  Fear
+  {1454},               -- E  Life Tap
+  {348},                -- R  Immolate
+  {1120,686},           -- F  Drain Soul
+  {18265,702},          -- S1 Siphon Life / Weakness
+  {6201,687},           -- S2 Create Healthstone / Demon Skin
+  {706,687},            -- S3 Demon Armor / Demon Skin
+  {755,688},            -- S4 Health Funnel / Imp
+  {6229,702},           -- SQ Shadow Ward / Weakness
+  {693,687},            -- SE Soulstone / Demon Skin
+  {5740,348},           -- SR Rain of Fire / Immolate
+  {697,688},            -- SF Voidwalker / Imp
 }
 ns.farmSource = "https://www.wowhead.com/forever/ru/guide/classes/warlock/affliction/dps-leveling-tips"
