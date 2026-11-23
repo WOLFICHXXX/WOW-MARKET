@@ -1,0 +1,21 @@
+{
+  "rows": 4753,
+  "questie_count": 4630,
+  "foreverdb_count": 3862,
+  "foreverdb_only_count": 123,
+  "actor_coordinate_rows": 7291,
+  "actor_coordinate_quest_count": 3711,
+  "foreverdb_actor_quest_count": 3790,
+  "reward_rows": 12612,
+  "quest_link_rows": 11120,
+  "by_faction": {
+    "Альянс": 1565,
+    "Неизвестно": 12,
+    "Обе": 1817,
+    "Орда": 1359
+  },
+  "quests_without_coords": 1042,
+  "fts_enabled": true,
+  "built_utc": "2026-11-23T02:29:49.404967+00:00",
+  "warning": "Not verified against the live client. XP/money difficulty and multiplier do not equal final reward amount. Some coordinates derive from Classic data."
+}
