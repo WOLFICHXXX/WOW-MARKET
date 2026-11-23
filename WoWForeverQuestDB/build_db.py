@@ -20,6 +20,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import zipfile
 
 BASE = "https://raw.githubusercontent.com/tyler3497/forever-quests/main/"
 FILES = {"quests.json": "data/quests.json", "zones.json": "data/zones.json", "foreverdb_quests.json": "foreverdb/data/quests.json"}
@@ -333,6 +334,17 @@ def main():
     z=json.loads((cache/'zones.json').read_text('utf-8-sig'))
     f=json.loads((cache/'foreverdb_quests.json').read_text('utf-8-sig'))
     info=parse(q,z,f,args.out,allow_tiny=args.allow_tiny)
+    dest=Path(args.out)
+    bundle=dest/'WoWForeverQuestDB_full.zip'
+    targets=['wow_forever_quests.sqlite','quests_browser.html','quests.csv','locations.csv','rewards.csv','chains.csv','coverage.json']
+    with zipfile.ZipFile(bundle,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
+        for name in targets:z.write(dest/name,arcname=name)
+        readme=Path(__file__).with_name('README_RU.md')
+        if readme.exists():z.write(readme,arcname='README_RU.md')
+    with zipfile.ZipFile(bundle) as z:
+        if z.testzip() is not None:raise RuntimeError('ZIP integrity failed')
+        if any(x not in z.namelist() for x in targets):raise RuntimeError('ZIP files missing')
+    print(f'ZIP ready: {bundle} ({bundle.stat().st_size} bytes)',flush=True)
     print(json.dumps(info,ensure_ascii=False,indent=2),flush=True)
 
 if __name__=='__main__':main()
