@@ -21,21 +21,23 @@ jobs:
           python-version: '3.12'
       - name: Build SQLite CSV HTML
         run: |
+          python -m unittest discover -s WoWForeverQuestDB/tests -v
           python WoWForeverQuestDB/build_db.py --cache WoWForeverQuestDB/.source-cache --out WoWForeverQuestDB/dist
           python - <<'PY'
-          import sqlite3, json, zipfile
+          import sqlite3, json
           from pathlib import Path
           root=Path('WoWForeverQuestDB/dist')
           stats=json.loads((root/'coverage.json').read_text(encoding='utf-8'))
           assert stats['questie_count'] >= 4600, stats
           assert stats['rows'] >= 4600, stats
           assert stats['actor_coordinate_rows'] > 1000, stats
+          assert stats['ru_quest_titles'] > 3000, stats
+          assert stats['ru_quest_objectives'] > 3000, stats
+          assert stats['forever_observed_coordinate_rows'] > 500, stats
           with sqlite3.connect(root/'wow_forever_quests.sqlite') as c:
               assert c.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
               assert c.execute('SELECT COUNT(*) FROM quests').fetchone()[0] == stats['rows']
-          with zipfile.ZipFile(root/'WoWForeverQuestDB_full.zip') as z:
-              assert z.testzip() is None
-              assert 'wow_forever_quests.sqlite' in z.namelist()
+              assert c.execute("SELECT count(*) FROM quests WHERE title_ru IS NOT NULL").fetchone()[0] == stats['ru_quest_titles']
           print(stats)
           PY
       - name: Commit database artifacts
